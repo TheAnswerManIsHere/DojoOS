@@ -1,0 +1,19 @@
+{
+  "name": "@workspace/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc --noEmit",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@workspace/shared": "workspace:*",
+    "@aws-sdk/client-s3": "^3.900.0",
+    "drizzle-orm": "catalog:",
+    "tsx": "^4.20.6"
+  },
+  "devDependencies": { "@types/node": "catalog:", "typescript": "~5.9.3" }
+}

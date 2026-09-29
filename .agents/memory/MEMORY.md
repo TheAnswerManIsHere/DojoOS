@@ -1,0 +1,1 @@
+- [Separate worker deployment topology](deployment-topology.md) — a second Reserved VM Repl does not automatically share the web Repl's managed database.

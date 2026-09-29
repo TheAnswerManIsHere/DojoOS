@@ -1,0 +1,25 @@
+{
+  "name": "@workspace/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./schema": "./src/schema.ts", "./queue": "./src/queue.ts", "./storage": "./src/storage.ts", "./contracts": "./src/contracts.ts" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "migrate:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "migrate": "drizzle-kit migrate --config drizzle.config.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.900.0",
+    "@aws-sdk/s3-request-presigner": "^3.900.0",
+    "drizzle-orm": "catalog:",
+    "pg": "^8.16.3",
+    "ulid": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/pg": "^8.15.5",
+    "drizzle-kit": "^0.31.7",
+    "typescript": "~5.9.3"
+  }
+}

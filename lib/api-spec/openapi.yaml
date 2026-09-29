@@ -1,36 +1,287 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
 servers:
-  - url: /api
-    description: Base API path
-tags:
-  - name: health
-    description: Health operations
+  - url: /app-api
 paths:
-  /healthz:
+  /session:
     get:
-      operationId: healthCheck
-      tags: [health]
-      summary: Health check
-      description: Returns server health status
+      operationId: getSession
       responses:
         "200":
-          description: Healthy
+          description: Current account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+  /auth/request:
+    post:
+      operationId: requestLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailInput" }
+      responses:
+        "200":
+          description: Request accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ok" }
+  /auth/verify:
+    post:
+      operationId: verifyLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TokenInput" }
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+  /auth/logout:
+    post:
+      operationId: logout
+      responses:
+        "200":
+          description: Signed out
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ok" }
+  /shoots:
+    get:
+      operationId: listShoots
+      responses:
+        "200":
+          description: Shoots with sources
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthStatus"
+                type: array
+                items: { $ref: "#/components/schemas/Shoot" }
+    post:
+      operationId: createShoot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ShootInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Shoot" }
+  /uploads:
+    post:
+      operationId: startUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UploadInput" }
+      responses:
+        "201":
+          description: Multipart upload created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Upload" }
+  /uploads/{id}/parts:
+    post:
+      operationId: signPart
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PartInput" }
+      responses:
+        "200":
+          description: Presigned part
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignedUrl" }
+  /uploads/{id}/complete:
+    post:
+      operationId: completeUpload
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PartsInput" }
+      responses:
+        "200":
+          description: Upload finished
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Source" }
+  /sources/{id}/playback:
+    get:
+      operationId: getPlayback
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Signed playback URL
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignedUrl" }
+  /questions:
+    get:
+      operationId: listQuestions
+      parameters:
+        - { name: feature, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Active questions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Question" }
+  /feedback:
+    get:
+      operationId: listFeedback
+      responses:
+        "200":
+          description: Feedback records
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Feedback" }
+    post:
+      operationId: submitFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FeedbackInput" }
+      responses:
+        "201":
+          description: Answer saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Feedback" }
 components:
   schemas:
-    HealthStatus:
+    Ok:
       type: object
+      required: [ok]
+      properties: { ok: { type: boolean } }
+    Account:
+      type: object
+      required: [id, email, tier]
       properties:
-        status:
-          type: string
-      required:
-        - status
-
+        id: { type: string }
+        email: { type: string }
+        tier: { type: string, enum: [operator, tester] }
+    EmailInput:
+      type: object
+      required: [email]
+      properties: { email: { type: string, format: email } }
+    TokenInput:
+      type: object
+      required: [token]
+      properties: { token: { type: string } }
+    Source:
+      type: object
+      required: [id, role, ingestState]
+      properties:
+        id: { type: string }
+        role: { type: string, enum: [camera_a, camera_b, audio] }
+        ingestState: { type: string }
+        durationMs: { type: ["integer", "null"] }
+        width: { type: ["integer", "null"] }
+        height: { type: ["integer", "null"] }
+        fps: { type: ["number", "null"] }
+    Shoot:
+      type: object
+      required: [id, name, sources]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        shotOn: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        sources:
+          type: array
+          items: { $ref: "#/components/schemas/Source" }
+    ShootInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+        shotOn: { type: string }
+        notes: { type: string }
+    UploadInput:
+      type: object
+      required: [shootId, role, fileName, contentType]
+      properties:
+        shootId: { type: string }
+        role: { type: string, enum: [camera_a, camera_b, audio] }
+        fileName: { type: string }
+        contentType: { type: string }
+    Upload:
+      type: object
+      required: [id, uploadId]
+      properties:
+        id: { type: string }
+        uploadId: { type: string }
+    PartInput:
+      type: object
+      required: [uploadId, partNumber]
+      properties:
+        uploadId: { type: string }
+        partNumber: { type: integer, minimum: 1, maximum: 10000 }
+    PartsInput:
+      type: object
+      required: [uploadId, parts]
+      properties:
+        uploadId: { type: string }
+        parts:
+          type: array
+          items:
+            type: object
+            required: [partNumber, etag]
+            properties:
+              partNumber: { type: integer }
+              etag: { type: string }
+    SignedUrl:
+      type: object
+      required: [url]
+      properties: { url: { type: string } }
+    Question:
+      type: object
+      required: [id, feature, key, prompt, position]
+      properties:
+        id: { type: string }
+        feature: { type: string }
+        key: { type: string }
+        prompt: { type: string }
+        position: { type: integer }
+    FeedbackInput:
+      type: object
+      required: [questionKey, answer, page, state]
+      properties:
+        questionKey: { type: string }
+        answer: { type: string }
+        page: { type: string }
+        state: { type: object, additionalProperties: true }
+    Feedback:
+      type: object
+      required: [id, userId, questionKey, answer, page, buildVersion, state, createdAt]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        questionKey: { type: string }
+        answer: { type: string }
+        page: { type: string }
+        buildVersion: { type: string }
+        state: { type: object, additionalProperties: true }
+        createdAt: { type: string }
