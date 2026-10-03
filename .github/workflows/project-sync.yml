@@ -1,0 +1,51 @@
+name: Project sync
+
+# Mirrors each workstream issue's stage:/waiting:/mode: labels onto David's
+# GitHub Project board (docs/ai-context/workstream-tracking.md). Labels are the
+# source of truth; the board is a view of them. The script is synced from
+# AI-Handbook (scripts/sync-project-fields.mjs) and fails loudly on anything it
+# cannot map. Inputs, set by David in the repository settings:
+#   secret   PROJECTS_TOKEN  classic PAT, `project` scope only
+#   variable PROJECT_OWNER   the board's owner login
+#   variable PROJECT_NUMBER  the board's number
+
+on:
+  issues:
+    types: [labeled, unlabeled]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: read
+
+concurrency:
+  group: project-sync-${{ github.event.issue.number || 'all' }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync board
+    # Only workstream labels move the board. Any other label (bug, gap, …)
+    # changing on any issue would otherwise add that issue as a blank row,
+    # since the script adds before it updates (AI-Handbook #176).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.label.name, 'stage:') ||
+      startsWith(github.event.label.name, 'waiting:') ||
+      startsWith(github.event.label.name, 'mode:')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/sync-project-fields.mjs
+        env:
+          PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PROJECT_OWNER: ${{ vars.PROJECT_OWNER }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          # Empty on a manual run, which reconciles every open issue; until
+          # AI-Handbook #176 lands that adds non-workstream issues too, so run
+          # it only while every open issue is a workstream.
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
