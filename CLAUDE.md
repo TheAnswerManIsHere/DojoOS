@@ -20,6 +20,7 @@ product manager.
 - **Glossary** — [`docs/ai-context/glossary.md`](docs/ai-context/glossary.md)
 - **Settled decisions and why** — [`docs/ai-context/decisions.md`](docs/ai-context/decisions.md)
 - **Workstream** — DojoOS issue #1 (increment 1)
+- **Project board** — [board 2](https://github.com/users/TheAnswerManIsHere/projects/2), owned by `TheAnswerManIsHere`. `.github/workflows/project-sync.yml` mirrors each workstream issue's `stage:`/`waiting:`/`mode:` labels onto it, reading `PROJECT_OWNER` and `PROJECT_NUMBER` from the repository's Actions variables and `PROJECTS_TOKEN` from its secrets
 
 ## Product-specific skills
 
