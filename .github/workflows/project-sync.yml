@@ -18,21 +18,32 @@ permissions:
   contents: read
   issues: read
 
+# One queue for every run on this board, so a manual reconcile and a
+# label-driven run never write the same row from different snapshots.
+# `queue: max` keeps every pending run (the default keeps only one and replaces
+# it, which would drop another issue's update); it is valid here because
+# nothing is ever cancelled.
 concurrency:
-  group: project-sync-${{ github.event.issue.number || 'all' }}
+  group: project-sync
   cancel-in-progress: false
+  queue: max
 
 jobs:
   sync:
     name: Sync board
     # Only workstream labels move the board. Any other label (bug, gap, …)
     # changing on any issue would otherwise add that issue as a blank row,
-    # since the script adds before it updates (AI-Handbook #176).
+    # since the script adds before it updates (AI-Handbook #176). `mode:` is
+    # shared with backlog items and gaps, which carry no `stage:`, so a
+    # `mode:` change counts only on an issue that has one. `stage:` and
+    # `waiting:` changes always count, so removing the last one still clears
+    # its field.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.label.name, 'stage:') ||
       startsWith(github.event.label.name, 'waiting:') ||
-      startsWith(github.event.label.name, 'mode:')
+      (startsWith(github.event.label.name, 'mode:') &&
+       contains(join(github.event.issue.labels.*.name, ','), 'stage:'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
