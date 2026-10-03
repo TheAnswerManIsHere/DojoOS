@@ -8,7 +8,8 @@
     "build": "vite build --config vite.config.ts && tsc -p server/tsconfig.json --noEmit",
     "serve": "NODE_ENV=production tsx server/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p server/tsconfig.json --noEmit",
-    "lint": "eslint server"
+    "lint": "eslint server",
+    "test": "node --import tsx --test server/*.test.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

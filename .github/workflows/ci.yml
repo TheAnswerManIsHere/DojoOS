@@ -26,6 +26,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
       - run: pnpm --filter @workspace/web lint
+      # Package tests need the workspace's dependencies, which only this job installs.
+      - run: pnpm -r --if-present run test
       # check-docs-accuracy.mjs is left out until the handbook exempts synced files
       # from its path rule: every failure today is a vendored doc citing another
       # product's paths (docs/engineering/deferred-work.md).
