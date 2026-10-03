@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm --filter @workspace/web lint
+      - run: node --test scripts/__tests__/*.test.mjs
+      # check-docs-accuracy.mjs is left out until the handbook exempts synced files
+      # from its path rule: every failure today is a vendored doc citing another
+      # product's paths (docs/engineering/deferred-work.md).
+      - run: node scripts/check-uat-format.mjs
