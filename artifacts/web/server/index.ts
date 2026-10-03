@@ -1,5 +1,5 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
+import { createServer } from "node:http";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { connectDb, createQueue, createStorage } from "@workspace/shared";
@@ -8,8 +8,11 @@ import { libraryRoutes } from "./modules/library";
 import { ingestRoutes } from "./modules/ingest";
 import { feedbackRoutes } from "./modules/feedback";
 import { nudgeWorker, workerNudgePort } from "./worker-nudge";
+import { createDevVite, listen } from "./http-server";
 
 if (process.env.NODE_ENV === "production" && !process.env.SMTP_URL) throw new Error("SMTP_URL is required in production");
+const port = Number(process.env.PORT);
+if (!Number.isSafeInteger(port) || port < 1) throw new Error("PORT is required");
 const root = fileURLToPath(new URL("../", import.meta.url));
 const { db } = connectDb();
 const queue = createQueue(db);
@@ -21,6 +24,7 @@ const ctx = { db, queue: { ...queue, enqueue: async (...args: Parameters<typeof 
 } }, storage: createStorage() };
 await seedAccounts(ctx);
 const app = express();
+const httpServer = createServer(app);
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32kb" }));
@@ -44,7 +48,7 @@ app.get("/", gatePage, (_req, res) => res.redirect("/library"));
 app.get("/library", gatePage, (_req, _res, next) => next());
 app.get("/feedback", gatePage, (req, res, next) => req.account?.tier === "operator" ? next() : res.status(403).end());
 if (process.env.NODE_ENV !== "production") {
-  const vite = await createViteServer({ configFile: join(root, "vite.config.ts"), server: { middlewareMode: true, hmr: { port: Number(process.env.PORT) } }, appType: "custom" });
+  const vite = await createDevVite(httpServer, join(root, "vite.config.ts"));
   app.use(vite.middlewares);
   app.get("/{*path}", async (req, res, next) => {
     if (!["/sign-in", "/library", "/feedback"].includes(req.path)) return res.status(404).end();
@@ -64,6 +68,5 @@ app.use((error: Error, _req: express.Request, res: express.Response, _next: expr
   console.error("Request failed", error);
   res.status(500).json({ error: "Internal server error" });
 });
-const port = Number(process.env.PORT);
-if (!Number.isSafeInteger(port) || port < 1) throw new Error("PORT is required");
-app.listen(port, "0.0.0.0", () => console.info(`DojoOS web listening on ${port}`));
+await listen(httpServer, port, "0.0.0.0");
+console.info(`DojoOS web listening on ${port}`);
