@@ -8,8 +8,11 @@ on:
 permissions:
   contents: read
 
+# Two jobs whose names are the required checks in the `main` ruleset
+# ("Build" and "Test"). Renaming either job means editing that ruleset.
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,8 +26,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
       - run: pnpm --filter @workspace/web lint
-      - run: node --test scripts/__tests__/*.test.mjs
       # check-docs-accuracy.mjs is left out until the handbook exempts synced files
       # from its path rule: every failure today is a vendored doc citing another
       # product's paths (docs/engineering/deferred-work.md).
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --test scripts/__tests__/*.test.mjs
       - run: node scripts/check-uat-format.mjs

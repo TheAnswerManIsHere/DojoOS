@@ -1,6 +1,7 @@
 <!-- The PR body is the reviewer's oracle. Fill the block that matches the change; delete the others. -->
 
-Oracle source: <PLAN_<SLUG>.md, sha256 <digest>, approved by David <date> | issue #<N> | bugfix tier A/B/C | prototype phase — <feature>, <questions file>[; PLAN_<SLUG>.md, sha256 <digest>] | no plan>
+Oracle source: <PLAN_<SLUG>.md, sha256 <digest>, approved by David <date> | issue #<N> | bugfix, Tier <A, B or C> | prototype phase — <feature>, <questions file>[; PLAN_<SLUG>.md, sha256 <digest>] | no plan>
+Workstream: #<N>
 
 ## What and why
 
@@ -23,7 +24,7 @@ Oracle source: <PLAN_<SLUG>.md, sha256 <digest>, approved by David <date> | issu
 <!-- Bugfix: the tier oracle. -->
 ## Bugfix oracle
 
-- **Tier:**
+- **Tier rationale:** <the Q1/Q2 triggers checked: which one fired (Tier B), or which were ruled out (Tier A); a bare letter cannot be challenged>
 - **Reported symptom (verbatim):**
 - **Intended behaviour:**
 - **Must not change:**
