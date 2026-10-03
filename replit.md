@@ -1,47 +1,34 @@
-# [Project name]
+# DojoOS — notes for Replit Agent
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+DojoOS is a private, single-tenant video-production pipeline for Bodywork
+Dojo (Jared Cooper, DPT). The engineering contract for this repository is
+`CLAUDE.md` and `AGENTS.md`; the design is `docs/ai-context/architecture.md`;
+the environment is `docs/ai-context/replit-environment.md`. Read those
+before changing anything.
 
-## Run & Operate
+## How work reaches this Repl
 
-- `pnpm --filter @workspace/web run dev` — run the DojoOS web server (via its artifact workflow)
-- `pnpm --filter @workspace/worker run dev` — run the separate background worker in development
-- `node scripts/run-production.mjs` — supervise both package start commands on one Reserved VM
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+Product code is written by Claude Code on a branch, reviewed, merged to
+`main`, and pulled here. Requests from Claude through the connector are
+**operations**: run named commands and report their output, pull `main`,
+apply a migration, take a measurement. Do not build features from those
+requests unless the request says so explicitly, and say what you changed.
 
-## Stack
+## Run & operate
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- `node scripts/run-production.mjs` — the production command: supervises
+  web and worker, exits non-zero if either dies.
+- `pnpm --filter @workspace/web run dev` / `pnpm --filter @workspace/worker run dev`.
+- `pnpm run typecheck`; `pnpm --filter @workspace/web lint`.
+- Schema changes: edit `lib/shared/src/schema.ts`, then
+  `pnpm --filter @workspace/shared run migrate:generate` and
+  `pnpm --filter @workspace/shared run migrate`.
 
-## Where things live
+## Never
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
-
-## Architecture decisions
-
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- **Never run `drizzle-kit push`, and never run the `push` or `push-force`
+  scripts of `lib/db`.** `lib/db` is an unused template package with an
+  empty schema; pushing it at the database would drop DojoOS's tables. It
+  is being removed.
+- No demo data, no public routes, no Replit Object Storage, no idle polling
+  of the database (see `decisions.md`).

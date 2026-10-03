@@ -1,0 +1,517 @@
+---
+name: maintenance
+description: Weekly repo maintenance ritual. Use when David says /maintenance or asks for the weekly maintenance pass. Triages the Dependabot PR queue (merges green minor/patch bumps, flags majors), reviews production errors (Sentry), checks CI health on main, and delivers a "what shipped this week" digest. Ops-shaped, Sonnet-tier work.
+---
+
+<!-- SYNCED FROM AI-Handbook — do not edit in a consumer repo. Local edits are overwritten by the next sync and their reasoning is lost; change the handbook instead. -->
+
+# Weekly maintenance
+
+David invokes this roughly weekly (`/maintenance`). It is **ops work**, and
+it runs in whatever session it was invoked in — **I do not suggest a model
+switch for it.** The *Fable to explore, Opus to build* rule (David,
+2026-08-28, see `CLAUDE.md`'s *Model, cost, and routing*) asks for a switch
+before **product code**, which this pass never writes: its two docs-only
+exceptions and its dependency merges are not building. A `/bugfix` that comes
+*out* of this pass is building, and takes the tier its own classification
+calls for.
+Bounded, stateless pieces of the pass — a research sweep, a self-contained
+lookup — are eligible for a Sonnet subagent; the triage judgements are not.
+
+**The triage judgements are a standing dispatch BAR** under `CLAUDE.md`'s
+*Whether a judgement dispatches is fixed in advance* — they run in my main
+loop, settled, not pending classification.
+
+Two earlier versions of this line were both wrong, and the second is the
+instructive one. It first excluded them from *Sonnet* delegation while saying
+nothing about Fable, leaving them undefined once the always-Fable rule landed.
+The fix then marked them "unclassified" — but that global default treats
+unclassified as **temporary**, a signal to go classify the surface in a PR, so
+every weekly run would have manufactured a standing follow-up obligation for a
+behaviour that is already settled. **A permanent intent must not be expressed
+in a state the contract defines as transitional.** (Codex, #504 rounds 2-3.)
+
+Why barred rather than mandated: these are continuous ops judgements over a
+queue the main loop is already holding — which bump to merge, which error
+matters, which trigger has fired — not a bounded verdict on packageable
+material. Removing this bar is a contract change that ships in a PR.
+
+The deliverable is one concise report at the end covering the seven areas
+below. If an area has nothing to report, one line ("no open dependency
+PRs") — the discipline stays visible, the report stays short.
+
+## 1. Dependabot queue triage
+
+1. List open PRs with the `dependencies` label
+   (`mcp__github__list_pull_requests`, small batches).
+2. For each PR, check CI status via a single `pull_request_read` call
+   (`minimal_output: true` where possible).
+3. **Grouped minor/patch PRs with green CI → squash-merge them**
+   (originally the one merge I performed myself, David 2026-07-22; since
+   2026-08-15 subsumed by the general self-merge rule in CLAUDE.md's
+   close-out contract). If CI is red, diagnose briefly: a flaky run gets
+   one re-trigger; a real incompatibility gets flagged, not merged.
+4. **Major-version bumps are never auto-merged.** For each, one line in
+   the report: package, old → new, why it matters (or doesn't), and my
+   merge/hold recommendation. David decides.
+
+## 2. Production errors (Sentry)
+
+The API read needs **two** things, not one: a `SENTRY_AUTH_TOKEN` in the
+environment **and** network egress to `sentry.io`. The Claude Code
+environment's network policy may block the host even when the token is
+present — a `403` on the proxy CONNECT tunnel is a policy denial, not a
+token problem, and per the environment README it is reported, never
+retried.
+
+- **If both hold** (token present AND `sentry.io` reachable), pull the
+  week's new/regressed issues for the project and summarize: top issues by
+  event count, anything new since last week, anything payment- or
+  auth-path-touching (those get flagged loudest).
+- **Otherwise fall back to the manual path** — whether the token is
+  missing, the host is blocked by network policy, or the call errors. Say
+  exactly which of the three it was, then give David the one-liner ask:
+  open the Sentry dashboard → Issues → sort by "New" for the last 7 days,
+  and paste anything that looks alarming into the chat for triage. Never
+  silently skip the section, and never retry a 403 policy denial.
+
+**The org slug is THIS repository's, and it is not written here.** This file
+is fleet payload: every product that receives it has its own Sentry
+organization, so a slug hardcoded in the recipe would point one product's
+maintenance pass at another product's incidents. Take the slug from this
+repo's own overlay or its Sentry connector, and if it is not recorded in
+either, ask rather than guess — a wrong slug returns a plausible-looking
+list of somebody else's errors.
+
+**Verified working recipe (2026-07-23).** The token is scoped **Issue &
+Event: Read only** (least privilege), which is enough for the one endpoint
+this section needs:
+
+```
+GET https://sentry.io/api/0/organizations/<this-repo's-org-slug>/issues/?statsPeriod=7d&query=is:unresolved
+    Authorization: Bearer $SENTRY_AUTH_TOKEN
+```
+
+(The recipe was verified against Overhype.me's organization; that is the
+example it was proved on, not the value to use.)
+
+Each returned issue carries `title`, `culprit`, `count`, `permalink`, and
+a `shortId` whose prefix identifies the project. **A `403` from the
+list-projects (`/organizations/{org}/projects/`) or org-detail
+(`/organizations/{org}/`) endpoints is EXPECTED and not a failure** — those
+need `org:read`, which the token intentionally lacks. Do not read that 403
+as "no access" and fall back; only a failure on the issues endpoint above
+triggers the manual path.
+
+## 3. CI health on main
+
+- Pull recent workflow runs on `main` (`mcp__github__actions_list`).
+- Report: pass rate over the window, any failing or flaky jobs (same job
+  failing then passing on re-run = flaky — name it), and unusually slow
+  runs. A flaky test that shows up twice across maintenance runs should
+  graduate to a fix task, not stay a report line.
+
+## 4. Deferred-work backlog triage
+
+Read [`docs/engineering/deferred-work.md`](../../../docs/engineering/deferred-work.md)
+and re-check **each entry's revisit trigger**:
+
+- **Any trigger that has fired** (a dated cutoff reached, a dependency shipped
+  its fix, a recurrence count hit, a security advisory landed) → surface it to
+  David as a numbered decision item in the report. Don't act on the underlying
+  bump/change here — see Boundaries.
+- **Newly parked items** discovered this pass (a major bump held in step 1, a
+  deprecation spotted in a lockfile or CI log) → add them to the doc with the
+  four-field entry template, and commit that doc change directly (docs-only,
+  shipped via the single maintenance docs PR) — the one Boundaries
+  exception, see below.
+- If nothing fired and nothing's new, one line: "deferred-work backlog: N
+  items, no triggers fired."
+
+## 5. "What shipped" digest
+
+- List PRs merged since the last maintenance run (default window: 7 days).
+- Write it **PM-facing**: what changed in product terms, one line per PR,
+  grouped as features / fixes / dependencies / infra. Not a commit log.
+
+## 6. Documentation harvest + process health
+
+**Step 6a — the batched Type 2 documentation harvest (David, 2026-08-20).**
+This pass is where subsystem docs and Manual chapters get written. **The
+window boundary is mechanical, not recalled** (Codex, #543 round 2): the
+previous pass's own docs PR is the durable marker — list closed PRs whose
+title starts with `docs(maintenance):` and take the latest one's merge time
+as the window start. **Every completed pass produces that marker, including
+a no-change pass** (Codex, #543 round 3): the pass always updates the
+`Last maintenance pass:` line in `deferred-work.md`, so even a week with
+nothing to harvest and nothing deferred still ships a one-line
+`docs(maintenance):` PR — that line IS the boundary the next pass reads.
+If no marker exists at all (first pass under this contract), fall back to
+the last 7 days and say so in the report rather than presenting the
+fallback as the real boundary. Run `/document` once, covering every product
+feature in production phase merged in that window — a prototype-phase
+feature's close-out harvests nothing, and it is harvested once the hardening PR that follows
+its flip has closed out, never at the registry flip itself
+([`working-modes.md`](../../../docs/ai-context/working-modes.md#the-prototype-phase-per-feature-david-2026-09-26)) — its sources are the **harvest-notes comments on each
+feature's workstream issue** (posted at close-out) plus the merged diffs.
+Process PRs get no harvest. Type 1 learnings — anything that changes how we
+work — were already persisted the moment they were learned and are not
+re-harvested here.
+
+**Step 6b — process health, pulled from the GitHub record.** There is no
+ledger any more, so these are counted fresh each pass rather than read from
+stored records. From the merged-PR list for the window:
+
+- **Meta vs. product share.** How many merged PRs were product-facing versus
+  process/guard/docs-about-process. This is the number that started the
+  2026-08-20 review: it was running about 70% meta over three weeks.
+- **Rounds per loop.** From the PRs' own review history — how many code loops
+  ran, and how long each took. A prototype-phase PR and the phase's registry
+  PRs ran no loop by design (step 6a's rule), so they leave the denominator
+  rather than entering it as zero-round loops. Include closed `[PLAN REVIEW]` PRs in a window
+  that reaches back before 2026-09-09; after that date there are none.
+  **Planning loops are no longer countable from GitHub** (Codex, #69 round 1):
+  they run in-session, their exchange files are gitignored, and since
+  2026-09-18 they reach David in chat, which is not a record either. So the
+  number comes from the **approval ask's trail, restated in the workstream
+  issue's harvest comment** — `plan-review-loop` requires exchanges-run there
+  for exactly this reason — or, for a prototype's version, which posts no
+  harvest comment, in its issue's State of Play block at approval.
+  **Say so when a plan loop has no harvest comment**, rather than reporting a
+  rounds-per-loop figure that silently omits it: understating review cost is
+  the bias the old dual inventory existed to prevent, and it comes back the
+  moment a source is quietly dropped.
+- **Counted from GitHub at pass time, never from a ledger** (#89 cut,
+  2026-09-16). Merged PRs by `mode:` label for the meta-vs-product share, and
+  review-trigger comments per PR for rounds per loop. Nothing stores these any
+  more — the receipts, verdict files and position caches they used to be read
+  from are gone — and nothing should: a stored count is a cache of something
+  GitHub already holds, and it drifts.
+
+  **Two figures are dropped rather than re-sourced**, because the mechanisms
+  they measured no longer exist: adjudicator verdicts issued, and guard
+  incidents that needed David. Do not substitute a proxy for either; say the
+  mechanism is gone if anyone asks for the trend.
+
+- **The round translation, two numbers and no more** (David, 2026-09-12). How many round
+  translations ran, and how many flagged a disagreement with the builder's
+  account. **Read them from the close-out harvest comments**, the same source
+  plan-loop rounds come from: its receipts are gitignored evidence that dies
+  with its session, deliberately — making a gut-level count exact is the
+  accounting-precision class the worth rule
+  ([`review-judgment.md`](../../../docs/ai-context/review-judgment.md))
+  declines. **Say so when a
+  merged loop's harvest comment carries no translation line**, rather than reporting a
+  figure that silently omits it.
+
+  The shape to watch is the same one B1 has: a run of loops where the translation never
+  disagrees means it is agreeing with every account, which is what the
+  zero-for-fifteen retirement rule catches. The opposite shape counts too — a
+  translation disagreeing on every round is not obviously working either, and
+  either extreme is worth a sentence to David rather than a number.
+- **Recorded dissents** (David, 2026-09-03). Override entries in the repo's
+  `decisions.md` dated inside the window — the entries the advice rule writes
+  when David decides against a recommendation (the Claude core, *Advice is
+  independent*). Count them by date heading; the window is the same one as the
+  merged-PR list. It measures **override frequency**, nothing more: a zero is
+  consistent with David accepting every recommendation, so it is never a
+  diagnosis on its own. Report the count and, when it is zero across a window
+  of building sessions, put one question to David in the step 6c conversation
+  — were recommendations being made and did any get overridden without a
+  record — rather than concluding anything from the absence.
+
+**Step 6c — the "how are we doing" conversation.** Narrate the numbers in a few
+plain sentences — not tables — and open the question David actually wants
+answered: *are we doing better, and is there anything to improve?* Bring
+anything the week's loops suggest about the process itself: a loop that keeps
+running long, a decline pattern, a ceremony that looks mismatched to its
+artifact. **He is the verdict mechanism** — there is no trial window and no
+automatic consequence; these numbers exist so his call is informed rather than
+vibes-only. If he judges the apparatus is still costing more than it returns,
+the standing recommendation on file is the delete list from the #541 review.
+
+Below three qualifying loops, say "not yet informative" rather than dressing two
+data points as a trend.
+
+## 7. Replit commit review
+
+Retrospective read of what Replit pushed straight to `main` this week — the
+only enforcement point on that path, since nothing gates the push itself.
+Full rationale in
+[`replit-environment.md`](../../../docs/ai-context/replit-environment.md).
+
+**This pass is the backstop, not the only sweep** (David, 2026-08-28). Any
+session that touches `main` sweeps `Replit Agent` commits opportunistically,
+so most weeks the commits here have already been read. **Sweep them again
+anyway** — there is deliberately no ledger of what was already covered, on
+the same reasoning that retired the review-round tally (a cache of state the
+git log already holds, which drifts). Re-reading a display-only diff costs
+seconds; assuming someone else read it is how one gets missed.
+
+1. `git log --author="Replit Agent" --since="7 days ago" --oneline main`
+   (adjust the window to the last maintenance run, same as section 5). Filter
+   on the display name, **not** a specific email address — the repo's history
+   has commits from at least two Replit bot identities that share the name
+   ("Replit Agent <agent@replit.com>" and
+   "Replit Agent <replit-agent@bots.noreply.replit.com>"); an exact-email
+   filter would silently skip whichever one isn't currently active, and this
+   step is the only retrospective check on direct-to-`main` changes —
+   including migrations, auth, and payments — so a missed identity defeats
+   the whole point.
+2. **Skim** a change that is genuinely display-only — copy, layout, or a
+   value already present in the data. No deep read needed.
+3. **Actually read** anything that changes behavior, **whatever file it lives
+   in**: data, logic, migrations, schema, auth, payments, or the
+   visual/enrichment pipelines — full diff, not just the commit message (a
+   Replit commit message is a checkpoint label, not a description to trust at
+   face value; see `replit-environment.md`'s note on checkpoints vs. intent).
+   **A UI file is not evidence of a display-only change.** The Visual
+   Overrides regression (#582) was behavior inside the UI layer, so the older
+   "skim anything UI/copy/test-only" rule would have skimmed exactly the tweak
+   this step exists to catch. The boundary is display vs. behavior, never file
+   location — the same one the fast lane itself uses.
+4. Anything real found goes through the normal channel: a `/bugfix` PR, or a
+   flagged item for David in the numbered-question list — or, on a feature
+   the registry lists in prototype phase, a note for its next version
+   (Boundaries, below). **Never revert or
+   modify Replit's work unilaterally** — this is a retrospective read, not a
+   gate, and it doesn't block or delay anything.
+5. One line in the report either way: "N Replit commits this week, nothing
+   found" or naming what was found and what happens next.
+6. **Check [`docs/handoff/`](../../../docs/handoff/README.md) for stale
+   files, excluding `README.md`** — that file is the folder's own durable
+   contract, not a handoff, and is expected to sit there indefinitely; only
+   dated handoff files (`<date>-<from>-to-<to>-<topic>.md`) count. Anything
+   older than ~7 days (`git log -1 --format=%cd <file>` per file, or
+   `git log --diff-filter=A` for when it was added) is a handoff nobody
+   addressed and deleted per its contract. Flag each one by name in the
+   report as a numbered decision item rather than deleting it yourself — a
+   stale handoff usually means the finding inside it needs David's eyes, not
+   just cleanup.
+
+If nothing landed from Replit this week, say so in one line and move on —
+same discipline as the other sections.
+
+## 8. Branch hygiene sweep
+
+Added 2026-08-12, after a one-off audit found ~24 stale branches had
+accumulated while GitHub's "Automatically delete head branches" setting was
+off (David has since turned it on). With that setting enabled, a merged
+PR's branch cleans up on its own — this section exists for the two shapes
+it doesn't cover: **closed-but-unmerged** PR branches, and branches with
+**no PR at all**.
+
+1. `mcp__github__list_branches`, paginated. Skip `main`, any branch
+   matching `plan-review/<slug>-combined`, and any `prototype/<feature>`
+   branch the consumer's *Feature phases* registry names outright — the
+   last is a feature in prototype phase under the branch regime, which by
+   design carries unique commits, opens no PR and lives for as long as the
+   phase does ([`working-modes.md`](../../../docs/ai-context/working-modes.md#the-prototype-phase-per-feature-david-2026-09-26)); one the
+   registry does not name is reported as *needs a look* like any other. Plan review has opened no
+   branch and no PR at all since 2026-09-09, so no new branch of that shape is
+   produced; any survivor predates that change and is the one branch whose
+   commit only the branch itself retains. Never a deletion candidate, full
+   stop, regardless of age.
+2. For everything else, check PR state
+   (`mcp__github__list_pull_requests` with `head:owner:branch`,
+   `state: all`) rather than trusting the branch-list page's own PR-status
+   icon — a branch can carry more than one PR over its life (verified
+   2026-08-12: `claude/test-run-checklist-structure-lsxraz` alone had
+   three), and the UI surfaces only one.
+   - **Merged** → shouldn't exist if auto-delete is working. Report it as
+     a signal the setting may have lapsed, not just a routine delete
+     candidate.
+   - **Closed, unmerged** → safe-to-delete candidate. Note the reason if
+     the PR body states one (superseded by #N, diagnostic-only, an
+     explicit "DO NOT MERGE" plan-review PR) — usually a one-line lookup
+     that saves David re-deriving it.
+   - **Open** → never a candidate; skip silently, no need to report active
+     work every week.
+   - **No PR found at all** → do **not** default to "safe." Report
+     separately as *needs a look*, not *safe to delete* — a branch with
+     real, unique commits and no PR is exactly the shape that turned out
+     to hold unaccounted-for work in the 2026-08-12 audit
+     (`claude/pr-250-merge-conflicts-8m5oqs` never had one, and its 4
+     commits weren't captured anywhere else).
+3. Report as a short list: branch name, its PR if any, recommended
+   disposition. **I never delete a branch myself** — no tool in this
+   environment reaches branch deletion (`git push --delete` hangs on this
+   repo's proxy, and there is no GitHub MCP delete-branch call), so the
+   list is always for David to act on via GitHub's own branch-list trash
+   icon.
+4. If nothing's found beyond `main`, exempt branches, and active work, one
+   line: "branch hygiene: clean, N branches total, all active or exempt."
+
+## 9. Backlog and dependency hygiene
+
+This is the half that makes `/next` trustworthy. `/next` computes its
+recommendation from backlog issues, `queue:` priorities, `Blocked by:`
+markers, and Phases checklists (see
+[`workstream-tracking.md`](../../../docs/ai-context/workstream-tracking.md)) —
+all of which decay silently. Nothing else re-checks them, and a stale queue
+produces a confidently wrong recommendation, which is worse than no
+recommendation. David's standing instruction is that he can react well but
+can't track state, so this step brings him a **concrete proposed diff** to
+approve or amend, never an open-ended "is the backlog still right?"
+
+1. **List every open issue, then sort it into three sets** — those
+   carrying a `queue:` label, those carrying a `stage:` label, and **the
+   rest: issues carrying neither** (`mcp__github__list_issues`, paginated to
+   exhaustion, no label filter — a filtered fetch cannot return the
+   unlabelled set). Steps 4–5 below sweep `Blocked by:` chains
+   and Phases checklists, and both live on `stage:` workstream issues, not
+   `queue:` backlog ones — fetching only the backlog set leaves this pass
+   unable to see the data it's meant to validate. For the backlog set,
+   check the cheap staleness signals: has it been superseded by something
+   merged since it was filed? Has its rationale been overtaken? Is it a
+   duplicate of another backlog item?
+2. **Triage the third set, plus every open `gap`-labelled issue whatever
+   `queue:` it carries — now, next or never** (David, 2026-09-16, #98). The
+   third set is the follow-ups a review round or a session filed and nobody
+   ranked; `/next` and `/status-all` treat an issue with neither prefix as
+   *not part of this system*, so until it is labelled it is invisible to
+   every tool that decides what gets worked on. Measured on 2026-09-25: ten
+   issues filed over the preceding eight days carried no labels at all. The
+   `gap` issues are in the set **by label, not by lack of one**: a gap
+   that has been triaged carries a `queue:` label, so a set defined as
+   "unlabelled" would miss it, and the revisit David asked for would never
+   be asked of it by name. **A gap with no `queue:` label has never been
+   triaged**: `pr-watch` files every gap without one so that `/next`
+   cannot recommend it before David has decided (David, 2026-09-28), and
+   this step is where it gets one. For each, read the body and check the checkout
+   for whether it is already addressed, then propose one of: **now**
+   (`queue:now`), **next** (`queue:next`), **later** (`queue:later`), or
+   **never** (close as *not planned*, with the reason and what would reopen
+   it); a `mode:` label rides along, and a gap already done is closed as
+   *completed* naming the PR. The proposed diff carries a line for every
+   untriaged gap, and otherwise only where the call would change — a
+   triaged gap that stays `queue:later` costs a read, not a line — and a
+   gap whose body argues for a bump is where that argument
+   is finally weighed. A recorded gap is a thing to *revisit*, never a
+   promise of future work — the triage is where that decision gets made,
+   and this step is the only place it recurs. The evidence-gathering (read,
+   grep, quote) is subagent-eligible; the now/next/never call is not, and
+   it reaches David through step 6's proposed diff like every other line
+   here. The disclosure exception holds: a gap on a disclosure-gated
+   workstream lives on the private path, and the public record says only
+   that a gap exists and where its details are.
+3. **Re-check `queue:` priorities against the roadmap.** Anything labeled
+   `queue:now` that hasn't been started in weeks is either mislabeled or
+   genuinely blocked — say which. Anything in
+   the repo's roadmap's
+   near-term slices with no backlog issue is a **gap**: propose opening
+   one, since an item only in prose is invisible to `/next`.
+4. **Sweep `Blocked by:` markers** — for each, is the named blocker still
+   open? A marker pointing at a closed issue is stale and should be
+   removed. Flag two shapes specifically, because both are the
+   UAT-descent stack going wrong rather than working:
+   - **A chain deeper than 2**, or **any blocker open longer than two
+     weeks** — surface it with the park-or-continue question. Pre-launch
+     the default is continue, but the call should be *prompted*, not
+     silently defaulted (`workstream-tracking.md`'s escape hatch).
+   - **A cycle** (A blocked by B, B transitively blocked by A) — a real
+     data error that would make every item in it permanently
+     non-actionable. Report it; don't guess which edge to cut.
+5. **Sweep Phases checklists** — for each parent issue carrying one, does
+   it match reality? A phase whose PR merged but whose checkbox is
+   unticked makes `/next` recommend work that's already done.
+6. **Deliver as a numbered proposed diff**, e.g. "close #431 (superseded by
+   #440); drop #418 `queue:now` → `queue:later`; open a backlog issue for
+   *Record the Stripe mode on every entitlement source*; remove the stale
+   `Blocked by: #405` from #422." David approves, amends, or declines each
+   line — **then I apply the approved ones in that same session.** Same
+   posture as `/status`: proposed, confirmed, then written, never
+   unattended.
+7. If nothing's drifted, one line: "backlog hygiene: N queued items, M
+   blocked, 0 unlabelled, G gaps revisited, no drift."
+
+## 10. Contract diet — one rule out, every pass (David, 2026-08-17)
+
+A standing item, not a conditional one. **Each maintenance pass, exactly one
+judgment-shaped rule in `CLAUDE.md` is either converted into a mechanical
+check or deleted.**
+
+The rationale is the evidence that once produced the round-budget guard: on PR
+#488 the judgment-shaped stopping devices went 0-for-15 while pre-registered,
+mechanically-collided conditions went 2-for-2. **The guard itself is gone, and
+that is the other half of this rule** — a check has to keep earning its place
+too, and the #89 audit deleted twelve thousand lines of checks that never once
+changed a decision. Converting and deleting are the same judgement pointed in
+two directions. A contract that only grows adds
+rules of the losing kind, and each one dilutes attention on the rules that
+work. Length is itself a failure mode — a rule nobody can hold in mind at the
+moment it applies is not a rule, it is a record of an intention.
+
+How to run it:
+
+1. **Pick one rule** that asks me to *notice*, *remember*, *judge*, or *stay
+   vigilant* — as opposed to one that fires on an event or is enforced by a
+   guard, a hook, or CI. Prefer rules that have been broken, restated, or
+   tightened more than once: the tightening count is the strongest available
+   signal that judgment isn't carrying it.
+2. **Decide which of the two happens.** *Convert* when there is a real action
+   path to hang a check on (a CI step, a server-side ruleset, a schema field
+   the answer must fill) — a ruleset is the strongest form, because it cannot
+   fail open. *Delete* when there isn't one, or
+   when the rule turns out to be advice rather than a contract. **Deleting is
+   a legitimate outcome, not a failure to find a check** — an unenforceable
+   rule that stays in the file is worse than no rule, because it reads as
+   coverage.
+3. **Propose, don't apply.** This is a `CLAUDE.md` edit, so it goes in the
+   numbered decision list for David and lands through the normal PR path.
+   Permission and ruleset changes take the same path; their PR body names the
+   latitude they grant (David, 2026-09-14).
+4. **Say which rule you picked and why, every pass** — including a pass where
+   the honest answer is "the best candidate this week is weak." One line. A
+   silent skip is how a standing item becomes a dead one.
+
+## Report delivery
+
+Single message, ten short sections, worst news first. When something needs
+David's decision (major bump, alarming Sentry issue, recurring flake), it
+goes in a numbered question list at the end per the numbered-questions rule.
+If the report is substantial, also publish it as an Artifact page — the chat
+message remains the canonical copy. (CLAUDE.md's combined Artifact-delivery
+paragraph this used to cite was retired; only its UAT-specific rule survives,
+as `claude-core.md` Pull requests rule 5 — a UAT doc for product-visible
+feature PRs in production phase — and it doesn't cover maintenance reports.
+This is now a standalone maintenance-skill rule.)
+
+## Boundaries
+
+- **No feature work, no refactors, no drive-by fixes** — anything
+  discovered here that needs real code change becomes a flagged item for
+  David, or a `/bugfix` fix (its own branch and PR per bug — bugfix mode no
+  longer batches, see
+  [`working-modes.md`](../../../docs/ai-context/working-modes.md#one-bug-one-branch-one-pr-david-2026-07-26))
+  if he says so — or, on a feature the registry lists in prototype phase,
+  a note for its next version, since nothing there is a bugfix yet
+  ([`working-modes.md`](../../../docs/ai-context/working-modes.md#the-prototype-phase-per-feature-david-2026-09-26)).
+  Maintenance touches nothing but
+  dependency merges, **with two narrow exceptions**: committing updates to
+  [`docs/engineering/deferred-work.md`](../../../docs/engineering/deferred-work.md)
+  (step 4) — recording a newly-parked item or updating an entry's status —
+  and the batched documentation harvest (step 6a). Both are
+  docs-only and zero behavior/dependency change, and both ship together in
+  **one maintenance docs PR per pass** (internal by consequence and recoverability — a docs
+  pass touching no approvals, publication, credentials or destructive machinery — so the
+  two-review limit in
+  [`working-modes.md`](../../../docs/ai-context/working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)
+  bounds it: the automatic pass, one batch of corrections
+  if any are warranted, a review of that head, then stop) — one PR for the whole pass, never one per
+  harvested feature, per `documentation-workflow.md`'s batched delivery path. Neither is license to fix, refactor, or bump
+  anything the backlog pass turns up — a fired trigger for a *major* bump
+  (dependency or Action) still only ever becomes a reported decision item,
+  never a direct action, per step 4 above. **Step 9's backlog hygiene is
+  not a third exception** — it writes only issue labels, bodies, and
+  closures, never code, and only the specific lines David approved from
+  its numbered diff. An unapproved line is not applied, and "I was already
+  in there" is not approval.
+- **No scheduled self-wakeups — same conclusion, different reason as of
+  2026-08-15.** This used to rest on the blanket no-background-check-ins
+  rule. That rule is gone, replaced by the bounded contract in `CLAUDE.md`'s
+  *Scheduled self-check-ins* — and that contract doesn't authorize this
+  either: a weekly ritual is a recurring heartbeat, not a wait on a named
+  external state, and heartbeats are the one thing it still rules out. So
+  David still invokes this manually. If he later opts into a scheduled weekly
+  routine, that decision changes this section — not before.
