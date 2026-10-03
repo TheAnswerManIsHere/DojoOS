@@ -1,6 +1,6 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { eq, and } from "drizzle-orm";
-import { connectDb, createQueue, createStorage, sources } from "@workspace/shared";
+import { eq, and, isNull, or } from "drizzle-orm";
+import { connectDb, createQueue, createStorage, sources, jobs, jobLeaseMs } from "@workspace/shared";
 import type { SourceProbePayload, SourceProbeResult } from "@workspace/shared";
 import { createWriteStream } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -9,22 +9,22 @@ import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
+import { DrainRunner } from "./runner";
 
 const concurrency = Number(process.env.WORKER_CONCURRENCY ?? "2");
 if (!Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 16) throw new Error("WORKER_CONCURRENCY must be an integer from 1 to 16");
+const port = Number(process.env.WORKER_NUDGE_PORT ?? "4711");
+if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw new Error("WORKER_NUDGE_PORT must be a valid port");
+const safetyMs = Number(process.env.WORKER_SAFETY_POLL_MS ?? "21600000");
+if (!Number.isSafeInteger(safetyMs) || safetyMs < 21600000 || safetyMs > 2147483647) throw new Error("WORKER_SAFETY_POLL_MS must be at least six hours and timer-safe");
 const { db, pool } = connectDb();
 const storage = createStorage();
 const queue = createQueue(db);
-const workerId = randomUUID();
-let running = true;
-process.on("SIGTERM", () => { running = false; });
-process.on("SIGINT", () => { running = false; });
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function probe(file: string): Promise<SourceProbeResult> {
+async function probe(file: string, signal: AbortSignal): Promise<SourceProbeResult> {
   const output = await new Promise<string>((resolve, reject) => {
-    const child = spawn("ffprobe", ["-v", "error", "-show_streams", "-show_format", "-of", "json", file]);
+    const child = spawn("ffprobe", ["-v", "error", "-show_streams", "-show_format", "-of", "json", file], { signal });
     let stdout = "", stderr = "";
     child.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString(); if (stdout.length > 4_000_000) child.kill(); });
     child.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
@@ -41,48 +41,58 @@ async function probe(file: string): Promise<SourceProbeResult> {
     probe: data,
   };
 }
-async function execute(sourceId: string) {
-  const [source] = await db.select().from(sources).where(and(eq(sources.id, sourceId), eq(sources.ingestState, "uploaded")));
+async function execute(sourceId: string, signal: AbortSignal) {
+  const [source] = await db.select().from(sources).where(and(eq(sources.id, sourceId), or(eq(sources.ingestState, "uploaded"), eq(sources.ingestState, "probing"))));
   if (!source || source.deletedAt) throw new Error("Source is missing or not uploaded");
   await db.update(sources).set({ ingestState: "probing" }).where(eq(sources.id, sourceId));
   const dir = await mkdtemp(join(tmpdir(), "dojo-probe-"));
   try {
-    const object = await storage.client.send(new GetObjectCommand({ Bucket: storage.bucket, Key: source.originalKey }));
+    const object = await storage.client.send(new GetObjectCommand({ Bucket: storage.bucket, Key: source.originalKey }), { abortSignal: signal });
     if (!object.Body) throw new Error("Stored source was empty");
     const file = join(dir, "source");
-    await pipeline(Readable.fromWeb(object.Body.transformToWebStream() as import("node:stream/web").ReadableStream), createWriteStream(file));
-    const result = await probe(file);
+    await pipeline(Readable.fromWeb(object.Body.transformToWebStream() as import("node:stream/web").ReadableStream), createWriteStream(file), { signal });
+    const result = await probe(file, signal);
+    signal.throwIfAborted();
     await db.update(sources).set({ ...result, ingestState: "ready" }).where(eq(sources.id, sourceId));
     return result;
+  } catch (error) {
+    await db.update(sources).set({ ingestState: signal.aborted ? "uploaded" : "failed" }).where(eq(sources.id, sourceId));
+    throw error;
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
 }
-async function loop() {
-  while (running) {
-    try {
-      const job = await queue.claim(workerId);
-      if (!job) { await sleep(2000); continue; }
-      try {
-        if (job.kind !== "source.probe") throw new Error(`Unknown job kind: ${job.kind}`);
-        const sourceId = (job.payload as SourceProbePayload).sourceId;
-        if (typeof sourceId !== "string") throw new Error("Invalid source.probe payload");
-        const result = await execute(sourceId);
-        if (!await queue.complete(job.id, workerId, result)) throw new Error("Lost job claim");
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error("Job failed", job.id, message);
-        if (job.kind === "source.probe" && typeof job.payload.sourceId === "string") {
-          await db.update(sources).set({ ingestState: "failed" }).where(eq(sources.id, job.payload.sourceId));
-        }
-        await queue.fail(job.id, workerId, message);
-      }
-    } catch (error) {
-      console.error("Worker poll failed", error);
-      await sleep(5000);
-    }
-  }
+const runner = new DrainRunner(queue, concurrency, jobLeaseMs(), async (job, signal) => {
+  if (job.kind !== "source.probe") throw new Error(`Unknown job kind: ${job.kind}`);
+  const sourceId = (job.payload as SourceProbePayload).sourceId;
+  if (typeof sourceId !== "string") throw new Error("Invalid source.probe payload");
+  return execute(sourceId, signal);
+});
+const server = createServer((req, res) => {
+  if (req.method !== "POST" || req.url !== "/nudge") { res.writeHead(404).end(); return; }
+  req.resume();
+  runner.drain();
+  res.writeHead(202).end();
+});
+await new Promise<void>((resolve, reject) => {
+  server.once("error", reject);
+  server.listen(port, "127.0.0.1", resolve);
+});
+console.info(`Worker localhost nudge listener 127.0.0.1:${port}; concurrency ${concurrency}`);
+console.info("Worker startup drain; inspecting existing claimed leases");
+const claimed = await db.select({ id: jobs.id, claimedAt: jobs.claimedAt }).from(jobs)
+  .where(and(eq(jobs.state, "claimed"), isNull(jobs.deletedAt)));
+for (const row of claimed) if (row.claimedAt) runner.watchLease(row.id, row.claimedAt);
+runner.drain();
+const safety = setInterval(() => { console.info("Worker six-hour safety drain"); runner.drain(); }, safetyMs);
+let stopping = false;
+async function stop() {
+  if (stopping) return;
+  stopping = true;
+  clearInterval(safety);
+  server.close();
+  await runner.stop();
+  await pool.end();
 }
-console.info(`Worker ${workerId} started with concurrency ${concurrency}`);
-await Promise.all(Array.from({ length: concurrency }, loop));
-await pool.end();
+process.on("SIGTERM", () => { void stop(); });
+process.on("SIGINT", () => { void stop(); });

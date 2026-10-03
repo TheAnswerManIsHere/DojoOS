@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "y3hKfvD7VhzNBl3uuYp6Q"
+uri = "file://REPORT.md"
+type = "text"
+title = "DojoOS step 0 report"
+description = "Eight-section implementation and verification report, including the secret-writing and live-startup blockers."
+logical_id = "426335f6-311a-4de4-8b70-11d3a34c3d43"
+content_hash = "sha256:6f111c0c575b05ee1fea85d9276487e3f8afd06f463b43529dd670e8e4e5e80c"
+size = 9829
+mtime_ms = 1791047022756
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:139f7df4-9dd7-4b41-9fde-144f007b92f2/426335f6-311a-4de4-8b70-11d3a34c3d43/5d454650-d8b2-44ff-92f9-f0235013fca5"
+storage_version_token = "1791047030123449"
+content_type = "text/markdown"

@@ -7,10 +7,18 @@ import { authRoutes, requireSession, seedAccounts, sessionRoutes } from "./modul
 import { libraryRoutes } from "./modules/library";
 import { ingestRoutes } from "./modules/ingest";
 import { feedbackRoutes } from "./modules/feedback";
+import { nudgeWorker, workerNudgePort } from "./worker-nudge";
 
+if (process.env.NODE_ENV === "production" && !process.env.SMTP_URL) throw new Error("SMTP_URL is required in production");
 const root = fileURLToPath(new URL("../", import.meta.url));
 const { db } = connectDb();
-const ctx = { db, queue: createQueue(db), storage: createStorage() };
+const queue = createQueue(db);
+const nudgePort = workerNudgePort();
+const ctx = { db, queue: { ...queue, enqueue: async (...args: Parameters<typeof queue.enqueue>) => {
+  const id = await queue.enqueue(...args);
+  void nudgeWorker(nudgePort);
+  return id;
+} }, storage: createStorage() };
 await seedAccounts(ctx);
 const app = express();
 app.disable("x-powered-by");

@@ -19,7 +19,8 @@ export const RequestLinkBody = zod.object({
 })
 
 export const RequestLinkResponse = zod.object({
-  "ok": zod.boolean()
+  "ok": zod.boolean(),
+  "magicLink": zod.string().optional().describe('Development-only sign-in link; never returned in production.')
 })
 
 

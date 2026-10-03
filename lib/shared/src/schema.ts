@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { boolean, date, integer, jsonb, pgEnum, pgTable, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, date, integer, jsonb, pgEnum, pgTable, real, text, timestamp, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { ulid } from "ulid";
 
 const uid = () => ulid();
@@ -11,7 +11,8 @@ const audit = {
 const id = () => text("id").primaryKey().$defaultFn(uid);
 
 export const tierEnum = pgEnum("user_tier", ["operator", "tester"]);
-export const roleEnum = pgEnum("source_role", ["camera_a", "camera_b", "audio"]);
+export const roleEnum = pgEnum("source_role", ["camera_a", "camera_b", "audio", "render", "deck"]);
+export const cutModeEnum = pgEnum("cut_mode", ["camera", "deck"]);
 export const ingestEnum = pgEnum("ingest_state", ["uploading", "uploaded", "probing", "proxying", "transcribing", "ready", "failed"]);
 export const cutKindEnum = pgEnum("cut_kind", ["lesson", "short"]);
 export const cutStateEnum = pgEnum("cut_state", ["draft", "approved"]);
@@ -22,6 +23,7 @@ export const shoots = pgTable("shoots", { id: id(), name: text("name").notNull()
 export const sources = pgTable("sources", {
   id: id(), shootId: text("shoot_id").notNull().references(() => shoots.id), role: roleEnum("role").notNull(),
   originalKey: text("original_key").notNull(), proxyKey: text("proxy_key"), spriteKey: text("sprite_key"), peaksKey: text("peaks_key"),
+  originRevision: text("origin_revision").references((): AnyPgColumn => revisions.id),
   probe: jsonb("probe"), ingestState: ingestEnum("ingest_state").notNull().default("uploading"),
   durationMs: integer("duration_ms"), width: integer("width"), height: integer("height"), fps: real("fps"), ...audit,
 });
@@ -38,13 +40,14 @@ export const templates = pgTable("templates", { id: id(), name: text("name").not
 export const cuts = pgTable("cuts", {
   id: id(), shootId: text("shoot_id").notNull().references(() => shoots.id), kind: cutKindEnum("kind").notNull(),
   templateId: text("template_id").references(() => templates.id), name: text("name").notNull(), state: cutStateEnum("state").notNull().default("draft"), ...audit,
+  mode: cutModeEnum("mode").notNull().default("camera"),
 });
 export const cutBricks = pgTable("cut_bricks", {
   id: id(), cutId: text("cut_id").notNull().references(() => cuts.id), brickId: text("brick_id").notNull().references(() => bricks.id),
   position: integer("position").notNull(), overrides: jsonb("overrides").$type<{
     trimDeltas?: { inMs: number; outMs: number };
     framing?: Record<string, Array<{ atMs: number; x: number; y: number; scale: number }>>;
-    transition?: string; narrationSilence?: boolean;
+    transition?: string; narrationSilence?: boolean; placement?: "full" | "split" | "corner" | "hidden";
   }>().notNull().default({}), ...audit,
 });
 export const captions = pgTable("captions", {
@@ -53,10 +56,26 @@ export const captions = pgTable("captions", {
 });
 export const revisions = pgTable("revisions", {
   id: id(), cutId: text("cut_id").notNull().references(() => cuts.id), number: integer("number").notNull(),
-  edl: jsonb("edl").notNull(), templateSnapshot: jsonb("template_snapshot").notNull(),
+  resolvedEdl: jsonb("resolved_edl").notNull(), templateSnapshot: jsonb("template_snapshot").notNull(),
   renderKey: text("render_key"), metadata: jsonb("metadata").notNull().default({}),
   digest: text("digest").notNull(), approvedAt: timestamp("approved_at", { withTimezone: true }), ...audit,
 }, (t) => [uniqueIndex("revisions_cut_number_unique").on(t.cutId, t.number)]);
+export const slides = pgTable("slides", {
+  id: id(), sourceId: text("source_id").notNull().references(() => sources.id),
+  index: integer("index").notNull(), imageKey: text("image_key").notNull(),
+  title: text("title"), notes: text("notes"), ...audit,
+});
+export const cutSlides = pgTable("cut_slides", {
+  id: id(), cutId: text("cut_id").notNull().references(() => cuts.id),
+  slideId: text("slide_id").notNull().references(() => slides.id), position: integer("position").notNull(),
+  anchorCutBrickId: text("anchor_cut_brick_id").references(() => cutBricks.id),
+  anchorSourceMs: integer("anchor_source_ms"), ...audit,
+});
+export const cutEvents = pgTable("cut_events", {
+  id: id(), cutId: text("cut_id").notNull().references(() => cuts.id), sequence: integer("sequence").notNull(),
+  command: jsonb("command").notNull(), actor: text("actor").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("cut_events_cut_sequence_unique").on(t.cutId, t.sequence)]);
 export const jobs = pgTable("jobs", {
   id: id(), kind: text("kind").notNull(), payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
   state: jobStateEnum("state").notNull().default("queued"), attempts: integer("attempts").notNull().default(0),
@@ -90,6 +109,7 @@ export const shootsRelations = relations(shoots, ({ many }) => ({ sources: many(
 export const sourcesRelations = relations(sources, ({ one, many }) => ({
   shoot: one(shoots, { fields: [sources.shootId], references: [shoots.id] }),
   transcripts: many(transcripts), bricks: many(bricks), uploads: many(uploads),
+  slides: many(slides), originRevision: one(revisions, { fields: [sources.originRevision], references: [revisions.id] }),
 }));
 export const transcriptsRelations = relations(transcripts, ({ one }) => ({ source: one(sources, { fields: [transcripts.sourceId], references: [sources.id] }) }));
 export const bricksRelations = relations(bricks, ({ one, many }) => ({ source: one(sources, { fields: [bricks.sourceId], references: [sources.id] }), cutBricks: many(cutBricks) }));
@@ -97,14 +117,27 @@ export const cutsRelations = relations(cuts, ({ one, many }) => ({
   shoot: one(shoots, { fields: [cuts.shootId], references: [shoots.id] }),
   template: one(templates, { fields: [cuts.templateId], references: [templates.id] }),
   cutBricks: many(cutBricks), captions: many(captions), revisions: many(revisions),
+  slides: many(cutSlides), events: many(cutEvents),
 }));
 export const templatesRelations = relations(templates, ({ many }) => ({ cuts: many(cuts) }));
-export const cutBricksRelations = relations(cutBricks, ({ one }) => ({
+export const cutBricksRelations = relations(cutBricks, ({ one, many }) => ({
   cut: one(cuts, { fields: [cutBricks.cutId], references: [cuts.id] }),
   brick: one(bricks, { fields: [cutBricks.brickId], references: [bricks.id] }),
+  anchoredSlides: many(cutSlides),
 }));
 export const captionsRelations = relations(captions, ({ one }) => ({ cut: one(cuts, { fields: [captions.cutId], references: [cuts.id] }) }));
-export const revisionsRelations = relations(revisions, ({ one }) => ({ cut: one(cuts, { fields: [revisions.cutId], references: [cuts.id] }) }));
+export const revisionsRelations = relations(revisions, ({ one, many }) => ({ cut: one(cuts, { fields: [revisions.cutId], references: [cuts.id] }), sources: many(sources) }));
+export const slidesRelations = relations(slides, ({ one, many }) => ({
+  source: one(sources, { fields: [slides.sourceId], references: [sources.id] }), cuts: many(cutSlides),
+}));
+export const cutSlidesRelations = relations(cutSlides, ({ one }) => ({
+  cut: one(cuts, { fields: [cutSlides.cutId], references: [cuts.id] }),
+  slide: one(slides, { fields: [cutSlides.slideId], references: [slides.id] }),
+  anchor: one(cutBricks, { fields: [cutSlides.anchorCutBrickId], references: [cutBricks.id] }),
+}));
+export const cutEventsRelations = relations(cutEvents, ({ one }) => ({
+  cut: one(cuts, { fields: [cutEvents.cutId], references: [cuts.id] }),
+}));
 export const feedbackRelations = relations(feedback, ({ one }) => ({
   user: one(users, { fields: [feedback.userId], references: [users.id] }),
   question: one(questions, { fields: [feedback.questionKey], references: [questions.key] }),

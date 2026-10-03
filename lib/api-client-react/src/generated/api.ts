@@ -23,6 +23,7 @@ import type {
   EmailInput,
   Feedback,
   FeedbackInput,
+  LinkRequestResponse,
   ListQuestionsParams,
   Ok,
   PartInput,
@@ -143,7 +144,7 @@ export const getRequestLinkUrl = () => {
   return `/app-api/auth/request`
 }
 
-export const requestLink = async (emailInput: EmailInput, options?: Parameters<typeof customFetch>[1]): Promise<Ok> => {
+export const requestLink = async (emailInput: EmailInput, options?: Parameters<typeof customFetch>[1]): Promise<LinkRequestResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -159,7 +160,7 @@ export const requestLink = async (emailInput: EmailInput, options?: Parameters<t
     }
     return headers;
   };
-return customFetch<Ok>(getRequestLinkUrl(),
+return customFetch<LinkRequestResponse>(getRequestLinkUrl(),
   {
     ...options,
     method: 'POST',

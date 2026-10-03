@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./schema": "./src/schema.ts", "./queue": "./src/queue.ts", "./storage": "./src/storage.ts", "./contracts": "./src/contracts.ts" },
+  "exports": { ".": "./src/index.ts", "./schema": "./src/schema.ts", "./queue": "./src/queue.ts", "./storage": "./src/storage.ts", "./contracts": "./src/contracts.ts", "./edl": "./src/edl.ts", "./commands": "./src/commands.ts" },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "migrate:generate": "drizzle-kit generate --config drizzle.config.ts",

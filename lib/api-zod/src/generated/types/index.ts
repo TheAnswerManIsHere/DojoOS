@@ -12,6 +12,7 @@ export * from './feedback';
 export * from './feedbackInput';
 export * from './feedbackInputState';
 export * from './feedbackState';
+export * from './linkRequestResponse';
 export * from './listQuestionsParams';
 export * from './ok';
 export * from './partInput';

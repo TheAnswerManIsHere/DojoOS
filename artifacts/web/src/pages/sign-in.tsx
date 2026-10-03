@@ -6,6 +6,7 @@ import { getGetSessionQueryKey, useRequestLink, useVerifyLink } from '@workspace
 export function SignIn() {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [magicLink, setMagicLink] = useState<string>();
   const request = useRequestLink();
   const [location, navigate] = useLocation();
   const verify = useVerifyLink();
@@ -29,10 +30,10 @@ export function SignIn() {
   return <main className="app-shell">
     <h1>DojoOS</h1>
     <h2>Sign in</h2>
-    {sent ? <div role="status" data-testid="status-check-inbox"><p>Check your inbox.</p><p>A sign-in link was requested for {email}.</p><button type="button" onClick={() => setSent(false)} data-testid="button-use-another-email">Use another email</button></div> :
+    {sent ? <div role="status" data-testid="status-check-inbox"><p>{magicLink ? <a href={magicLink}>Sign in to DojoOS</a> : 'Check your inbox.'}</p>{magicLink && <p>{magicLink}</p>}<p>A sign-in link was requested for {email}.</p><button type="button" onClick={() => { setSent(false); setMagicLink(undefined); }} data-testid="button-use-another-email">Use another email</button></div> :
       <form className="plain-form" onSubmit={async event => {
         event.preventDefault();
-        try { await request.mutateAsync({ data: { email: email.trim() } }); setSent(true); } catch { /* error shown below */ }
+        try { const response = await request.mutateAsync({ data: { email: email.trim() } }); setMagicLink(import.meta.env.DEV ? response.magicLink : undefined); setSent(true); } catch { /* error shown below */ }
       }}>
         <label htmlFor="email">Email address<input id="email" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} data-testid="input-email" /></label>
         <div><button type="submit" disabled={request.isPending} data-testid="button-request-link">{request.isPending ? 'Sending…' : 'Send sign-in link'}</button></div>

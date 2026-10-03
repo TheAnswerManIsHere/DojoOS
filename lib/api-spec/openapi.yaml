@@ -27,7 +27,7 @@ paths:
           description: Request accepted
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Ok" }
+              schema: { $ref: "#/components/schemas/LinkRequestResponse" }
   /auth/verify:
     post:
       operationId: verifyLink
@@ -175,6 +175,10 @@ components:
       type: object
       required: [ok]
       properties: { ok: { type: boolean } }
+    LinkRequestResponse:
+      type: object
+      required: [ok]
+      properties: { ok: { type: boolean }, magicLink: { type: string, description: "Development-only sign-in link; never returned in production." } }
     Account:
       type: object
       required: [id, email, tier]

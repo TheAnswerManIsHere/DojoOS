@@ -8,6 +8,12 @@ export interface Ok {
   ok: boolean;
 }
 
+export interface LinkRequestResponse {
+  ok: boolean;
+  /** Development-only sign-in link; never returned in production. */
+  magicLink?: string;
+}
+
 export type AccountTier = typeof AccountTier[keyof typeof AccountTier];
 
 

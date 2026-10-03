@@ -1,1 +1,2 @@
 - [Separate worker deployment topology](deployment-topology.md) — a second Reserved VM Repl does not automatically share the web Repl's managed database.
+- [Worker database idle constraint](worker-database-idle.md) — frequent idle polling keeps the database active and costs money; use nudges and lease-expiry attempts.

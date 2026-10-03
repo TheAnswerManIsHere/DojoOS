@@ -48,6 +48,10 @@ export function authRoutes(ctx: Context) {
     if (user) {
       const value = token();
       await ctx.db.insert(magicTokens).values({ userId: user.id, tokenHash: hash(value), expiresAt: new Date(Date.now() + 15 * 60_000) });
+      if (process.env.NODE_ENV !== "production" && !process.env.SMTP_URL) {
+        const origin = process.env.APP_ORIGIN ?? `${req.protocol}://${req.get("host")}`;
+        return res.json({ ok: true, magicLink: new URL(`/sign-in?token=${encodeURIComponent(value)}`, origin).toString() });
+      }
       if (!process.env.SMTP_URL || !process.env.MAIL_FROM || !process.env.APP_ORIGIN) throw new Error("SMTP_URL, MAIL_FROM and APP_ORIGIN are required to send sign-in links");
       const transport = nodemailer.createTransport(process.env.SMTP_URL);
       await transport.sendMail({
