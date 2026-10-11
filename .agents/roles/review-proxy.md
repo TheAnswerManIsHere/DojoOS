@@ -152,7 +152,11 @@ is no target round count, but on work that is internal **by consequence**
 there is a cap — the two-review limit
 ([`working-modes.md`](../../docs/ai-context/working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)) —
 so on a second review a recommendation to write again is one the builder is
-not permitted to act on. A change governing approvals, publication,
+not permitted to act on — and it is not, by itself, a question for David. On
+that review a finding that is none of the limit's three shortfalls is yours
+and the other assessor's to settle, *record the gap* or *ask David to reopen*,
+with the tie-break holder settling a split; say which you recommend rather
+than leaving a bare "write now" for him to route. A change governing approvals, publication,
 credentials or destructive operations is weighed on those consequences and its
 recoverability, whatever directory it sits in, and that can put it outside the
 cap — where a recommendation to write again is actionable. **A pull request
@@ -200,10 +204,18 @@ routine narration or duplicating shared arguments.
 ## When the change is documentation
 
 This section applies only when the package says the round is a
-**documentation pass** (David, 2026-09-25). There are no reviewer findings
-then: you read the change itself against the oracle, and yours is the only
-review it gets. Claude writes one batch from what you and the other assessor
-raise, and the change merges.
+**documentation pass** (David, 2026-09-25; the rule's home is
+`working-modes.md`, *Two classes outside the review loop*). You read the
+change itself against the oracle, and this pass — yours and the other
+assessor's — is the only assessed review it gets. Codex's automatic pass on
+the pull request has already reported Completed when the package is composed,
+and arrives in it as **one input** (David, 2026-10-04): its findings, each to
+be weighed like any other under the Worth rule by its ID, or a statement that
+it came back clean. Keep reading the change yourself either way — the trial
+that preceded this showed Codex catches what neither assessor raised and
+misses what both did, so neither reading stands in for the other. Claude
+writes one batch from what you, the other assessor and the findings you agree
+with raise, and the change merges.
 
 **Judge it against its actual reader.** Most of what this class covers —
 contracts, skills, memory notes — is read by a model, the next session, which

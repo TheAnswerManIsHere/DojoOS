@@ -118,17 +118,41 @@ where I put it and treat it as binding.
    their ramifications where there is a choice, and a `Recommendation:` line
    naming the preferred option or next action and why; then a closing rule.
    What the repository can answer is never asked; whether a choice is his to
-   make is what the existing decision rules decide, not this rule. **The last
-   thing I do before ending ANY turn: does this turn end with something I need
-   from David that holds work up? If yes, `PushNotification` fires in that same
-   turn.** No exceptions, no size threshold, no "he probably saw it." A
+   make is what the existing decision rules decide, not this rule. **Before
+   ending ANY turn I ask: does this turn end with something I need from David
+   that holds work up? If yes, `PushNotification` fires in that same turn,
+   before the message (below).** No exceptions, no size threshold, no "he probably saw it." A
    still-unanswered ask re-fires on the next turn. "He's clearly active" is not
    a reason to skip — the tool dedupes, my judgment doesn't. Major completions
    that hand the turn back also notify; routine progress doesn't. **And the
-   ask is the last text of the turn, after every tool call, the notification
-   included** (David, 2026-09-25): text written between tool calls reaches
-   him as a paraphrase, and only the final message arrives verbatim
+   ask is the last text of the turn that raises or changes it, after every
+   tool call, the notification included** (David, 2026-09-25): text written
+   between tool calls reaches him as a paraphrase, and only the final message arrives verbatim
    ([`chat-text-between-tool-calls-is-summarised.md`](../../.agents/memory/chat-text-between-tool-calls-is-summarised.md)).
+   **An ask is shown once** (David, 2026-10-09: *"you're doing the showing
+   me the same thing twice thing again"*). The banner is the only place its
+   options appear: the message that raises it gives the reasoning and leaves
+   the options and recommendation to the banner, never both. A later turn
+   that leaves the ask unchanged — a webhook, a wake, a pasted translation,
+   other work — re-fires the notification and does not reprint the banner;
+   when that turn has other text for him, its last line is one line naming
+   the open ask (`Still waiting on you: <the banner's one-line ask>, above.`),
+   and a turn with nothing else to say writes nothing. The full banner is
+   printed again only when the ask itself changes — new options, a new
+   recommendation, new facts — and then it replaces the old one rather than
+   sitting beside it. **When one banner bundles a question that is his under
+   every rule (scope, the oracle, intended behaviour) with one that exists
+   only because a loop reached a limit, it says which is which** (David,
+   2026-10-10), so he can answer the first and wave the second through. The
+   second kind is only ever the ask-to-reopen the shared judgement has
+   concluded is worth his reopening
+   ([`working-modes.md`](../../docs/ai-context/working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19),
+   step 3); a limit-induced question the judgement could settle is not asked. **Within the turn, the notification comes first** (David,
+   2026-10-10: *"you double responded to me yet again"*): a turn that ends
+   with an ask fires `PushNotification` before writing any of the message, and
+   then writes the message once, as the turn's last text. Writing the message
+   and then the notification leaves the ask above the last tool call, and
+   repeating it after the notification to make it last is the duplicate.
 7. **👀 FYI for non-blocking things he'd want to know.** A rule, then
    `👀 **FYI** — <one-line summary>`, the specifics, a closing rule. Work
    continues; no reply needed. Clears the bar: a security/data-integrity
@@ -249,10 +273,11 @@ thing claimed is mine, and not how long checking it would take (David,
 - **A fix I claim is a fix I re-read.** Asserting that an edit applied,
   without reading the file back, is the same failure one level down.
 
-The vocabulary is the planning contract's — *verified* and *unable to
-verify*, in its evidence section — never a parallel one. (It used to be the
-plan-review schema's fields; the schema went with the verdict-driven design on
-2026-09-18 and the contract kept both terms.) **There is no checker for this, and
+The vocabulary is these two terms, *verified* and *unable to verify*, and
+never a parallel one. (They were the plan-review schema's fields until the
+schema went with the verdict-driven design on 2026-09-18; this section is now
+their only statement — an earlier line here said the planning contract kept
+them, and it does not.) **There is no checker for this, and
 none is to be built** — the one named exception to *Recurring failure
 patterns become CI guards* under *Standing rituals*: the rule adds a word
 where the honest answer is "I could not check" and a quotation where I did,
@@ -438,13 +463,17 @@ rule 4's "any changed head gets its review", translation and the close-out bar
   merge on green CI. Codex's automatic pass is read for one thing: **a P1
   holds the merge and goes to David**, and I do nothing further until he
   answers. Each Codex thread is resolved with one line citing his ruling.
-- **Documentation: one Astra and Fable pass, and no Codex.** For prose:
-  contracts, skills, memory notes, docs sweeps, harvests, Manual chapters.
-  `review-proxy.mjs --documentation`, with the oracle being **the decision the
-  prose records, quoted**. One batch, merge on green CI, and the merge report
-  says in my words what the batch changed. Codex's threads are resolved with
-  one line saying the class does not read them. **A trial of five PRs**, then
-  David and I look at whether it caught contradictions without Codex.
+- **Documentation: one Astra and Fable pass, with Codex's automatic pass as
+  one input** (David, 2026-10-04, after a seven-PR trial without it). For
+  prose: contracts, skills, memory notes, docs sweeps, harvests, Manual
+  chapters. `review-proxy.mjs --documentation`, with the oracle being **the
+  decision the prose records, quoted**, and Codex's automatic findings passed
+  as `--findings-file` (or `--codex-clean`) once that pass reports Completed,
+  with no timeout.
+  I request no Codex round. One batch, merge on green CI, and the merge report
+  says in my words what the batch changed. Each Codex thread is answered like
+  any finding — fixed in a named commit, or declined with the reason — and
+  resolved.
 - **Neither covers** a script, a check, CI, a setting, a permission, an agent
   role's definition, latitude for me, or the review loop itself — unless David
   declares that specific change Trivial.
@@ -499,8 +528,11 @@ the head, one coherent batch of corrections, review the corrected head, stop.
 edited**, and ending iteration is not "merge regardless": a corrected head that
 still violates an agreed requirement, fails a required check, or carries a
 finding of consequential harm David has not accepted goes **to David with the
-shortfall and a choice**, never to the merge button. **I cannot award myself a
-third review** — that is the whole operational difference from the round budget
+shortfall and a choice**, never to the merge button. **A second-review finding
+that is none of those is not his question**: the shared judgement settles it —
+record the gap, or ask him to reopen — with the Fable tie-break on a surviving
+technical split (David, 2026-10-10; the measurement is in the home). **I cannot
+award myself a third review** — that is the whole operational difference from the round budget
 the #89 cut deleted. The rule, its scope by consequence and recoverability rather than
 by directory, and what it costs are in
 [`working-modes.md`](../../docs/ai-context/working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19); this is only my
@@ -553,7 +585,8 @@ artifact whose blast radius is every future loop. **A clean review merges like
 anything else** (David, 2026-09-25): *"If reviews are clean, there's nothing
 for me to interpret."* He is brought in where there is a judgement to make —
 doubt, a smell, a loop that is dragging, a question about how prose is worded
-— and a pull request still carrying findings after its second review is that.
+— and such a pull request, one that changes the loop, still carrying findings
+after its second review is that.
 **This binds whether or not the consequence test would have exempted the
 change** — the enactment asks it before the ordinary gate, not after (Codex,
 #153 round 1: the `Otherwise` branch sent an outside-the-limit change to the
@@ -599,8 +632,11 @@ accounting.
 
 ### Internal tooling: what is downstream
 
-Guards, `scripts/`, skills, this file, `docs/ai-context/` contracts, process
-docs and harvests run the loop above with the **`internal` tier** — **by
+Guards, `scripts/`, and the rest of the internal tooling the Documentation
+class does not take (above — prose such as skills, contracts and harvests
+takes that class unless it is on the list of changes that class does not
+cover, which is `working-modes.md`'s) run
+the loop above with the **`internal` tier** — **by
 default, and the default is not the answer**. Before the first round, I ask
 what is downstream of *this* change: **a change to machinery that governs
 approvals, publication, credentials or destructive operations is weighed on
@@ -680,7 +716,12 @@ The loop:
    substitutes for his answer, and a clean later round never clears a question
    he has not answered.
 6. I implement what is agreed and verify the failure class across materially
-   different paths, not just the reviewer's example.
+   different paths, not just the reviewer's example. **Before the batch is
+   pushed, the round's `review-action` block names the class each finding
+   belongs to and shows the sweep of that class** — every member found, with
+   the command that found them, not the reviewer's examples fixed; the
+   post-push thread reply then cites that block and names the commit
+   (David, 2026-10-10; `pr-watch` step 3.6 is where the block is posted).
 
 - **The oracle is agreed with David before the first round runs.** The script
   refuses to compose a package without one, which is what makes the agreement
@@ -752,7 +793,7 @@ in the file that every session loads.
    to buy the round — #125's two-sentence fix waited a week on exactly that.
    **Any changed head gets its review**, documentation-only changes and
    base-branch merges included — in the standard loop; a Trivial change gets
-   none, a Documentation batch merges unreviewed, and a prototype-phase PR
+   none, a Documentation change's one batch of corrections merges without a second review, and a prototype-phase PR
    merges on green CI, by design (*Two classes and a phase that leave the loop*, above). What is refused is asking again on a head
    already reviewed as it stands, to get a different answer. The mechanical
    round needs no exception now, because it was never the anomaly — the old
@@ -944,8 +985,9 @@ plus the last round before the merge). That is the whole bar, for
 product and internal PRs alike — except the two classes and the phase that leave the loop
 (*Review loops*, above): a **Trivial** PR merges on green CI and resolved
 threads unless Codex's automatic pass posts a P1, and a **Documentation** PR
-on green CI, resolved threads and its one assessed batch, with no Codex review
-and no translation owed — and a **prototype-phase** PR, on `main` only where
+on green CI, resolved threads and its one assessed batch — assessed once
+Codex's automatic pass reports Completed — with no Codex round requested and
+no translation owed — and a **prototype-phase** PR, on `main` only where
 nothing is downstream of it, waits for nothing but green CI, with Codex's
 automatic pass read for nothing and no translation owed. CI and Codex catch
 *broken*; David's UAT catches *wrong*, after the sync.
@@ -958,7 +1000,8 @@ conversation resolution, so the Merge button is inert while a thread is open.
 
 - **Every PR in the standard loop gets a Codex review and none merges before
   it returns** (Trivial waits only for the automatic pass, to catch a P1;
-  Documentation waits for none; a prototype-phase PR is outside the standard
+  Documentation waits only for the automatic pass, as an input to its one
+  assessed batch; a prototype-phase PR is outside the standard
   loop and waits for none). A round I
   requested but haven't received is not convergence. A pass on a commit I have
   since pushed past has not reviewed the diff that would merge. What counts as
@@ -979,7 +1022,10 @@ conversation resolution, so the Merge button is inert while a thread is open.
   code, tell David immediately as a 🛑 with a push notification, say which PRs
   are blocked and in what state, and wait. Noticing recovery is not permission
   to restart. A prototype-phase feature owes no Codex review, so an outage
-  blocks nothing there and that work continues.
+  blocks nothing there and that work continues. A Documentation PR is among
+  the blocked ones: its one pass waits for Codex's automatic review as an
+  input, with no timeout (*Two classes and a phase that leave the loop*,
+  above).
 - **Two things no gate ever proved, and they are still mine to check by eye.**
   That every requested round came back — a permitted retry needs no push, so
   two requests can name one commit and a single pass satisfies both — and that
@@ -991,11 +1037,16 @@ conversation resolution, so the Merge button is inert while a thread is open.
    `pull_request_read`, not cached green. If anything moved, re-work the bar.
 2. **Squash-merge.** Every merge in this repo is a squash-merge, whoever clicks
    it.
-3. **Trigger the Repl sync**, wait ~15 seconds, then verify via one
-   `ask_question` that the checked-out SHA matches the new `main` commit **and**
-   the worktree is clean. Neither check substitutes for the other. If it hasn't
-   landed, retry at ~15-second intervals up to 4 tries, then report a sync
-   problem rather than waiting longer. **Every merge, with no exception I
+3. **Check the Repl, then trigger its sync.** First, one read-only
+   `ask_question` for `git fetch` and `git status -sb`: a Repl `main` that is
+   **ahead** of GitHub's, alone or diverged, holds commits made in the Repl,
+   which are moved to a pushed branch and the Repl's `main` realigned before
+   anything else (*This environment's git constraints*), never synced over. Then trigger a fast-forward-only sync,
+   wait ~15 seconds, and verify via one `ask_question` that the checked-out SHA
+   matches the new `main` commit **and** the worktree is clean. Neither check
+   substitutes for the other. Still **behind** means it hasn't landed: retry at
+   ~15-second intervals up to 4 tries, then report a sync problem rather than
+   waiting longer. **Every merge, with no exception I
    reason my way into** — not "the project is paused", not "this change has no
    product surface", not "the Repl will pick it up on its next sync anyway".
    Each of those is a judgement about *this* commit; drift is the sum of all of
@@ -1021,9 +1072,14 @@ guardrail-and-authority carve-out: the click was never once withheld and cost
 a round trip every time, the safety net is his working beside me and noticing,
 and everything here is reversible). A change to `.claude/settings.json`
 permissions, a CI check that constrains me, or a working-contract line granting
-me new autonomy merges under the same bar as everything else. The one
-exception is a pull request that changes the review loop and still carries
-findings after its second review, which comes to him (the ship gate, above).
+me new autonomy merges under the same bar as everything else. Where a merge
+does wait on him, a rule above says so — among them a pull request that changes the review
+loop and still carries findings after its second review (the ship gate), a
+Trivial PR whose automatic Codex pass posts a P1, a corrected head still
+short of what was agreed (the write-gate rule), and a second-review finding
+the shared judgement has concluded is worth his reopening
+([`working-modes.md`](../../docs/ai-context/working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19),
+step 3).
 **What replaces the gate is visibility, not another gate:**
 the PR body and the merge report each carry one line naming the latitude the
 change grants me, so a widening is read rather than clicked. Unaffected: the
@@ -1039,25 +1095,35 @@ Two layers, in order of authority: the **harness classifier** refuses to let me
 edit my own guardrails in place (the platform's layer, unaffected by the
 close-out change above: a guard change goes through a PR like any other, and a
 blocked in-place edit is that layer working); and **GitHub's rulesets**,
-server-side, binding on **me** in every shape I can push **to the branches
-they target**, and on no other branch.
+server-side, binding on **everyone who pushes, me included**, in every shape
+**to the branches they target**, and on no other branch.
 
-On `main`: block force pushes, restrict deletions, require linear history,
+On `main`, with **no bypass actor**: block force pushes, restrict deletions, require linear history,
 require a PR, require status checks, require conversation resolution (that
 last is what makes the Merge button inert while a thread is open, in
-*Close-out* above). On `claude/**`: **block force pushes**
-(#94, created and verified 2026-09-16 — `--force-with-lease` on a probe branch
-was refused with GH013, and a plain push of a further commit landed). On **all
-branches**: block force pushes (David, 2026-09-16, #106 — the namespace gap the
-two rulesets above left).
+*Close-out* above). On **all branches**, `claude/**` included: block force
+pushes (David, 2026-09-16, #106). A separate `claude/**` ruleset (#94) did
+that job for this session's branches until the all-branches one made it
+redundant, and it is gone (David, 2026-10-03).
 
-**They are not binding on David**: his own direct-push path to `main` through
-Replit's Git pane lands, settled 2026-08-09 and documented in
-[`replit-environment.md`](../../docs/ai-context/replit-environment.md). So never
-predict that a push of his will be refused, and never read a `Replit Agent`
-commit on `main` as evidence something broke — that inference is exactly the
-false alarm recorded in
-[`replit-direct-push-to-main-is-sanctioned.md`](../../.agents/memory/replit-direct-push-to-main-is-sanctioned.md).
+**They bind David too, and every change to `main` arrives through a pull
+request** (David, 2026-10-03: *"Yes, everything goes through a pull
+request."*). He removed the Admin bypass from every ruleset in every repo, so
+no identity lands on `main` outside a merged PR — not his, and not this
+session's, which pushes as his admin account. His display-only tweaks from
+Replit included: the Repl tracks `main`, so a tweak is committed there unless
+he branches first, and that commit can never be pushed. When I find the
+Repl's `main` ahead of GitHub's, I move those commits to a branch through the
+connector, push it, realign the Repl's `main` to GitHub's (nothing is lost:
+the commits now live on the pushed branch), and open the PR (David,
+2026-10-03), and it merges like any other —
+on green CI when he declares the change Trivial (*Two classes and a phase
+that leave the loop*, above). The close-out sync is where I find it (*Close-out*,
+step 3). I never drop such a commit unless he says to. So a commit on `main` with no PR
+behind it is not a lane: it means a ruleset has been loosened, and that is one
+line to David. (Until 2026-10-03 his direct push from Replit's Git pane was
+sanctioned and landed; the record is
+[`replit-commits-reach-main-only-through-a-pr.md`](../../.agents/memory/replit-commits-reach-main-only-through-a-pr.md).)
 
 **There is no local shell guard any more.** `.claude/guard.sh` and its parser
 were removed in the #89 cut (#94): no accidental destructive command is
@@ -1082,15 +1148,12 @@ rulesets are not yet configured.
 all branches in all repos (2026-09-16), closing a gap the #89 cut had opened
 for a day: the guard was scoped to no namespace, and the rulesets that replaced
 it reached only `main` and `claude/**`, leaving a runner-assigned branch under
-any other prefix unprotected. **What is measured is the refusal on `claude/**`**
-— `--force-with-lease` on a probe branch, GH013, #94. The all-branches ruleset
-is applied but has not been separately probed; if that distinction ever matters,
-a probe branch outside `claude/**` settles it, and nothing in my flows depends
-on the answer. **The prototype phase made the distinction matter**: a
-`prototype/<feature>` branch lives outside `claude/**` for weeks with no PR,
-so the all-branches ruleset is its only mechanical force-push protection, and
-the probe is worth running before a product's first branch-regime prototype
-(*Two classes and a phase that leave the loop*, above).
+any other prefix unprotected. **The all-branches ruleset is measured on its
+own** (DojoOS, 2026-10-03, whose only rulesets are it and `main`'s):
+`--force-with-lease` was refused with GH013 on both `claude/ruleset-probe` and
+`probe/ruleset-probe`. That is the protection a `prototype/<feature>` branch
+relies on, living outside `claude/**` for weeks with no PR (*Two classes and
+a phase that leave the loop*, above).
 
 **The one shape that would need a force push**, so it is not rediscovered as a
 surprise: restarting a branch in place, under the same name, before it has
@@ -1118,18 +1181,16 @@ against current `main` at merge time.
 - **First push of a fresh branch:** `git fetch origin main && git checkout -B
   <branch> origin/main`, apply work, push. Also how I restart a branch whose PR
   squash-merged — a plain push, because GitHub deleted the merged branch and
-  there is no history to overwrite. **That same fetch carries the Replit
-  sweep** — one bounded command, `git log --author="Replit Agent"
-  --since="14 days ago" --oneline origin/main`, and I read anything it names
-  that isn't already reviewed; a session on a branch-regime prototype runs
-  the same command against its `prototype/<feature>` branch, since that is
-  the branch its environment tracks and where such a commit would land.
-  **Bounded by time, never by commit count**: `-3` was the first shape and it
-  silently drops the fourth commit of a busy week, which is the one failure a
-  sweep cannot afford — a missed commit is indistinguishable from a swept one. Without this the
-  opportunistic cadence is nominal only: `fetch` and `checkout` print nothing
-  about authorship, so "a session that touches `main` finds one" describes no
-  actual moment. Sweep rules: the *Connectors → Replit* bullet below.
+  there is no history to overwrite. GitHub's `main` needs no sweep of who committed
+  there: nothing reaches it outside a merged PR (the rulesets, above). **A
+  session on a branch-regime prototype sweeps that branch instead**, the one
+  place on GitHub direct commits still land — `git fetch origin prototype/<feature>`
+  and then `git log --author="Replit Agent" --since="14 days ago" --oneline
+  origin/prototype/<feature>`, since its environment tracks that branch and
+  fetching `main` alone leaves that ref stale. **Bounded by time, never
+  by commit count**: `-3` silently drops the fourth commit of a busy week, and
+  a missed commit is indistinguishable from a swept one. What a sweep finds
+  goes into the feature's next version (*Connectors → Replit*, below).
 - **Follow-up on an already-pushed branch:** add commits and plain-push. If the
   branch genuinely needs newly-landed `main`, **merge, never rebase**.
 - **If local has diverged accidentally:** realign with `git checkout -B <branch>
@@ -1174,9 +1235,15 @@ shows the true delta.
   do we do it this way", plan conversation. That is the intended use, not a
   misconfiguration to flag. **At the transition to building, the session moves
   to Opus**, and it is on me to say so at that boundary, not on him to remember.
+  **Opus builds everything, Tier B included** (David, 2026-10-03: *"Now that
+  Opus 5.5 is out, it's strong enough for any development work I think. We'll reserve
+  Fable for planning and discussion."*) — no development work is reserved for
+  a stronger tier. **Opus is the ceiling, not the floor** (David, 2026-10-04:
+  *"Opus is the ceiling. There's a lot we can do with Sonnet when it's
+  mechanical."*): mechanical work still routes down to Sonnet, below.
   - **I cannot switch it — `/model` is David's, and there is no tool for me.**
     So the rule I can actually keep is: name the boundary the moment we cross
-    it, ask for `/model claude-opus-5`, and don't start writing product code on
+    it, ask for `/model claude-opus-5-5`, and don't start writing product code on
     Fable while I wait.
   - **Mandatory before product code.** Not needed to keep talking, to plan, or
     for a docs/process edit — the ask at every small thing is the overhead this
@@ -1186,8 +1253,9 @@ shows the true delta.
   - **Staying on Fable needs a real reason, and David saying so is one.** My own
     "this looks small" is not: the repo's one-line-that-broke-everything is on
     file (#582), and cheap-looking is exactly when the tier matters.
-  - The bounded-judgement dispatches — the plan reviewer, and the review
-    proxy's two assessors — run at the strongest available tier regardless.
+  - The named judgements — the plan reviewer, the review proxy's two
+    assessors, the round translator and `/next`'s three judgement steps — run
+    at the strongest available tier regardless.
     That is a separate, deliberate routing (below), not this rule being
     violated.
 - **Verify the active tier before Opus-reserved execution** (migration, Tier B
@@ -1203,9 +1271,16 @@ shows the true delta.
   judgment is mine, verification of my own work, a Tier B fix, or a `/document`
   harvest (its first source is *this session's* decisions, which a cold worker
   doesn't inherit).
-- **Bounded judgements dispatch at the strongest available tier, resolved
-  through `.agents/machinery.json`** — the plan reviewer and the review proxy
-  are the two live cases, both resolving `strongestCodex`. (The
+- **Named judgements dispatch at the strongest available tier, and only
+  those** (David, 2026-10-04,
+  narrowing the 2026-08-17 "every judgement, no exceptions"): the plan
+  reviewer and Astra's code-round assessment, resolving `strongestCodex`; the
+  Fable assessor and the round translator, resolving `strongestClaude`; and
+  `/next`'s three judgement steps, which name Fable by alias rather than
+  reading the pin, inline or dispatched. The four roles resolve their tier
+  through `.agents/machinery.json`. Any other
+  subagent judgement — the per-task reviews in `subagent-driven-development`
+  included — is sized to its work like any other dispatch. (The
   `review-loop-adjudicator` agent that stood here was removed by the #89 cut.)
   **A Claude role is bound twice, and needs both** (#126): its definition
   declares `model:` and `effort:`, derived from the pin and held equal to it by
@@ -1331,16 +1406,16 @@ Authorization boundaries — the mechanics live in
   never through the connector). A sanctioned live repair
   has to be David-originated; I don't launder my own unreviewed patch through
   Replit.
-- **David's own display-only UI tweaks are a sanctioned fast lane**, settled
-  long before I meet any given one — a `Replit Agent` commit on `main` is the
-  normal case, never an incident to escalate. My duty is the sweep, not an
-  alarm: when a session touches `main` and finds one, I read it then (skim
-  display/copy, actually read anything touching data, logic, migrations, auth,
-  payments, or a subsystem the overlay marks sensitive) and route anything real
-  to a `/bugfix` PR — or, on a prototype-phase feature, into its next
+- **David's own display-only UI tweaks from Replit arrive as pull requests**,
+  like every change to `main` (*This environment's git constraints*, above).
+  A tweak committed on the Repl's own `main` — the default, since the Repl
+  tracks it — is moved to a branch through the connector, per that section;
+  when he has not opened the PR himself I open it, and it takes the review
+  class its content earns — Trivial when he declares it so. The one place on GitHub a `Replit Agent` commit still lands
+  directly is a branch-regime `prototype/<feature>` branch: when a session's sweep
+  finds one there I read it (skim display/copy, actually read anything
+  touching data or logic) and route anything real into the feature's next
   version, since nothing there is a bugfix yet.
-  Re-sweeping is expected; there is no ledger. Boundary, ceremony and cadence:
-  [`replit-environment.md`](../../docs/ai-context/replit-environment.md).
 - **Scope every request and say what it must not touch** — Replit Agent defaults
   to *building*, so an unscoped ops question can come back as a feature.
 - **`ask_question` reads, `update_app_using_prompt` acts.** Only

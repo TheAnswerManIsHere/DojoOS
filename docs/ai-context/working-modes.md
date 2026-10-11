@@ -61,8 +61,7 @@ two markdown files — went through the full plan + convergence loop and reached
 **six review rounds and a 660-line plan** before anyone asked whether the
 ceremony fit the thing being built.
 
-The deciding question is the one already used for model routing in
-[`CLAUDE.md`](../../CLAUDE.md): **if this goes subtly wrong, will code review or
+The deciding question: **if this goes subtly wrong, will code review or
 David's product-testing catch it before it does damage?** Where the answer is
 "immediately and obviously," heavy ceremony buys nothing and actively costs —
 every round of adversarial review on a low-risk artifact generates new surface
@@ -78,8 +77,8 @@ that wherever it appears in this table.
 
 | Artifact class | Planning ceremony and review depth | Why |
 | --- | --- | --- |
-| **Transient, single-use process docs** — handoff docs, one-off run notes, legacy TEST_RUN checklists (the TEST_RUN file itself is retired as of 2026-08-15 — new PRs carry a *Post-merge verification* PR-body section reviewed with the diff, per [`test-run-contract.md`](../tests/test-run-contract.md); this row still governs the legacy files while they run out), anything deleted after one execution | **No plan document. No plan-review loop.** Review *depth* is the docs-only light bar in [`code-review.md`](../engineering/code-review.md). How long iteration runs is **not** this row's to say — that is the two-review limit below, and this column used to claim "one triage and the loop ends there — no re-request", which let a commit merge that no review had read. | Criticality ≈ 1 on a 1–100 scale (David, 2026-08-08) — **conditional on the TEST_RUN read-only contract** ([`test-run-contract.md`](../tests/test-run-contract.md)): these docs may not instruct suite re-runs or live-state mutations, which is exactly what keeps their worst case at "one confused run by one person, immediately self-catching." A finding that a doc *breaks* that contract — an instruction that could touch live state — is a glaring issue and is worth writing for. A P1 badge on anything else describes the finding's internal severity, not this artifact's blast radius. |
-| **Agent-facing markdown** — skills, `docs/ai-context/`, `docs/engineering/`, contracts, prompts | **No plan document, no plan-review loop** — write the real file and ship it. **Its review is the Documentation class** (below, *Two classes outside the review loop*) unless it changes the review loop or an agent's latitude. Iteration is bounded by the two-review limit below, not by this row — and that limit asks its question of the change, by consequence and recoverability, so a change to a contract or prompt in this class that governs approvals, publication, credentials or destructive operations is weighed on that. | Self-catching: it's wrong the first time someone runs it, and a fix is one commit. Nothing is irreversible. |
+| **Transient, single-use process docs** — handoff docs, one-off run notes, legacy TEST_RUN checklists (the TEST_RUN file itself is retired as of 2026-08-15 — new PRs carry a *Post-merge verification* PR-body section reviewed with the diff, per [`test-run-contract.md`](../tests/test-run-contract.md); this row still governs the legacy files while they run out), anything deleted after one execution | **No plan document. No plan-review loop.** Review *depth* is the docs-only light bar in [`code-review.md`](../engineering/code-review.md). How long iteration runs is **not** this row's to say — that is the two-review limit below, and this column used to claim "one triage and the loop ends there — no re-request", which let a commit merge that no review had read. | Blast radius near zero (rated ≈ 1 on the 1–100 criticality scale retired 2026-08-20; David, 2026-08-08) — **conditional on the TEST_RUN read-only contract** ([`test-run-contract.md`](../tests/test-run-contract.md)): these docs may not instruct suite re-runs or live-state mutations, which is exactly what keeps their worst case at "one confused run by one person, immediately self-catching." A finding that a doc *breaks* that contract — an instruction that could touch live state — is a glaring issue and is worth writing for. A P1 badge on anything else describes the finding's internal severity, not this artifact's blast radius. |
+| **Agent-facing markdown** — skills, `docs/ai-context/`, `docs/engineering/`, contracts, prompts | **No plan document, no plan-review loop** — write the real file and ship it. **Its review is the Documentation class** (below, *Two classes outside the review loop*) unless it is one of the changes that class does not cover, listed there. Iteration is bounded by the two-review limit below, not by this row — and that limit asks its question of the change, by consequence and recoverability, so a change to a contract or prompt in this class that governs approvals, publication, credentials or destructive operations is weighed on that. | Self-catching: it's wrong the first time someone runs it, and a fix is one commit. Nothing is irreversible. |
 | **Product code** in **production phase** — a feature David has declared prototype phase gets this row's plan, review and approval for its first version (and for a later one only when David asks in words), and none of the row's bars after it (*The prototype phase, per feature*, below) | Today's full feature ceremony — plan, review, approval. (Outside the two-review limit, which bounds internal tooling; that does not make "to convergence" its stop, which is a name this repo retired.) | Codex's review is a real net, but a subtly wrong behavior can reach users. |
 | **Migrations, backfills, auth, payments, and any subsystem the overlay marks sensitive** | Full ceremony **plus** the relevant specialist review — in production phase; a prototype-phase feature that touches one of these is still in prototype phase, and the second regime (*The prototype phase, per feature*, below) is what keeps it off production's process and data. | Often irreversible, and a subtly-wrong result isn't visible until the damage is done. |
 
@@ -339,8 +338,8 @@ data-derivation rule is the obvious example, and it is one of this section's
 own triggers — has no oracle that finds every instance, however the regex is
 written. The class-sweep protocol below already handles exactly this at fix
 time (*"If the finding genuinely cannot be mechanized (a pure design/semantics
-finding), the reply says so — that inability is itself a signal, and it routes
-the finding to the driving agent's judgment-escalation triggers"*), and the
+finding), the reply says so — that inability is itself a signal, and the
+round's two assessments weigh that finding as such"*), and the
 same escape applies here: **record that the class cannot be mechanized, and
 route the scope call to judgment/escalation.** What is forbidden is the third
 option — running a nominal search that does not actually find every instance and
@@ -644,23 +643,41 @@ resolved with one line citing his ruling, because the `main` ruleset will not
 merge with a thread open. His reason: *"I might be wrong but I need that lever
 to pull when I want quick changes."*
 
-**Documentation — one Astra and Fable pass, and no Codex.** For a change whose
-substance is prose: contracts, skills, memory notes, docs sweeps, harvests,
-Manual chapters. Both assessors read the change itself, from where the
-reviewed commit left `main`, against its intent, under the documentation
-section of their shared brief (`.agents/roles/review-proxy.md`). **The
-oracle is the decision the prose records, quoted** — David's words, or the
-issue or merged PR where the rule changed — so a sweep needs no fresh
-agreement. One batch of corrections follows and the change merges on green
-CI; the batch is not reviewed again, and the merge report says what it
-changed. **Codex's output is not read and not given to the assessors**; its
-threads are resolved with one line saying so. His reason: Codex reviews prose
-adversarially, marks a word choice P1, and the loop then builds fixes and
-guards for it, while Astra and Fable judge prose better. **It is a trial**:
-after five Documentation PRs, the question is whether the pass caught the
-class that matters most in prose — two live statements of one rule that
-disagree — without Codex. If not, the repair is to hand Codex's output to the
-assessors as one input, not to put it back in charge.
+**Documentation — one Astra and Fable pass, with Codex's automatic pass as
+one input.** For a change whose substance is prose: contracts, skills, memory
+notes, docs sweeps, harvests, Manual chapters. Both assessors read the change
+itself, from where the reviewed commit left `main`, against its intent, under
+the documentation section of their shared brief
+(`.agents/roles/review-proxy.md`). **The oracle is the decision the prose
+records, quoted** — David's words, or the issue or merged PR where the rule
+changed — so a sweep needs no fresh agreement. **Codex's automatic pass on
+PR-open is waited for and handed to both assessors as one input**: no Codex
+round is requested, and its findings are weighed like any other under the
+Worth rule rather than acted on because Codex raised them. **The wait ends
+only when that pass reports Completed** — a draft is reviewed once it is marked
+ready, so the wait runs from then — and it has no timeout: the pass is never
+composed without Codex's result, because a review that has not returned is
+not a clean one (Codex and Astra, #184 round 1). A pass that does not come
+back is an outage, which the core already takes to David, and the PR waits
+with everything else Codex is holding. One batch of corrections follows and
+the change merges on green CI; the batch is not reviewed again, and the merge
+report says what it changed. Each Codex thread gets the reply review rule 6
+gives any finding — fixed in a named commit, or declined with the reason — and
+is resolved.
+
+**Why Codex is an input and not the reviewer.** David's reason for the class:
+Codex reviews prose adversarially, marks a word choice P1, and the loop then
+builds fixes and guards for it, while Astra and Fable judge prose better. It
+began as a trial with Codex's output kept out entirely, the planned repair
+being this one if the pass alone missed what matters. **Seven trial PRs
+(#170–#183) settled it** (David, 2026-10-04): Codex raised 26 findings, 17 of
+which neither assessor raised — nine factual errors in one Manual PR, and on
+#170 an instruction to read the bodies of issues anyone can file, in the
+session that then merges — while the assessors raised 11 Codex did not,
+including every question that was David's to answer. The 17 reached the batch
+anyway wherever Claude read the threads despite the rule, and the two it did
+not read on #170 were still on `main` when the trial was counted. Each reading
+catches what the other misses, so the assessors get both.
 
 **Neither class covers** a change to a script, a check, CI, a setting, a
 permission or an agent role's definition, or one granting an agent latitude,
@@ -970,7 +987,19 @@ David. The sequence:
    worth acting on, together, with targeted verification of the failure classes
    involved rather than of the reviewer's examples.
 3. **Review the corrected head.** Acceptable imperfections become recorded
-   gaps; worthwhile deferred work becomes an issue.
+   gaps; worthwhile deferred work becomes an issue. **A recommendation to
+   write at this step is not itself a question for David** (David,
+   2026-10-10): the shared judgement — both assessors, with the Fable
+   assessor's tie-break on a technical split that survives — decides between
+   recording the gap and asking David to reopen, and only the three
+   shortfalls named below, or that judgement concluding a write is worth his
+   reopening, bring it to him. A gap reachable nowhere the work runs today
+   is ordinarily a recorded gap; whether it would be consequential harm once
+   the work does run there is the third shortfall's question, and that one
+   is still his. (Overhype.me #637 is the measurement: round two's one real
+   finding was reachable nowhere the journey ran, both assessors said so, and
+   their split on *when* to fix it — a timing judgement the tie-break exists
+   for — went to David as a question beside the one that was his.)
 4. **Autonomous iteration ends there.**
 
 **A cap on further EDITING is not an exemption from REVIEWING what was edited**
@@ -1021,7 +1050,8 @@ round 7. At that same head, the private-plan ignore file did not ship to
 consumers, so a plan could sit unignored and an intervening `git add -A` could
 publish it. Both are real defects that a two-review limit would not have
 surfaced inside that loop. Neither is an argument against the limit — the
-second is an argument for step 4's *shortfall* branch, which is what a
+second is an argument for the *shortfall* branch ("What ending iteration does
+NOT mean", above), which is what a
 disclosure failure is — but the trade is real and is recorded here rather than
 discovered later. (Astra reproduced both against the historical code,
 2026-09-19.)
@@ -1106,7 +1136,7 @@ prototype phase, per feature*, above).
   the round. Measured: #125's two-sentence fix waited a week under exactly that
   reading. **Any changed head gets review before merge** — documentation-only
   changes and base-branch merges included — in the standard loop; a Trivial
-  change gets none, a Documentation batch merges unreviewed, and a
+  change gets none, a Documentation change's one batch of corrections merges without a second review, and a
   prototype-phase PR merges on green CI with the automatic pass read for
   nothing, by design (above). What is refused is a round requested
   merely to get a different answer on a head already reviewed as it stands.
@@ -1168,8 +1198,8 @@ instances are.** For every finding, whichever agent is driving the fixes:
 2. **Write a mechanical oracle for the class** — the `grep`/`ls`/`find`/
    one-liner that detects *every* instance, not just the cited ones. If the
    finding genuinely cannot be mechanized (a pure design/semantics finding),
-   the reply says so — that inability is itself a signal, and it routes the
-   finding to the driving agent's judgment-escalation triggers.
+   the reply says so — that inability is itself a signal, and the round's
+   two assessments weigh that finding as such.
 3. **Sweep the full scope before fixing, fix every hit, re-run the oracle
    to zero.** Scope defaults to the whole artifact/diff and widens to the
    repo when the class plausibly lives outside it. The reply cites the
@@ -1182,9 +1212,8 @@ instances are.** For every finding, whichever agent is driving the fixes:
 5. **A recurrence of a swept class in a later round is a process failure by
    definition** — the class was misnamed or the sweep skipped. It is the
    "repairing an earlier round's fix" causal flag made mechanically
-   detectable: it gets flagged as such in that round's record, and the
-   re-naming of the class escalates to a stronger model rather than being
-   retried at the tier that misnamed it.
+   detectable: it gets flagged as such in that round's record, and the class
+   is re-named from the recurrence rather than patched at the new instance.
 
 When instance = class — a genuinely one-off defect with no plausible
 siblings — saying so in the reply *is* the sweep. The obligation is making
@@ -1205,8 +1234,8 @@ decisions, the explicit scope boundaries (what is already decided to be
 *next* or *never*), and the artifact's ceremony tier. (A 1–100 criticality
 rating was agreed here too, for the gate deleted on 2026-08-20; the tier
 carries what it was for.)
-**That agreement is the loop's authority to run autonomously to
-convergence** — it replaces the retired per-round check-in (below) as
+**That agreement is the loop's authority to run autonomously up to the
+approval ask** — it replaces the retired per-round check-in (below) as
 David's control point at the front of the loop, paired with explicit plan
 approval at the back. **The agreed scope of work is also the review oracle
 itself** — it is handed to the reviewer verbatim, every round, as the thing the
@@ -1460,7 +1489,15 @@ Everything in Tier A, plus:
   content), and a check that re-verifies what CI already gates is waste.
   The driving agent executes the section through the Replit connector at
   close-out (the standalone TEST_RUN file is retired, 2026-08-15).
-- **The strongest model tier available** for the fix itself.
+- **The build tier the agent's own core names, for the fix itself** — for
+  Claude, Opus (`claude-core.md`, *Model, cost, and routing*; David,
+  2026-10-03: *"Now that Opus 5.5 is out, it's strong enough for any
+  development work I think. We'll reserve Fable for planning and
+  discussion."*). This line read "the strongest model tier available" until
+  the machinery pin's strongest Claude became Fable, at which point it
+  contradicted the core and the bugfix skill's "never starts on Fable"; it
+  names no model itself because this file binds Codex too, which cannot
+  choose a Claude model.
 
 **Internal/infra-only exception on the UAT doc.** The test is **whether the
 fix has any product-visible behavior at all — not which Q1/Q2 trigger(s)
