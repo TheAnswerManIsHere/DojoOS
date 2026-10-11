@@ -21,8 +21,12 @@
   currently stages files, is 32 GB. The deployment's writable disk is
   measured at scaffold step 0.
 - **Sync after a merge:** Claude asks Replit to pull `main` and report the
-  checked-out SHA and a clean tree. David may push display-only tweaks
-  directly from Replit's Git pane; Claude sweeps those commits.
+  checked-out SHA and a clean tree. Every change to `main` arrives through a
+  pull request, David's display-only tweaks from Replit included: a tweak
+  committed on the Repl's `main` is moved to a branch and opened as a PR,
+  never pushed to `main` directly (`claude-core.md`, *This environment's git
+  constraints*; the record is
+  `.agents/memory/replit-commits-reach-main-only-through-a-pr.md`).
 - **Replit Agent's own notes** are `replit.md`, which routes it here.
 - **Connector gotcha:** the Replit file-listing and file-reading tools do
   not show `*.sql` files; ask the Agent to run `git ls-files` instead.
