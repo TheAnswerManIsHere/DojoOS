@@ -69,7 +69,7 @@ git checkout -b claude/bugfix-<topic> origin/main   # -b, never -B
 **Never `-B`.** `-B` *resets* the ref to `origin/main`, which would silently wipe
 an existing same-named branch's unpushed work. If `-b` fails because the name
 exists, that is the signal to pick a different slug — never fall back to `-B`,
-`--force`, or any reset. (A GitHub ruleset blocks force pushes on `claude/**`,
+`--force`, or any reset. (A GitHub ruleset blocks force pushes on every branch,
 so the push would be refused anyway; the local reset it would follow is what
 loses the work. See CLAUDE.md's *This environment's git constraints*.)
 
@@ -186,7 +186,7 @@ the PR. Tier A is the exception, by design.
   boundary is product code, and a bugfix crosses it: reproducing the symptom,
   reading the failing path and classifying the tier are all thinking, so a
   Fable session does them without ceremony — then names the boundary and asks
-  for `/model claude-opus-5` before the first edit. **A Tier B fix never starts
+  for `/model claude-opus-5-5` before the first edit. **A Tier B fix never starts
   on Fable at all**, since it is Opus-reserved execution. Triage and
   diagnosis stay in my main loop. A **bounded** piece of the work — reproduce
   the symptom, find every caller of X — is eligible for a Sonnet subagent;
@@ -211,8 +211,9 @@ the PR. Tier A is the exception, by design.
   tier there — but a genuinely **trivial database schema fix that David
   explicitly green-lights runs migration ceremony directly, without
   restarting anywhere** (see *When NOT to use this mode*), and that path is
-  **Opus, always** per the tier table's migrations row, never the Sonnet
-  triage tier it was diagnosed on.
+  **Opus, always** — a migration is Opus-reserved execution (`CLAUDE.md`'s
+  *Model, cost, and routing*) — never the Sonnet triage tier it was
+  diagnosed on.
 
 ## 3. Ship it — PR immediately, no waiting
 
