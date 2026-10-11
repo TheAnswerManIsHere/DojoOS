@@ -38,6 +38,10 @@ Workstream: #<N>
 - **Migration:**
 - **Rollback:**
 
+## Decisions taken on my recommendation
+
+<One line per reversible choice proceeded on — the choice, the recommendation taken, the commit that would undo it (claude-core.md, *A reversible choice proceeds*) — or "none".>
+
 ## Latitude this change grants Claude
 
 <One line, or "None.">
