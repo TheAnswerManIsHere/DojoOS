@@ -255,7 +255,10 @@ avoided because it would mean two things.
 - The first product feature is a **prototype** of the logging viewer and
   the live preview (Q17), in prototype phase under the handbook's
   per-feature phase rule: its first version runs the short planning loop
-  with Astra and David's approval; no code review, no tests, feedback
+  with Astra and David's approval; no code review, no UAT doc, the three
+  machine lanes scaled to a prototype as the agent's proof (`ci` and
+  `scripted` before the merge, a read-only `live` check after its sync where
+  the claim depends on the workspace or a vendor; David, 2026-10-10), feedback
   through the feedback rail, David publishes. DojoOS has nothing downstream
   of `main`, so prototype-phase features live on `main`.
 - The architecture went through the full planning loop (scope plus four

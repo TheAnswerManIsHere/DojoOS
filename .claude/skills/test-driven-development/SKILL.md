@@ -9,9 +9,26 @@ description: Use when implementing any feature or bugfix, before writing impleme
 
 > **Local note (AI-Handbook #168).** The "ask your human partner" exception
 > below for a throwaway prototype is already answered for a feature David has
-> declared prototype phase: the declaration removes tests, and the `prototype`
+> declared prototype phase: the declaration removes tests as a bar — the
+> version still carries the machine lanes — `ci`, `scripted`, and `live` where
+> its claim needs the deployed environment — scaled to a prototype, timed per
+> regime in `working-modes.md`'s *What prototype phase keeps of verification*
+> (David, 2026-10-10) — and the `prototype`
 > skill is the entry point
 > ([`working-modes.md`](../../../docs/ai-context/working-modes.md#the-prototype-phase-per-feature-david-2026-09-26)).
+> The other "ask your human partner" rows below, and the closing "no
+> exceptions without your human partner's permission" — generated code,
+> configuration files, not knowing how to test — are the agent's own
+> reversible choices inside an approved plan — or, for a Tier A or B bugfix,
+> inside its tier oracle, which is that rule's plan: decide, and report the
+> choice rather than asking
+> ([`agent-working-rules.md`](../../../docs/ai-context/agent-working-rules.md#a-reversible-choice-proceeds-on-the-recommendation-david-2026-10-10)).
+> **For a Tier A or B bugfix the not-knowing-how-to-test row is not one of
+> them**: its regression test is step 3 of the bugfix loop, and whether a fix
+> may skip it is that loop's carve-out to say, not this note's
+> ([`working-modes.md`](../../../docs/ai-context/working-modes.md#per-bug--the-loop)) —
+> "I do not know how to test it" is a question to answer, not a choice to
+> proceed on (Codex, DojoOS #8; AI-Handbook #198).
 
 ## Overview
 
