@@ -4,9 +4,15 @@ The architecture of the video-production pipeline and the scaffold that
 realises it. **Source:** the plan `PLAN_DOJOOS_ARCHITECTURE.md` v6, approved
 by David on 2026-10-03 (sha256
 `68e1062fe8717bb5357fb89a20d4fa6e41119261c5ddace7585d4275272ba9ad`), after
-one scope exchange and four assessment exchanges with Astra. The plan file
-itself is not committed; this page carries its design sections, and the
-reasons behind each choice are in [`decisions.md`](decisions.md).
+one scope exchange and four assessment exchanges with Astra. The plan is
+committed at [`docs/plans/PLAN_DOJOOS_ARCHITECTURE.md`](../plans/PLAN_DOJOOS_ARCHITECTURE.md)
+as the approved snapshot, pinned by that digest and never edited: its own
+status line ("presented for approval. Never pushed") predates the
+handbook's 2026-10-12 rule that an approved plan is committed on its feature
+branch, and stays as approved because the digest verifies the file
+byte-for-byte. This page carries its design sections and is where design
+changes are written; the reasons behind each choice are in
+[`decisions.md`](decisions.md).
 
 When the code and this page disagree, one of them is wrong: fix whichever
 is, in the same PR that found it.

@@ -31,6 +31,9 @@ node scripts/check-uat-format.mjs
 ```
 
 CI runs all of these on every pull request
-([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). Anything needing
-the database, ffmpeg or real storage is verified in the Repl, per
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), and the Build job
+also migrates a Postgres service and runs every package's `test` script and
+the web package's `test:journeys` (the step-0 journeys, including a Chromium
+walk of the screens) against it. Anything needing ffmpeg, real storage or the
+running deployment is verified in the Repl, per
 [`docs/tests/TESTING.md`](docs/tests/TESTING.md).

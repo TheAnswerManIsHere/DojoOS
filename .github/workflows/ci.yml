@@ -44,6 +44,8 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm --filter @workspace/web lint
       - run: pnpm --filter @workspace/shared run migrate
+      # The browser journey drives Chromium; one install step, pinned by the web package's playwright version.
+      - run: pnpm --filter @workspace/web exec playwright install --with-deps chromium
       # Package tests need the workspace's dependencies, which only this job installs.
       - run: pnpm -r --if-present run test
       # The step-0 journeys spawn the real web server against the migrated database.

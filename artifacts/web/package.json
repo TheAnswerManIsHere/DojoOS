@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p server/tsconfig.json --noEmit",
     "lint": "eslint server",
     "test": "node --import tsx --test server/*.test.ts",
-    "test:journeys": "node --import tsx --test server/journeys/*.test.ts"
+    "test:journeys": "node --import tsx --test --test-concurrency=1 server/journeys/*.test.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -47,9 +47,12 @@
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-query": "catalog:",
+    "@types/express": "^5.0.6",
     "@types/node": "catalog:",
+    "@types/nodemailer": "^7.0.2",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@typescript-eslint/parser": "^8.46.0",
     "@vitejs/plugin-react": "catalog:",
     "@workspace/api-client-react": "workspace:*",
     "class-variance-authority": "catalog:",
@@ -57,10 +60,12 @@
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
+    "eslint": "^9.39.0",
     "framer-motion": "catalog:",
     "input-otp": "^1.4.2",
     "lucide-react": "catalog:",
     "next-themes": "^0.4.6",
+    "playwright": "~1.56.1",
     "react": "catalog:",
     "react-day-picker": "^9.11.1",
     "react-dom": "catalog:",
@@ -75,16 +80,12 @@
     "vaul": "^1.1.2",
     "vite": "catalog:",
     "wouter": "^3.3.5",
-    "@types/express": "^5.0.6",
-    "@types/nodemailer": "^7.0.2",
-    "@typescript-eslint/parser": "^8.46.0",
-    "eslint": "^9.39.0",
     "zod": "catalog:"
   },
   "dependencies": {
     "@workspace/shared": "workspace:*",
-    "express": "^5.2.1",
     "drizzle-orm": "catalog:",
+    "express": "^5.2.1",
     "nodemailer": "^7.0.10",
     "tsx": "^4.20.6"
   }
