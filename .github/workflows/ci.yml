@@ -14,6 +14,23 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    # The worker's queue tests and the web step-0 journeys run against a real Postgres,
+    # migrated by the same drizzle-kit command the Repl uses.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dojo
+          POSTGRES_PASSWORD: dojo
+          POSTGRES_DB: dojo_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dojo -d dojo_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://dojo:dojo@127.0.0.1:5432/dojo_test
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -26,8 +43,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
       - run: pnpm --filter @workspace/web lint
+      - run: pnpm --filter @workspace/shared run migrate
       # Package tests need the workspace's dependencies, which only this job installs.
       - run: pnpm -r --if-present run test
+      # The step-0 journeys spawn the real web server against the migrated database.
+      - run: pnpm -r --if-present run test:journeys
       # check-docs-accuracy.mjs is left out until the handbook exempts synced files
       # from its path rule: every failure today is a vendored doc citing another
       # product's paths (docs/engineering/deferred-work.md).

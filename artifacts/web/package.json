@@ -9,7 +9,8 @@
     "serve": "NODE_ENV=production tsx server/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p server/tsconfig.json --noEmit",
     "lint": "eslint server",
-    "test": "node --import tsx --test server/*.test.ts"
+    "test": "node --import tsx --test server/*.test.ts",
+    "test:journeys": "node --import tsx --test server/journeys/*.test.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
