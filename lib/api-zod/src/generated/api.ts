@@ -52,7 +52,10 @@ export const ListShootsResponseItem = zod.object({
   "durationMs": zod.number().int().nullish(),
   "width": zod.number().int().nullish(),
   "height": zod.number().int().nullish(),
-  "fps": zod.number().nullish()
+  "fps": zod.number().nullish(),
+  "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.'),
+  "lastError": zod.string().nullable().describe('The last ingest error, while the source is failed.'),
+  "retryable": zod.boolean().describe('The source can be processed again from the library.')
 }))
 })
 export const ListShootsResponse = zod.array(ListShootsResponseItem)
@@ -79,7 +82,10 @@ export const CreateShootResponse = zod.object({
   "durationMs": zod.number().int().nullish(),
   "width": zod.number().int().nullish(),
   "height": zod.number().int().nullish(),
-  "fps": zod.number().nullish()
+  "fps": zod.number().nullish(),
+  "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.'),
+  "lastError": zod.string().nullable().describe('The last ingest error, while the source is failed.'),
+  "retryable": zod.boolean().describe('The source can be processed again from the library.')
 }))
 })
 
@@ -134,7 +140,28 @@ export const CompleteUploadResponse = zod.object({
   "durationMs": zod.number().int().nullish(),
   "width": zod.number().int().nullish(),
   "height": zod.number().int().nullish(),
-  "fps": zod.number().nullish()
+  "fps": zod.number().nullish(),
+  "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.'),
+  "lastError": zod.string().nullable().describe('The last ingest error, while the source is failed.'),
+  "retryable": zod.boolean().describe('The source can be processed again from the library.')
+})
+
+
+export const RetryIngestParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RetryIngestResponse = zod.object({
+  "id": zod.string(),
+  "role": zod.enum(['camera_a', 'camera_b', 'audio']),
+  "ingestState": zod.string(),
+  "durationMs": zod.number().int().nullish(),
+  "width": zod.number().int().nullish(),
+  "height": zod.number().int().nullish(),
+  "fps": zod.number().nullish(),
+  "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.'),
+  "lastError": zod.string().nullable().describe('The last ingest error, while the source is failed.'),
+  "retryable": zod.boolean().describe('The source can be processed again from the library.')
 })
 
 

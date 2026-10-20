@@ -57,6 +57,15 @@ export interface Source {
   height?: number | null;
   /** @nullable */
   fps?: number | null;
+  /** A playable proxy exists; the playback URL is then the proxy's. */
+  hasProxy: boolean;
+  /**
+     * The last ingest error, while the source is failed.
+     * @nullable
+     */
+  lastError: string | null;
+  /** The source can be processed again from the library. */
+  retryable: boolean;
 }
 
 export interface Shoot {

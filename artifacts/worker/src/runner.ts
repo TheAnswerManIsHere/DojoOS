@@ -73,6 +73,17 @@ export class DrainRunner {
       if (index === -1) break;
       const [item] = this.pending.splice(index, 1);
       const controller = new AbortController();
+      // A job longer than the lease renews its claim while it runs, so a long encode is not aborted at expiry;
+      // a crashed worker stops renewing and its job is reclaimed at expiry as before. Renewal runs only while
+      // work is in flight, so the idle cost is unchanged (architecture.md §2, §10).
+      const renewal = setInterval(() => {
+        void this.queue.renew(item.job.id, item.owner).then((claimedAt) => {
+          // A renewal that lands after its job settled must not re-arm a lease timer for finished work.
+          if (controller.signal.aborted || this.stopped || !this.active.has(item.owner)) return;
+          if (claimedAt) this.watchLease(item.job.id, claimedAt, item.owner);
+          else { console.error("Lost job claim while running", item.job.id); controller.abort(); }
+        }).catch((error) => console.error("Lease renewal failed; the lease expiry still stands", error));
+      }, Math.max(1, Math.floor(this.leaseMs / 3)));
       const done = Promise.resolve().then(async () => {
         try {
           const result = await this.execute(item.job, controller.signal);
@@ -87,6 +98,7 @@ export class DrainRunner {
           }
         }
       }).catch((error) => console.error("Job settlement failed", error)).finally(() => {
+        clearInterval(renewal);
         const lease = this.leases.get(item.job.id);
         if (lease?.owner === item.owner) {
           clearTimeout(lease.timer);

@@ -44,6 +44,8 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm --filter @workspace/web lint
       - run: pnpm --filter @workspace/shared run migrate
+      # The worker's media tests run the real ffmpeg and ffprobe on generated clips.
+      - run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
       # The browser journey drives Chromium; one install step, pinned by the web package's playwright version.
       - run: pnpm --filter @workspace/web exec playwright install --with-deps chromium
       # Package tests need the workspace's dependencies, which only this job installs.
