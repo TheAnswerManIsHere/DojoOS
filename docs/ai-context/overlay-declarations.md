@@ -46,11 +46,13 @@ workspace, which tracks `main`.
 
 | Feature | Phase | Since | Regime | Prototype directory |
 |---|---|---|---|---|
+| Ingest (step 1: proxy, sprite, peaks, playback; transcription and deck ingest to come) | prototype | 2026-10-20 | `main` | none — built in production phase before the declaration (#15), in `artifacts/worker/src/{ingest,media}.ts` and `lib/shared/src/media.ts`; ledger: #16; questions file written with its next version |
 
-No feature is registered yet. The scaffold is the repository's machinery,
-not a product feature. **Each feature is added here by its own one-line PR
-before its first version's planning loop opens**; the logging viewer with
-live preview is the first.
+The scaffold is the repository's machinery, not a product feature. **Every
+build step is in prototype phase until David declares it production**
+(David, 2026-10-20: *"We don't need to harden any of this until we're sure
+we like the way the system is running."*), and **each is added here by its
+own one-line PR before its first version's planning loop opens**.
 
 ## Tester tier
 
