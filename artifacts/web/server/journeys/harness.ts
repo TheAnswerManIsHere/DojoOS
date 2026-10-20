@@ -14,11 +14,12 @@ export type Db = ReturnType<typeof connectDb>["db"];
 export type RunningServer = { origin: string; log: () => string; stop: () => Promise<void> };
 
 // Refuses to run without a database rather than passing on an empty evaluation, and refuses
-// one whose name does not say it is for tests: the server seeds its own operator and tester
-// at boot and disables every other account.
+// one whose name does not say it is for tests (`test`, or ending in `_test`): the server seeds
+// its own operator and tester at boot and disables every other account.
 export function requireTestDatabase() {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required: the step-0 journeys run against a migrated database");
-  if (!/test/i.test(new URL(process.env.DATABASE_URL).pathname)) throw new Error('DATABASE_URL must name a test database (its name contains "test"): the journeys reseed accounts');
+  const name = new URL(process.env.DATABASE_URL).pathname.slice(1);
+  if (!/(^|_)test$/i.test(name)) throw new Error(`DATABASE_URL must name a test database ("test" or ending in "_test", not "${name}"): the journeys reseed accounts`);
   return connectDb();
 }
 
@@ -44,6 +45,7 @@ export async function startServer(): Promise<RunningServer> {
   delete env.NODE_ENV; // development: the magic link comes back in the response instead of going out by mail
   delete env.SMTP_URL;
   delete env.REPL_ID;
+  delete env.APP_ORIGIN; // the rendered link must point at the spawned server, never a deployment's origin
   const child = spawn(process.execPath, ["--import", "tsx", "server/index.ts"], { cwd: webRoot, env, stdio: ["ignore", "pipe", "pipe"] });
   let log = "";
   // The child is owned from the moment it is spawned: a startup failure, the 60 s timeout
