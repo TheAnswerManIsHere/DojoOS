@@ -36,7 +36,7 @@ after(async () => { if (dir) await rm(dir, { recursive: true, force: true }); })
 
 test("the proxy is H.264/AAC, keeps a 720p source's size, and starts with its index for range playback", async () => {
   const out = join(dir, "landscape.proxy.mp4");
-  const cost = await makeProxy(join(dir, "landscape.mp4"), out, signal);
+  const cost = await makeProxy(join(dir, "landscape.mp4"), out, signal, { hasVideo: true, hasAudio: true });
   const info = probe(out);
   const video = info.streams.find((s) => s.codec_type === "video")!;
   const audio = info.streams.find((s) => s.codec_type === "audio")!;
@@ -52,7 +52,7 @@ test("the proxy is H.264/AAC, keeps a 720p source's size, and starts with its in
 
 test("a source larger than 1080p is scaled to fit 1920×1080; a portrait source keeps its orientation; no audio is no audio", async () => {
   const large = join(dir, "large.proxy.mp4");
-  await makeProxy(join(dir, "large.mp4"), large, signal);
+  await makeProxy(join(dir, "large.mp4"), large, signal, { hasVideo: true, hasAudio: true });
   const big = probe(large).streams.find((s) => s.codec_type === "video")!;
   assert.deepEqual([big.width, big.height], [1920, 1080]);
   const portrait = join(dir, "portrait.proxy.mp4");
@@ -118,7 +118,7 @@ test("a source with no audio gets an empty peaks file, not a failure", async () 
 
 test("an aborted encode stops and rejects instead of finishing", async () => {
   const controller = new AbortController();
-  const pending = makeProxy(join(dir, "large.mp4"), join(dir, "aborted.mp4"), controller.signal);
+  const pending = makeProxy(join(dir, "large.mp4"), join(dir, "aborted.mp4"), controller.signal, { hasVideo: true, hasAudio: true });
   controller.abort();
   await assert.rejects(pending);
 });

@@ -8,7 +8,8 @@ export type StepCost = { wallMs: number; maxRssKiB: number | null; bytes: number
 export type SourceIngestResult = {
   durationMs: number | null; width: number | null; height: number | null; fps: number | null;
   originalBytes: number; originalBitRate: number | null; downloadMs: number; probeMs: number;
-  proxy: StepCost; sprite: StepCost; peaks: StepCost; uploadMs: number;
+  /** sprite is null for a source with no picture; uploadMs spans the proxy upload, which overlaps the sprite and peaks. */
+  proxy: StepCost; sprite: StepCost | null; peaks: StepCost; uploadMs: number;
 };
 export type EDL = { cutId: string; entries: Array<{ brickId: string; inMs: number; outMs: number; position: number }> };
 export type TemplateSpec = { name: string; orientations: Array<"landscape" | "portrait" | "square">; settings: Record<string, unknown> };

@@ -3,7 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./schema": "./src/schema.ts", "./queue": "./src/queue.ts", "./storage": "./src/storage.ts", "./media": "./src/media.ts", "./contracts": "./src/contracts.ts", "./edl": "./src/edl.ts", "./commands": "./src/commands.ts" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./queue": "./src/queue.ts",
+    "./storage": "./src/storage.ts",
+    "./media": "./src/media.ts",
+    "./contracts": "./src/contracts.ts",
+    "./edl": "./src/edl.ts",
+    "./commands": "./src/commands.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "migrate:generate": "drizzle-kit generate --config drizzle.config.ts",
@@ -11,6 +20,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.900.0",
+    "@aws-sdk/lib-storage": "^3.1141.0",
     "@aws-sdk/s3-request-presigner": "^3.900.0",
     "drizzle-orm": "catalog:",
     "pg": "^8.16.3",

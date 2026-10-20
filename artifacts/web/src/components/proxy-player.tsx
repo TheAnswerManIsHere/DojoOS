@@ -16,12 +16,8 @@ export function ProxyPlayer({ sourceId }: { sourceId: string }) {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not load the proxy.'); }
     finally { setLoading(false); }
   };
-  if (!url) return <>
-    <button type="button" onClick={load} disabled={loading} data-testid={`button-play-${sourceId}`}>{loading ? 'Loading…' : 'Play proxy'}</button>
-    {error && <p role="alert" className="error">{error}</p>}
-  </>;
   return <>
-    <video ref={video} src={url} controls preload="metadata" width={320} data-testid={`video-source-${sourceId}`}
+    {url ? <video ref={video} src={url} controls preload="metadata" width={320} data-testid={`video-source-${sourceId}`}
       onLoadedMetadata={() => { if (resumeAt.current && video.current) { video.current.currentTime = resumeAt.current; resumeAt.current = 0; } }}
       onPlaying={() => { retried.current = false; }}
       onError={() => {
@@ -30,6 +26,7 @@ export function ProxyPlayer({ sourceId }: { sourceId: string }) {
         resumeAt.current = video.current?.currentTime ?? 0;
         void load();
       }} />
+      : <button type="button" onClick={load} disabled={loading} data-testid={`button-play-${sourceId}`}>{loading ? 'Loading…' : 'Play proxy'}</button>}
     {error && <p role="alert" className="error">{error}</p>}
   </>;
 }
