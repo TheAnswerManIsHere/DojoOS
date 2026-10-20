@@ -769,6 +769,74 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCompleteUploadMutationOptions(options));
     }
 
+export const getRetryIngestUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/sources/${id}/retry`
+}
+
+export const retryIngest = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Source> => {
+
+  return customFetch<Source>(getRetryIngestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryIngestMutationKey = () => ['retryIngest'] as const;
+
+export const getRetryIngestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryIngest>>, TError,RetryIngestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryIngest>>, TError,RetryIngestMutationVariables, TContext> => {
+
+const mutationKey = getRetryIngestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryIngest>>, RetryIngestMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  retryIngest(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryIngestMutationResult = NonNullable<Awaited<ReturnType<typeof retryIngest>>>
+
+    export type RetryIngestMutationError = ErrorType<unknown>
+    export type RetryIngestMutationVariables = {id: string}
+
+    export const useRetryIngest = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryIngest>>, TError,RetryIngestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryIngest>>,
+        TError,
+        RetryIngestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetryIngestMutationOptions(options));
+    }
+
 export const getGetPlaybackUrl = (id: string,) => {
 
 

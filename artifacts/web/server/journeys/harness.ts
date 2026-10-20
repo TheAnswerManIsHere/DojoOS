@@ -83,3 +83,13 @@ export async function removeQuestion(db: Db, key: string) {
   await db.delete(feedback).where(eq(feedback.questionKey, key));
   await db.delete(questions).where(eq(questions.key, key));
 }
+
+/** Signs in over HTTP the way the sign-in page does in development, and returns the session cookie. */
+export async function signInOverHttp(origin: string, email: string): Promise<string> {
+  const post = (path: string, body: unknown) => fetch(`${origin}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const { magicLink } = (await (await post("/app-api/auth/request", { email })).json()) as { magicLink?: string };
+  if (!magicLink) throw new Error("development sign-in returned no magic link");
+  const verified = await post("/app-api/auth/verify", { token: new URL(magicLink).searchParams.get("token") });
+  if (verified.status !== 200) throw new Error(`verification failed with ${verified.status}`);
+  return (verified.headers.get("set-cookie") ?? "").split(";")[0];
+}

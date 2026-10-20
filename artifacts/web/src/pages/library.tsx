@@ -3,9 +3,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getListShootsQueryKey, useCreateShoot, useListShoots } from '@workspace/api-client-react';
 import { UploadManager } from '@/components/upload-manager';
 import { ProxyPlayer } from '@/components/proxy-player';
+import { SourceState } from '@/components/source-state';
+
+/** States the worker moves a source through on its own; while any source is in one, the library refreshes itself.
+ * `uploading` is not among them: it ends only when the browser finishes, and an abandoned upload must not poll forever. */
+const inFlight = new Set(['uploaded', 'probing', 'proxying', 'transcribing']);
+const refreshMs = 5000;
 
 export function Library({ accountId }: { accountId: string }) {
-  const shoots = useListShoots();
+  const shoots = useListShoots({ query: { queryKey: getListShootsQueryKey(),
+    refetchInterval: query => query.state.data?.some(shoot => shoot.sources.some(source => inFlight.has(source.ingestState))) ? refreshMs : false } });
   const create = useCreateShoot();
   const client = useQueryClient();
   const [name, setName] = useState('');
@@ -47,7 +54,7 @@ export function Library({ accountId }: { accountId: string }) {
           <div className="table-scroll"><table className="plain-table">
             <thead><tr><th>ID</th><th>Role</th><th>Ingest state</th><th>Duration</th><th>Width</th><th>Height</th><th>FPS</th><th>Proxy</th></tr></thead>
             <tbody>{shoot.sources.map(source => <tr key={source.id} data-testid={`row-source-${source.id}`}>
-              <td>{source.id}</td><td>{source.role}</td><td>{source.ingestState}</td><td>{source.durationMs == null ? '—' : `${source.durationMs} ms`}</td><td>{source.width ?? '—'}</td><td>{source.height ?? '—'}</td><td>{source.fps ?? '—'}</td>
+              <td>{source.id}</td><td>{source.role}</td><td><SourceState source={source} /></td><td>{source.durationMs == null ? '—' : `${source.durationMs} ms`}</td><td>{source.width ?? '—'}</td><td>{source.height ?? '—'}</td><td>{source.fps ?? '—'}</td>
               <td>{source.ingestState === 'ready' && source.hasProxy ? <ProxyPlayer sourceId={source.id} /> : '—'}</td>
             </tr>)}</tbody>
           </table></div>}

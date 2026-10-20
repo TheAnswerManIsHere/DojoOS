@@ -53,3 +53,28 @@ test("renewal extends only the holder's claim", async () => {
     await pool.end();
   }
 });
+
+
+test("a failed attempt is queued again until the third, then left failed with its error", async () => {
+  const { db, pool } = connectDb();
+  const rollback = new Error("test rollback");
+  try {
+    await assert.rejects(db.transaction(async (tx) => {
+      const queue = createQueue(tx as unknown as typeof db);
+      const [row] = await tx.insert(jobs).values({ kind: "source.probe", payload: {} }).returning();
+      for (const attempt of [1, 2, 3]) {
+        const claimed = await queue.claim(`worker-${attempt}`);
+        assert.equal(claimed?.id, row.id);
+        assert.equal(claimed?.attempts, attempt);
+        assert.equal(await queue.fail(row.id, `worker-${attempt}`, `failure ${attempt}`), true);
+        const [after] = await tx.select().from(jobs).where(eq(jobs.id, row.id));
+        assert.equal(after.state, attempt < 3 ? "queued" : "failed");
+        assert.equal(after.error, `failure ${attempt}`);
+      }
+      assert.equal(await queue.claim("worker-4"), null, "nothing left to claim after the third failure");
+      throw rollback;
+    }), (error: unknown) => error === rollback);
+  } finally {
+    await pool.end();
+  }
+});

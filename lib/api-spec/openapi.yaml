@@ -121,6 +121,17 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Source" }
+  /sources/{id}/retry:
+    post:
+      operationId: retryIngest
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "202":
+          description: Ingest queued again
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Source" }
   /sources/{id}/playback:
     get:
       operationId: getPlayback
@@ -196,7 +207,7 @@ components:
       properties: { token: { type: string } }
     Source:
       type: object
-      required: [id, role, ingestState, hasProxy]
+      required: [id, role, ingestState, hasProxy, lastError, retryable]
       properties:
         id: { type: string }
         role: { type: string, enum: [camera_a, camera_b, audio] }
@@ -206,6 +217,8 @@ components:
         height: { type: ["integer", "null"] }
         fps: { type: ["number", "null"] }
         hasProxy: { type: boolean, description: "A playable proxy exists; the playback URL is then the proxy's." }
+        lastError: { type: ["string", "null"], description: "The last ingest error, while the source is failed." }
+        retryable: { type: boolean, description: "The source can be processed again from the library." }
     Shoot:
       type: object
       required: [id, name, sources]

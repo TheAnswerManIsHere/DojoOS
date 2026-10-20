@@ -28,19 +28,40 @@ After a file uploads, the worker now makes a small, seekable proxy of it, a stri
 
 ### 3. A long encode is not killed when it outlasts its lease
 
-**Do:** Run a job five leases long while its worker renews the lease; separately, refuse a renewal.
-**Expect:** The long job completes once with no reclaim attempt; the job whose renewal is refused stops and is not completed.
+**Do:** Run a job five leases long while its worker renews the lease; separately, refuse a renewal, and answer a renewal only after its job has finished.
+**Expect:** The long job completes once with no reclaim attempt; the job whose renewal is refused stops and is not completed; a late answer arms nothing and causes no extra claim. A failed attempt is queued again until the third, then left failed with its error.
 **Lane:** ci
 **Check:** `artifacts/worker/src/runner.test.ts`
 
-### 4. Jared's file is ingested on the Repl with its measurements recorded
+### 4. The library follows a source through ingest without a reload
+
+**Do:** Open the library while a source is `proxying`, then let it finish.
+**Expect:** The state changes to `ready` and Play proxy appears on its own, within a few seconds; the page stops refreshing once nothing is in ingest.
+**Lane:** ci
+**Check:** `artifacts/web/server/journeys/step1-browser.test.ts`
+
+### 5. A failed source shows its error and can be processed again
+
+**Do:** Open the library with a source whose ingest failed, and press Process again.
+**Expect:** The failure's error text is shown beside the state; Process again puts the source back to `uploaded` with one ingest queued, and the button does not offer a second retry while that one is queued. A source marked ready before ingest made proxies (step 0's) offers Process again too.
+**Lane:** ci
+**Check:** `artifacts/web/server/journeys/step1.test.ts`
+
+### 6. Playback that cannot continue leaves a way to try again
+
+**Do:** Play a proxy whose link cannot be loaded.
+**Expect:** The player fetches a fresh link once on its own; when that also fails it says "The proxy could not be played. Press Play to try again." and shows Play again.
+**Lane:** ci
+**Check:** `artifacts/web/server/journeys/step1-browser.test.ts`
+
+### 7. Jared's file is ingested on the Repl with its measurements recorded
 
 **Do:** Read the Adductor Stretch source row and its completed ingest job through the connector.
 **Expect:** The source is `ready` with a proxy, sprite and peaks key; the job's result shows the original's size and bitrate, probe time, and the proxy's wall time and peak memory.
 **Lane:** live
 **Check:** `psql "$DATABASE_URL" -c "select s.ingest_state, s.proxy_key is not null as has_proxy, s.sprite_key is not null as has_sprite, s.peaks_key is not null as has_peaks, j.result from sources s join jobs j on j.payload->>'sourceId' = s.id where j.kind = 'source.probe' and j.state = 'completed' order by j.created_at desc limit 1"` (read-only, run in the Repl's shell through the connector)
 
-### 5. Jared's footage looks and sounds right as a proxy
+### 8. Jared's footage looks and sounds right as a proxy
 
 **Do:** In the library, press Play proxy on Adductor Stretch and watch a minute from the start and a minute from the middle (drag the playhead there).
 **Expect:** The picture is clear enough to judge a stretch by, the sound is Jared's voice at a normal level and in step with his lips, and seeking to the middle starts playing within a couple of seconds.
@@ -59,4 +80,4 @@ After a file uploads, the worker now makes a small, seekable proxy of it, a stri
 ## Not bugs
 
 - No transcript and no deck pages yet: both are the next parts of step 1.
-- Sources ingested before this PR (the step-0 phone clip) are `ready` with no proxy and show no Play button; they are not re-processed.
+- Sources ingested before this PR (the step-0 phone clip) are `ready` with no proxy: they show no Play button until Process again has run them through ingest.

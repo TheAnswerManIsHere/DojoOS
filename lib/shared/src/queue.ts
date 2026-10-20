@@ -13,6 +13,8 @@ export interface JobQueue {
   enqueue<K extends JobKind>(kind: K, payload: JobPayloads[K]): Promise<string>;
   claim(workerId: string): Promise<typeof jobs.$inferSelect | null>;
   complete(id: string, workerId: string, result: unknown): Promise<boolean>;
+  /** Records a failed attempt: the job is queued again while it has attempts left (three in all, shared with lease
+   * expiries), and left failed with its error after the third. */
   fail(id: string, workerId: string, error: string): Promise<boolean>;
   /** Extends a held claim; returns the new claimed_at, or null when the claim is no longer this worker's. */
   renew(id: string, workerId: string): Promise<Date | null>;
@@ -52,7 +54,7 @@ export function createQueue(db: Db): JobQueue {
       return row?.claimedAt ?? null;
     },
     async fail(id, workerId, error) {
-      const [row] = await db.update(jobs).set({ state: "failed", error })
+      const [row] = await db.update(jobs).set({ state: sql`(case when ${jobs.attempts} < 3 then 'queued' else 'failed' end)::job_state`, error, claimedBy: null, claimedAt: null })
         .where(sql`${jobs.id} = ${id} and ${jobs.claimedBy} = ${workerId} and ${jobs.state} = 'claimed'`).returning({ id: jobs.id });
       return !!row;
     },

@@ -78,7 +78,8 @@ export class DrainRunner {
       // work is in flight, so the idle cost is unchanged (architecture.md §2, §10).
       const renewal = setInterval(() => {
         void this.queue.renew(item.job.id, item.owner).then((claimedAt) => {
-          if (controller.signal.aborted || this.stopped) return;
+          // A renewal that lands after its job settled must not re-arm a lease timer for finished work.
+          if (controller.signal.aborted || this.stopped || !this.active.has(item.owner)) return;
           if (claimedAt) this.watchLease(item.job.id, claimedAt, item.owner);
           else { console.error("Lost job claim while running", item.job.id); controller.abort(); }
         }).catch((error) => console.error("Lease renewal failed; the lease expiry still stands", error));

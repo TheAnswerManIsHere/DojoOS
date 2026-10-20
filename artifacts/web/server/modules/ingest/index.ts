@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { and, eq, isNull } from "drizzle-orm";
-import { shoots, sources, uploads } from "@workspace/shared";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { jobs, shoots, sources, uploads } from "@workspace/shared";
 import type { Context } from "../../context";
 import { publicSource } from "../library";
 
@@ -50,6 +50,20 @@ export function ingestRoutes(ctx: Context) {
     await ctx.db.update(uploads).set({ completedAt: new Date() }).where(eq(uploads.id, row.upload.id));
     await ctx.queue.enqueue("source.probe", { sourceId: source.id });
     return res.json(publicSource(source));
+  });
+  // The operator's retry (architecture.md §2): a failed source, or one marked ready before ingest made a proxy, is put
+  // back to uploaded and ingested again. The update is the guard, so two clicks queue one job.
+  router.post("/sources/:id/retry", async (req, res) => {
+    const id = req.params.id as string;
+    const [source] = await ctx.db.update(sources).set({ ingestState: "uploaded" })
+      .where(and(eq(sources.id, id), isNull(sources.deletedAt),
+        sql`(${sources.ingestState} = 'failed' or (${sources.ingestState} = 'ready' and ${sources.proxyKey} is null))`,
+        sql`not exists (select 1 from ${jobs} where ${jobs.kind} = 'source.probe' and ${jobs.payload}->>'sourceId' = ${sources.id}
+          and ${jobs.state} in ('queued', 'claimed') and ${jobs.deletedAt} is null)`))
+      .returning();
+    if (!source) return res.status(409).json({ error: "Nothing to retry: the source is being processed, already has its proxy, or does not exist" });
+    await ctx.queue.enqueue("source.probe", { sourceId: source.id });
+    return res.status(202).json(publicSource(source, { state: "queued", error: null }));
   });
   router.get("/sources/:id/playback", async (req, res) => {
     const [source] = await ctx.db.select().from(sources).where(and(eq(sources.id, req.params.id as string), isNull(sources.deletedAt)));

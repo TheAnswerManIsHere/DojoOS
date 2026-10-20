@@ -119,3 +119,22 @@ test("a job whose renewal is refused is aborted and not completed", async () => 
     assert.equal(completed, 0);
   } finally { await runner.stop(); }
 });
+
+test("a renewal that lands after its job settled does not re-arm a lease timer or cause a claim", async () => {
+  let claims = 0;
+  let release!: (at: Date) => void;
+  const queue = emptyQueue(async (owner) => {
+    claims++;
+    return claims === 1 ? { id: "late", claimedBy: owner, claimedAt: new Date() } as Job : null;
+  });
+  queue.renew = () => new Promise<Date>((resolve) => { release = resolve; });
+  const runner = new DrainRunner(queue, 1, 60, async () => { await wait(30); }); // renewal starts at 20 ms, job settles at 30
+  try {
+    runner.drain();
+    await wait(60);
+    const settledClaims = claims; // the first claim and the completion's continuation drain
+    release(new Date()); // the renewal answers after settlement
+    await wait(150); // well past a 60 ms lease the late answer would have armed
+    assert.equal(claims, settledClaims);
+  } finally { await runner.stop(); }
+});

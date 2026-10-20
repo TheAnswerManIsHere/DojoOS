@@ -3,7 +3,7 @@
 // derivatives. The returned measurements are the job's result: step 0's file size, bitrate and probe time, and step
 // 1's proxy wall time and peak memory.
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { and, eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { derivedKeys, sources, type connectDb, type createStorage, type SourceIngestResult } from "@workspace/shared";
 import { createWriteStream } from "node:fs";
 import { mkdtemp, rm, stat } from "node:fs/promises";
@@ -18,10 +18,16 @@ type Db = ReturnType<typeof connectDb>["db"];
 type Storage = ReturnType<typeof createStorage>;
 const since = (started: number) => Math.round(performance.now() - started);
 
+/** Ingest runs for any source whose original is complete and which does not yet have its proxy: a fresh upload, a
+ * retry after a failure, an interrupted run, and a source marked ready before ingest made derivatives (step 0). */
+export function ingestable(source: Pick<typeof sources.$inferSelect, "deletedAt" | "ingestState" | "proxyKey">) {
+  if (source.deletedAt || source.ingestState === "uploading") return false;
+  return !(source.ingestState === "ready" && source.proxyKey);
+}
+
 export async function ingest(db: Db, storage: Storage, sourceId: string, signal: AbortSignal): Promise<SourceIngestResult> {
-  const [source] = await db.select().from(sources).where(and(eq(sources.id, sourceId),
-    or(eq(sources.ingestState, "uploaded"), eq(sources.ingestState, "probing"), eq(sources.ingestState, "proxying"))));
-  if (!source || source.deletedAt) throw new Error("Source is missing or not uploaded");
+  const [source] = await db.select().from(sources).where(eq(sources.id, sourceId));
+  if (!source || !ingestable(source)) throw new Error("Source is missing, still uploading, or already has its proxy");
   await db.update(sources).set({ ingestState: "probing" }).where(eq(sources.id, sourceId));
   const dir = await mkdtemp(join(tmpdir(), "dojo-ingest-"));
   try {
