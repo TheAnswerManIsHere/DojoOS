@@ -14,6 +14,8 @@ export interface JobQueue {
   claim(workerId: string): Promise<typeof jobs.$inferSelect | null>;
   complete(id: string, workerId: string, result: unknown): Promise<boolean>;
   fail(id: string, workerId: string, error: string): Promise<boolean>;
+  /** Extends a held claim; returns the new claimed_at, or null when the claim is no longer this worker's. */
+  renew(id: string, workerId: string): Promise<Date | null>;
 }
 export function createQueue(db: Db): JobQueue {
   const leaseMs = jobLeaseMs();
@@ -43,6 +45,11 @@ export function createQueue(db: Db): JobQueue {
       const [row] = await db.update(jobs).set({ state: "completed", result, error: null })
         .where(sql`${jobs.id} = ${id} and ${jobs.claimedBy} = ${workerId} and ${jobs.state} = 'claimed'`).returning({ id: jobs.id });
       return !!row;
+    },
+    async renew(id, workerId) {
+      const [row] = await db.update(jobs).set({ claimedAt: new Date() })
+        .where(sql`${jobs.id} = ${id} and ${jobs.claimedBy} = ${workerId} and ${jobs.state} = 'claimed'`).returning({ claimedAt: jobs.claimedAt });
+      return row?.claimedAt ?? null;
     },
     async fail(id, workerId, error) {
       const [row] = await db.update(jobs).set({ state: "failed", error })

@@ -4,7 +4,7 @@ import { shoots, sources } from "@workspace/shared";
 import type { Context } from "../../context";
 
 function publicSource(row: typeof sources.$inferSelect) {
-  return { id: row.id, role: row.role, ingestState: row.ingestState, durationMs: row.durationMs, width: row.width, height: row.height, fps: row.fps };
+  return { id: row.id, role: row.role, ingestState: row.ingestState, durationMs: row.durationMs, width: row.width, height: row.height, fps: row.fps, hasProxy: !!row.proxyKey };
 }
 export function libraryRoutes(ctx: Context) {
   const router = Router();

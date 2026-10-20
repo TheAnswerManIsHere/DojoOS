@@ -33,3 +33,23 @@ test("expired claims reach attempt three, then fail while retaining the last err
     await pool.end();
   }
 });
+
+test("renewal extends only the holder's claim", async () => {
+  const { db, pool } = connectDb();
+  const rollback = new Error("test rollback");
+  try {
+    await assert.rejects(db.transaction(async (tx) => {
+      const queue = createQueue(tx as unknown as typeof db);
+      const old = new Date(Date.now() - 60_000);
+      const [row] = await tx.insert(jobs).values({ kind: "source.probe", payload: {}, state: "claimed", attempts: 1, claimedAt: old, claimedBy: "holder" }).returning();
+      assert.equal(await queue.renew(row.id, "someone-else"), null);
+      const renewed = await queue.renew(row.id, "holder");
+      assert.ok(renewed && renewed.getTime() > old.getTime() + 50_000);
+      await tx.update(jobs).set({ state: "completed" }).where(eq(jobs.id, row.id));
+      assert.equal(await queue.renew(row.id, "holder"), null, "a finished job cannot be renewed");
+      throw rollback;
+    }), (error: unknown) => error === rollback);
+  } finally {
+    await pool.end();
+  }
+});

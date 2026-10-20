@@ -1,9 +1,9 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { eq, and, isNull, or } from "drizzle-orm";
-import { connectDb, createQueue, createStorage, sources, jobs, jobLeaseMs } from "@workspace/shared";
-import type { SourceProbePayload, SourceProbeResult } from "@workspace/shared";
+import { connectDb, createQueue, createStorage, derivedKeys, sources, jobs, jobLeaseMs } from "@workspace/shared";
+import type { SourceIngestResult, SourceProbePayload, SourceProbeResult } from "@workspace/shared";
 import { createWriteStream } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -11,6 +11,7 @@ import { Readable } from "node:stream";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { DrainRunner } from "./runner";
+import { makePeaks, makeProxy, makeSprite } from "./media";
 
 const concurrency = Number(process.env.WORKER_CONCURRENCY ?? "2");
 if (!Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 16) throw new Error("WORKER_CONCURRENCY must be an integer from 1 to 16");
@@ -41,19 +42,61 @@ async function probe(file: string, signal: AbortSignal): Promise<SourceProbeResu
     probe: data,
   };
 }
-async function execute(sourceId: string, signal: AbortSignal) {
-  const [source] = await db.select().from(sources).where(and(eq(sources.id, sourceId), or(eq(sources.ingestState, "uploaded"), eq(sources.ingestState, "probing"))));
+type ProbeStreams = { streams?: Array<{ codec_type?: string }>; format?: { bit_rate?: string } };
+
+/** Ingest (architecture.md §4): stage the original once, probe it, make the proxy, sprite and peaks, upload them,
+ * and mark the source ready. The local original is deleted as soon as the proxy exists, so the disk peak is one
+ * original plus its derivatives. The returned measurements are the job's result: step 0's file size, bitrate and
+ * probe time, and step 1's proxy wall time and peak memory. */
+async function execute(sourceId: string, signal: AbortSignal): Promise<SourceIngestResult> {
+  const [source] = await db.select().from(sources).where(and(eq(sources.id, sourceId),
+    or(eq(sources.ingestState, "uploaded"), eq(sources.ingestState, "probing"), eq(sources.ingestState, "proxying"))));
   if (!source || source.deletedAt) throw new Error("Source is missing or not uploaded");
   await db.update(sources).set({ ingestState: "probing" }).where(eq(sources.id, sourceId));
-  const dir = await mkdtemp(join(tmpdir(), "dojo-probe-"));
+  const dir = await mkdtemp(join(tmpdir(), "dojo-ingest-"));
   try {
+    const file = join(dir, "source");
+    let started = performance.now();
     const object = await storage.client.send(new GetObjectCommand({ Bucket: storage.bucket, Key: source.originalKey }), { abortSignal: signal });
     if (!object.Body) throw new Error("Stored source was empty");
-    const file = join(dir, "source");
     await pipeline(Readable.fromWeb(object.Body.transformToWebStream() as import("node:stream/web").ReadableStream), createWriteStream(file), { signal });
-    const result = await probe(file, signal);
+    const downloadMs = Math.round(performance.now() - started);
+    const originalBytes = (await stat(file)).size;
+    started = performance.now();
+    const probed = await probe(file, signal);
+    const probeMs = Math.round(performance.now() - started);
+    const streams = (probed.probe as ProbeStreams).streams ?? [];
+    const hasVideo = streams.some((s) => s.codec_type === "video");
+    const hasAudio = streams.some((s) => s.codec_type === "audio");
+    if (!hasVideo && !hasAudio) throw new Error("The file has neither a video nor an audio stream");
+    const bitRate = Number((probed.probe as ProbeStreams).format?.bit_rate);
     signal.throwIfAborted();
-    await db.update(sources).set({ ...result, ingestState: "ready" }).where(eq(sources.id, sourceId));
+    await db.update(sources).set({ ...probed, ingestState: "proxying" }).where(eq(sources.id, sourceId));
+
+    const keys = derivedKeys(sourceId);
+    const proxyFile = join(dir, "proxy.mp4"), spriteFile = join(dir, "sprite.jpg"), peaksFile = join(dir, "peaks.json");
+    const proxy = await makeProxy(file, proxyFile, signal, { hasVideo, hasAudio });
+    await rm(file, { force: true });
+    const proxied = await probe(proxyFile, signal);
+    const sprite = hasVideo && proxied.durationMs && proxied.width && proxied.height
+      ? await makeSprite(proxyFile, spriteFile, proxied.durationMs, proxied.width, proxied.height, signal)
+      : { wallMs: 0, maxRssKiB: null, bytes: 0 };
+    const peaks = await makePeaks(proxyFile, peaksFile, hasAudio, signal);
+
+    started = performance.now();
+    await storage.put(keys.proxy, proxyFile, hasVideo ? "video/mp4" : "audio/mp4", signal);
+    if (sprite.bytes) await storage.put(keys.sprite, spriteFile, "image/jpeg", signal);
+    await storage.put(keys.peaks, peaksFile, "application/json", signal);
+    const uploadMs = Math.round(performance.now() - started);
+    signal.throwIfAborted();
+    await db.update(sources).set({ proxyKey: keys.proxy, spriteKey: sprite.bytes ? keys.sprite : null, peaksKey: keys.peaks, ingestState: "ready" })
+      .where(eq(sources.id, sourceId));
+    const result: SourceIngestResult = {
+      durationMs: probed.durationMs, width: probed.width, height: probed.height, fps: probed.fps,
+      originalBytes, originalBitRate: Number.isFinite(bitRate) ? bitRate : null, downloadMs, probeMs,
+      proxy, sprite, peaks, uploadMs,
+    };
+    console.info("Ingest complete", sourceId, JSON.stringify(result));
     return result;
   } catch (error) {
     await db.update(sources).set({ ingestState: signal.aborted ? "uploaded" : "failed" }).where(eq(sources.id, sourceId));

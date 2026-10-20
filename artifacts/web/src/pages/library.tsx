@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getListShootsQueryKey, useCreateShoot, useListShoots } from '@workspace/api-client-react';
 import { UploadManager } from '@/components/upload-manager';
+import { ProxyPlayer } from '@/components/proxy-player';
 
 export function Library({ accountId }: { accountId: string }) {
   const shoots = useListShoots();
@@ -44,9 +45,10 @@ export function Library({ accountId }: { accountId: string }) {
         <h3>Sources</h3>
         {shoot.sources.length === 0 ? <p>No sources yet.</p> :
           <div className="table-scroll"><table className="plain-table">
-            <thead><tr><th>ID</th><th>Role</th><th>Ingest state</th><th>Duration</th><th>Width</th><th>Height</th><th>FPS</th></tr></thead>
+            <thead><tr><th>ID</th><th>Role</th><th>Ingest state</th><th>Duration</th><th>Width</th><th>Height</th><th>FPS</th><th>Proxy</th></tr></thead>
             <tbody>{shoot.sources.map(source => <tr key={source.id} data-testid={`row-source-${source.id}`}>
               <td>{source.id}</td><td>{source.role}</td><td>{source.ingestState}</td><td>{source.durationMs == null ? '—' : `${source.durationMs} ms`}</td><td>{source.width ?? '—'}</td><td>{source.height ?? '—'}</td><td>{source.fps ?? '—'}</td>
+              <td>{source.ingestState === 'ready' && source.hasProxy ? <ProxyPlayer sourceId={source.id} /> : '—'}</td>
             </tr>)}</tbody>
           </table></div>}
         <UploadManager shootId={shoot.id} accountId={accountId} />

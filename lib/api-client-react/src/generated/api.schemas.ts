@@ -57,6 +57,8 @@ export interface Source {
   height?: number | null;
   /** @nullable */
   fps?: number | null;
+  /** A playable proxy exists; the playback URL is then the proxy's. */
+  hasProxy: boolean;
 }
 
 export interface Shoot {

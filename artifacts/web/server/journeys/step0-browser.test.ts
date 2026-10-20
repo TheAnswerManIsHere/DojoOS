@@ -3,10 +3,11 @@
 // against the same spawned server and migrated test database as step0.test.ts.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { chromium, type Browser, type Page } from "playwright";
+import { chromium, type Browser } from "playwright";
 import { and, eq } from "drizzle-orm";
 import { feedback, users } from "@workspace/shared";
 import { operatorEmail, removeQuestion, requireTestDatabase, seedQuestion, startServer, testerEmail, type RunningServer } from "./harness";
+import { openPage as openBrowserPage, signInFromPage as signIn } from "./browser";
 
 const questionKey = "step0-browser";
 const prompt = "Step-0 browser journey: does the library make sense?";
@@ -30,23 +31,8 @@ after(async () => {
   }
 });
 
-async function openPage() {
-  const page = await (await browser.newContext()).newPage();
-  page.setDefaultTimeout(60_000); // the first load of a page compiles it through Vite
-  return page;
-}
-
-// The path an emailed link takes: the sign-in page requests the link, the browser follows it,
-// the page verifies the token, seeds the session and lands on the library. In development the
-// link is rendered on the page itself instead of being mailed.
-async function signInFromPage(page: Page, email: string) {
-  await page.goto(`${server.origin}/sign-in`);
-  await page.getByTestId("input-email").fill(email);
-  await page.getByTestId("button-request-link").click();
-  await page.getByTestId("status-check-inbox").getByRole("link", { name: "Sign in to DojoOS" }).click();
-  await page.waitForURL(`${server.origin}/library`);
-  await page.getByTestId("text-account-email").filter({ hasText: email }).waitFor();
-}
+const openPage = () => openBrowserPage(browser);
+const signInFromPage = (page: Awaited<ReturnType<typeof openPage>>, email: string) => signIn(page, server.origin, email);
 
 test("the tester signs in from the page, answers the rendered rail, and the operator reads it on the feedback page", async () => {
   const tester = await openPage();

@@ -52,7 +52,8 @@ export const ListShootsResponseItem = zod.object({
   "durationMs": zod.number().int().nullish(),
   "width": zod.number().int().nullish(),
   "height": zod.number().int().nullish(),
-  "fps": zod.number().nullish()
+  "fps": zod.number().nullish(),
+  "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.')
 }))
 })
 export const ListShootsResponse = zod.array(ListShootsResponseItem)
@@ -79,7 +80,8 @@ export const CreateShootResponse = zod.object({
   "durationMs": zod.number().int().nullish(),
   "width": zod.number().int().nullish(),
   "height": zod.number().int().nullish(),
-  "fps": zod.number().nullish()
+  "fps": zod.number().nullish(),
+  "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.')
 }))
 })
 
@@ -134,7 +136,8 @@ export const CompleteUploadResponse = zod.object({
   "durationMs": zod.number().int().nullish(),
   "width": zod.number().int().nullish(),
   "height": zod.number().int().nullish(),
-  "fps": zod.number().nullish()
+  "fps": zod.number().nullish(),
+  "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.')
 })
 
 

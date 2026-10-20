@@ -196,7 +196,7 @@ components:
       properties: { token: { type: string } }
     Source:
       type: object
-      required: [id, role, ingestState]
+      required: [id, role, ingestState, hasProxy]
       properties:
         id: { type: string }
         role: { type: string, enum: [camera_a, camera_b, audio] }
@@ -205,6 +205,7 @@ components:
         width: { type: ["integer", "null"] }
         height: { type: ["integer", "null"] }
         fps: { type: ["number", "null"] }
+        hasProxy: { type: boolean, description: "A playable proxy exists; the playback URL is then the proxy's." }
     Shoot:
       type: object
       required: [id, name, sources]
