@@ -77,10 +77,13 @@ it's missing a session David knows is active, that session hasn't opened
 its workstream issue yet. Mention this possibility in the report if the
 count looks low relative to what David expects.
 
-**Sensitive/disclosure-carve-out workstreams.** Per the plan-review-loop's
-disclosure rule, those live as draft Project items, not issues, precisely
-because this repo is public. They're deliberately invisible to any
-tool-based report, including this one.
+**Sensitive/disclosure-carve-out workstreams.** Per the canonical disclosure
+rule ([`workstream-tracking.md`](../../../docs/ai-context/workstream-tracking.md#what-must-never-happen)),
+those live as draft Project items, not issues, precisely because this repo
+is public. They're deliberately invisible to any tool-based report,
+including this one — except one that turned sensitive after its issue
+opened, whose issue stays visible with sanitized tracking only, its plan
+still invisible.
 
 ## Step 1 — Fetch every open workstream issue
 
@@ -214,7 +217,8 @@ from a thread that belongs to a phase that's already over.
 
 **`stage:planning` and `stage:plan-approval` have no PR by design
 (2026-09-09), and that is health, not absence.** The plan loop runs
-in-session against a plan that is never pushed, so a workstream in either
+in-session and opens no PR, and the plan is not committed until approval
+(`claude-core.md` Planning rule 3), so a workstream in either
 stage has nothing to find and no targeted lookup is warranted. Report it
 from the issue's own labels and comment history — Step 4's no-PR path —
 and never as missing, unlinked or stalled on the strength of having no PR.
@@ -315,7 +319,9 @@ the agent through the Replit connector inside close-out, so a workstream
 sitting at `waiting:replit` is agent-held work — it buckets and
 stall-detects like `waiting:claude`, and a lingering one means a close-out
 some session needs to finish, which is exactly what the stalled bucket
-exists to surface. `/status`'s five-state table
+exists to surface. A Post-merge step that would start a paid AI run runs within David's paid-run budget — $5 a run, $25 a week — and asks him only above it (`uat-doc-format.md`, *Lanes*): within budget it is agent work
+(`waiting:claude`), not `waiting:david` and not reported under 🛑 NEEDS YOU; only a run above the budget is labelled
+`waiting:david` and reported there, never as stalled agent work. `/status`'s five-state table
 (`.claude/skills/status/SKILL.md`) made the matching move.
 
 A workstream is **stalled** when `waiting` is NOT a David-gate (per the

@@ -1,6 +1,6 @@
 ---
 name: plan-review-loop
-description: Use in feature-building mode once the pre-plan conversation has settled intent, or whenever a plan needs to be delivered to David for approval. Runs the planning loop in-session — Astra and I develop the plan together as peers, reading one contract, with the next action stated by me rather than derived from an assessment. No PR, no branch, no GitHub, no page; everything reaches David in chat. NOT for bugfix mode, which skips planning entirely.
+description: Use in feature-building mode once the pre-plan conversation has settled intent, or whenever a plan needs to be delivered to David for approval. Runs the planning loop in-session — Astra and I develop the plan together as peers, reading one contract, with the next action stated by me rather than derived from an assessment. No plan-review PR and no page; everything reaches David in chat, and the approved plan is committed on its feature branch. NOT for bugfix mode, which skips planning entirely.
 ---
 
 <!-- SYNCED FROM AI-Handbook — do not edit in a consumer repo. Local edits are overwritten by the next sync and their reasoning is lost; change the handbook instead. -->
@@ -11,8 +11,9 @@ Astra and I develop the plan together. The script spawns Codex CLI with the
 `strongestCodex` tier in a read-only sandbox, hands it the same contract I read,
 and takes back Markdown. **I hold the authoritative plan**, I argue where I
 disagree, I investigate disputed facts myself, and **I state what happens next**.
-Nothing parses an assessment. The plan is a file in my working tree that is
-not pushed unless David asks for it; everything David sees arrives in chat.
+Nothing parses an assessment. The plan is a file in my working tree, ignored by
+git, while we develop it; at approval it is committed on the feature branch
+(*Close-out*, item 4); everything David sees arrives in chat.
 
 **The script's path differs by repository, so resolve it once per session**
 rather than typing either form. The sync routes `core/X -> X`, so the file is
@@ -221,12 +222,15 @@ traps are in
 [`codex-cli-in-container.md`](../../../.agents/memory/codex-cli-in-container.md).
 
 **The oracle is pinned on the first exchange and checked on every one after.**
-Without that, the oracle is read from the plan file I rewrite each time, so
-deleting a requirement from the plan *and* from its oracle block would have the
-next exchange measure the plan against my rewritten intent — me steering the
-process through the one input nobody was watching. A deliberate change is still
+Without that, the oracle is read from the plan file I rewrite each time, so a
+requirement that drops out of the plan *and* its oracle block in one rewrite
+would have the next exchange measure the plan against the rewritten intent
+with nobody noticing. The pin is a mistake catch on a file I author, which is
+all the rule allows it to be (`agents-core.md`, *Important product
+principles*): it is not a defence against my changing the oracle on purpose,
+since I could as easily not run the loop. A deliberate change is still
 possible, with `--oracle-changed "<what David agreed to change>"`, and it is
-stamped on the exchange. Silence is what is refused.
+stamped on the exchange so David reads it. Silence is what is refused.
 
 ### Discussing before revising
 
@@ -331,8 +335,10 @@ wrong. Do not use it to relitigate something I simply dislike.
 **There is no stop rule to compute and no round budget.** The loop ends when the
 judgement is that nothing more is worth writing, and that judgement is mine,
 stated in an action block. What still stops it for David, at any point: a
-choice that changes intended behaviour, scope, or an accepted user-facing
-consequence; a scope addition; a split; and a disclosure question. A purely
+choice that changes intended behaviour or an accepted user-facing
+consequence; a scope addition the plan cannot be correct without (any other
+is taken as *next* and reported — David, 2026-10-21); a split, which is
+proposed in the plan he approves; and a disclosure question. A purely
 technical fork between two approaches to agreed behaviour is not on that list.
 
 **An assessment that says it could not do the job is not a clean exchange.** The
@@ -353,8 +359,9 @@ material, that is mine to supply and re-run — never convergence.
 - **Anything that changes intended behaviour, scope, or an accepted user-facing
   consequence.** His, always, including his own use of the software factory.
 - **A scope addition.** Any revision that would introduce a new mechanism — a
-  table, a role, a config domain, an endpoint — is a now/next/never question for
-  David, defaulting to *next*.
+  table, a role, a config domain, an endpoint — is taken as *next* and
+  reported; it is a question for David only when the plan cannot be correct
+  without it (David, 2026-10-21; until then a now/next/never question).
 
 **A purely technical disagreement that survives investigation and discussion is
 mine to settle**, with the reasoning recorded, and Astra is not obliged to
@@ -418,18 +425,35 @@ link.
    agreement, not an empty ledger, not a harness nudge after a tool error. When
    unsure whether I have been approved, I assume I have not. The scope gate
    authorized the loop to *develop* without check-ins, never to build.
-4. **The plan file reaches `main` only if David asks.** Otherwise it stays in
-   the working tree. What survives a loop by default is the approved plan's
-   oracle, quoted verbatim into the implementation PR body, plus the harvest
-   comment on the workstream issue (a prototype's version posts none, so the
-   short plan verbatim in its PR body is its record).
+4. **At approval, the plan is committed on its feature branch**
+   (`claude-core.md` Planning rule 3, David, 2026-10-12). Run the canonical
+   disclosure check (`workstream-tracking.md`, *Sensitive /
+   disclosure-carve-out workstreams*) on the approved text. If it passes,
+   take the digest (below), then `git add -f docs/plans/PLAN_<SLUG>.md` —
+   `docs/plans/` ignores drafts, so the add is deliberate — commit, and push
+   in the same turn, before any implementation commit. The file merges with
+   the first increment's PR; later increments cite the same file, and an
+   amendment David approves is committed the same way, with its new digest
+   cited from then on. A branch-regime prototype's plan is committed on its
+   `prototype/<feature>` branch. **A plan that fails the check** goes into
+   the workstream's draft Project item — the private path that section
+   names — in full, and never stays in a working tree alone. Beside the
+   file, the oracle is still quoted verbatim into the implementation PR
+   body — sanitized instead for a plan that failed the check, saying so and
+   naming the private path (`claude-core.md` Pull requests rule 3) — and the harvest comment goes on the workstream issue (a prototype's
+   version posts none, so the short plan verbatim in its PR body is its
+   record — for a short plan that failed the check, the private item holds
+   the full text and the PR body or, in the branch regime, the workstream
+   issue carries the sanitized short plan, saying so).
 5. **Exchanges run go in the workstream issue's harvest comment.** With no PR,
    that comment is the only place `/maintenance` can read planning cost from.
    A prototype's version posts no harvest comment, so its exchanges-run line
    goes in the issue's State of Play block at approval, where `/maintenance`
    reads it instead.
-   A private-path workstream has no public issue — its tracking is the draft
-   Project item, and the same trail goes in that item's note.
+   A private-path workstream has no public issue, or — where it turned
+   sensitive after one opened — a public issue holding only sanitized tracking
+   (`workstream-tracking.md`); either way the same trail goes in the draft
+   Project item's note.
 
 **The implementation PR's `Oracle source:` line names the plan and its
 digest** (`claude-core.md` Pull requests rule 4):
@@ -438,9 +462,14 @@ digest** (`claude-core.md` Pull requests rule 4):
 Oracle source: PLAN_<SLUG>.md, sha256 <the 64-char digest>, approved by David <YYYY-MM-DD>
 ````
 
+A plan that failed the disclosure check keeps the same line, digest taken at
+approval, with `, private path` appended: the file is not committed, and the
+digest pins the text the private item holds.
+
 For a prototype's version the line keeps its phase form and carries the
-digest beside it, and the body carries the short plan verbatim (rules 3 and
-4; the `prototype` skill's ceremony bullet):
+digest beside it, and the body carries the short plan verbatim — sanitized,
+saying so, for one that failed the check, with `, private path` appended to
+the line as above (rules 3 and 4; the `prototype` skill's ceremony bullet):
 
 ````markdown
 Oracle source: prototype phase — <feature>, <questions file>; PLAN_<SLUG>.md, sha256 <digest>, approved by David <YYYY-MM-DD>
@@ -452,8 +481,9 @@ exchange's `planSha256`. Those were the same thing under the old loop, which
 forced another round after every revision. They are not the same now: agreed
 edits reach David without another assessment, so the last exchange's digest can
 predate the plan he approved, and nothing would catch it — nothing parses the
-line, and no reviewer holds the plan's bytes to recompute it. A wrong digest is
-worse than none, because the line claims to pin what he approved. (Codex and
+line, and a reviewer recomputes it against the committed file (item 4) only if
+they think to. A wrong digest is worse than none, because the line claims to
+pin what he approved. (Codex and
 both assessors, #124 round 1.)
 
 An exchange's `planSha256` still identifies what *that exchange* assessed, which
@@ -554,7 +584,8 @@ old loop can find each piece's fate:
 | The `[PLAN REVIEW]` PR, its branch, its body template, the findings ledger | The reviewer was remote and diff-anchored | A local Markdown assessment and a chat readout |
 | Round counting from GitHub, the round-check receipt, the trigger guard | Round state lived on GitHub | Exchanges are read from `.agents/reviews/<slug>/`; nothing counts them against a cap |
 | `review-budget.mjs` / `review-loop-record.mjs` | Both were keyed to a PR number | Gone everywhere (#89 cut); `--tier` survives, naming what is downstream |
-| The disclosure gate on the plan | The channel was public | The plan is never published |
+| The disclosure gate on the plan's review PR | The channel was public | The disclosure check at approval, before the plan is committed (*Close-out*, item 4) |
+| **"The plan is never published"** (2026-09-09 to 2026-10-12) | It stood in for the disclosure gate once the review PR went | The plan is committed on its feature branch after the disclosure check (David, 2026-10-12): never-published left it in one container's working tree, and a plan was lost with that container (Overhype.me #631) |
 | The three-round minimum, the fresh-lens stop condition, the adjudicator | A defect-only reviewer could not say *done* | The loop ends on a judgement I state |
 | **The JSON schema and its re-ask** | "Every section every round" had to be enforced rather than asked | Markdown, and nothing parses it |
 | **`convergence()` and the computed stop rule** | Astra's returned verdict drove the loop | The `plan-action` block |

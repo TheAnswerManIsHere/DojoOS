@@ -284,7 +284,9 @@ payload contains no heading with a link, no `~~~` fence and no Setext heading;
 every one of those cases was hypothetical, and every finding about them was
 correct, which is what makes the trap hard to see from inside. **The test is
 not "could this input break it?" but "what happens if it is wrong, and who
-notices first?"**
+notices first?"** — for a spec the agent writes itself, which is the only
+input a sweep has, and that is the rule of `agents-core.md`, *Important product principles*: who produced the value decides
+whether a guard is in scope at all.
 
 ---
 
@@ -306,7 +308,7 @@ and (e) was proposed independently by three of six:
 
 **Not in class**, and this list was missing from the first run — round 1 of
 #141 found that (e) as first written would have caught live safeguards: the
-six-hour stop that asks David to resume; pre-registered flip conditions;
+six-hour stop that asks David to resume (retired 2026-10-21); pre-registered flip conditions;
 the ship gate; no-re-request-without-a-behavioural-change; and the docs-only
 depth rule, which governs what a reviewer *raises* and survived #96.
 

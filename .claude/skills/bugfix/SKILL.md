@@ -251,7 +251,10 @@ the PR back only delays the review that catches things.
    Use **`.github/pull_request_template.md`** — the
    repo template applies to bug fixes too. Fill the **Approved-plan oracle**
    section with the **bugfix oracle** instead of "n/a — no plan" — **which
-   block depends on the tier:**
+   block depends on the tier:** Before it opens, the whole body — the
+   quoted symptom, root cause and blast radius included — passes the
+   canonical disclosure check or is written sanitized, its specifics on the
+   private path ([`workstream-tracking.md`](../../../docs/ai-context/workstream-tracking.md#what-must-never-happen)).
 
    **The tier letter goes on the body's `Oracle source:` line**
    (`claude-core.md` Pull requests rule 4); everything else stays prose. The
@@ -383,13 +386,16 @@ What is *bugfix-specific* about the loop:
   a fix.** A fix to product code is a product loop. But routed entry means a
   bug can be *in the docs*: when the whole diff is agent-facing markdown or
   process tooling, the
+  internal loop applies to a fix that is internal by its consequence and
+  recoverability — the automatic pass, a coherent batch of corrections if any
+  are warranted, and a review of that corrected head — and what ends it is the
+  builder's judgement under the ship gate, with "record the gap" the ordinary
+  answer from the second review on; no count ends it (the
   [two-review limit](../../../docs/ai-context/working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)
-  applies to a fix that is internal by its consequence and recoverability —
-  the automatic pass, one coherent batch of corrections if any are warranted,
-  and a review of that corrected head. It is scoped that way and not by the
-  tier, so a fix to process tooling governing approvals, publication,
-  credentials or destructive operations is weighed on both, and can fall
-  outside it. This read "the internal tier
+  that said so stood from 2026-09-20 to 2026-10-21 and keeps the record). It is
+  scoped by consequence and not by the tier, so a fix to process tooling
+  governing approvals, publication, credentials or destructive operations is
+  weighed on its consequence and recoverability. This read "the internal tier
   governs (David, 2026-08-21) … the two-review limit, the same as everywhere"
   until 2026-09-23: the tier named as the classifier, and the limit named as
   universal, in one sentence that cited neither. The tier itself only says nobody's money or data is downstream,
