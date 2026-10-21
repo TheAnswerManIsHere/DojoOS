@@ -25,8 +25,9 @@ ships no UAT doc — that is the documentation bar the phase removes — and its
 *Post-merge verification* section carries exactly one thing: the version's
 `live` check, when its claim depends on the deployed environment or a real
 vendor, as the command and pass criterion I run after the merge's sync and
-before the owner is asked; otherwise "none needed". Its scaled `ci` and
-`scripted` lanes run before the merge and its feedback rail is the only human
+before the owner is asked — one that would start a paid AI run runs within David's paid-run budget — $5 a run, $25 a week — and on his go-ahead only above it (`uat-doc-format.md`, *Lanes*); otherwise
+"none needed". Its scaled `ci` and
+`scripted` lanes run before the merge (a check that would start a paid AI run is never `ci`; as `scripted` it runs within his paid-run budget and asks above it, as above) and its feedback rail is the only human
 lane (working-modes.md, *The prototype phase, per feature*, and *What
 prototype phase keeps of verification*; Codex, DojoOS #8: without that record
 the mandatory live check had no recorded command for close-out to run).
@@ -53,7 +54,8 @@ the mandatory live check had no recorded command for close-out to run).
    merge + sync, I drive the section through the Replit connector (the
    two-call sequence in `CLAUDE.md`'s connector policy, read-only scoping
    stated in the prompt), read the results back with `ask_question`, and
-   report them — pass or fail — in the close-out merge report. A failure
+   report them — pass or fail — in the close-out merge report. A step that
+   would start a paid AI run is not read-only: it runs within David's paid-run budget — $5 a run, $25 a week — and on his go-ahead only above it (`uat-doc-format.md`, *Lanes*). A failure
    routes through the normal channel and the workstream stays at its
    verification stage until clean. A clearly-labeled mutating deploy step
    in the section (the contract's third permitted write shape) is mine to
@@ -65,9 +67,10 @@ the mandatory live check had no recorded command for close-out to run).
    not-clean. I do NOT create new TEST_RUN files, flag the absence of one,
    or "restore" a deleted one.
 
-2. **`docs/tests/UAT/PR<N>_<FEATURE>_UAT.md`** — the in-app, click-through
-   acceptance test for David, written to
-   [`uat-doc-format.md`](../../../docs/tests/uat-doc-format.md). **That
+2. **`docs/tests/UAT/PR<N>_<FEATURE>_UAT.md`** — the in-app acceptance
+   script, written to
+   [`uat-doc-format.md`](../../../docs/tests/uat-doc-format.md) and its
+   lane rules, so David's share of it is the judgement residue. **That
    format is mandatory and it is not a style preference**: `/uat` drives the
    run by enumerating `### ` headings inside `## Steps` and `## Regression`,
    so a doc outside the format is a doc that cannot be driven. Setup lines,
@@ -90,19 +93,45 @@ the mandatory live check had no recorded command for close-out to run).
    David works through it with me step by step via [`/uat`](../uat/SKILL.md),
    so write it for that: **setup is mine to execute** — the `[claude]` lines
    in the format — and `[david]` is reserved for what only his own session or
-   device can do, admin-gated setup included (I hold no admin session; see
-   `/uat` section 2). The doc is still the canonical script;
+   device can do, admin-gated setup on the deployed build included (there
+   the connector reads and does not click; on a local stack at the commit
+   under test the test identity the consumer's per-PR browser job signs in
+   with is mine, Overhype.me's dev-admin login for one — `/uat` section 2
+   and *Where the browser automation lives*). The doc is still the
+   canonical script;
    **I delete it once he confirms the run complete** (David, 2026-08-22).
 
    **Every step gets a lane, and the default is a machine** (David,
    2026-10-07; the lanes are defined in
    [`uat-doc-format.md`](../../../docs/tests/uat-doc-format.md#lanes-where-each-step-is-verified-david-2026-10-07)).
    A step is `human` only when no machine can answer it — taste, legibility,
-   whether a result reads right, or something only his own account or device
-   can do. Everything else is `ci`, `scripted` or `live`, and **the check it
-   cites is written in this same PR**, so the UAT he runs is the human residue
-   and nothing more. **A behaviour a later PR delivers has no step here** — it
-   belongs in the oracle's scope line (below). A behaviour **this** PR claims
+   whether a result reads right, what an AI-generated image shows beyond what
+   anyone would verify the same way, or something only his own account or
+   device can do — and it says which, in its `**Judgement:**` line. Everything else
+   is `ci`, `scripted`, `live` or `capture`, and **the check it cites is
+   written in this same PR**, so the UAT he runs is the human residue and
+   nothing more. `capture` is for an answer only pixels hold — the words
+   the product draws onto an image, a canvas preview, the verifiable facts
+   of a real AI render (a bubble appears and reads a given text; never
+   likeness, scene, humour, quality, whether it shows a person or any
+   particular thing, or whether it is acceptable, unless as plain and
+   checkable as a bubble's text — those are a `human` step's:
+   `uat-doc-format.md`, *Lanes*, *An image an AI model generated*) — with
+   its `Expect` written as the screen it should show, never "as before"
+   (`uat-doc-format.md`, *Lanes*). A step whose check would start a paid AI
+   run is never `ci`, and in any other lane runs within David's paid-run budget — $5 a run, $25 a week — and on his go-ahead only above it (the same section), so a clause the product's own code draws cites a local
+   capture where the consumer declares one. **The lane is read from the `Expect`'s clauses and
+   from who can perform the `Do`, never from the heading or the verb**
+   (David, 2026-10-15; the rule's home is the `uat` skill, *Where the
+   browser automation lives*, which also says what `/uat` does with a step
+   labelled wrong): "the refusal reads well" over an `Expect` naming the
+   sentence, the status and that nothing overflows is a machine-lane step
+   with a browser or component assertion for those clauses, plus a
+   one-clause `human` step for "it is readable" — never one `human` step
+   carrying both; a `Do` only his own account or device can perform keeps
+   its step `human`, screen facts and all. **A behaviour a later PR delivers has no step
+   here** — it belongs in the oracle's scope line (below). A behaviour
+   **this** PR claims
    whose machine check cannot exist yet, because the double or fixture it
    needs lands later, keeps its machine step `**Deferred:** #N` to that
    owner, and **the owed check is recorded on issue #N when the line is
@@ -115,8 +144,9 @@ the mandatory live check had no recorded command for close-out to run).
    The deferred step is **never** turned into a `human` step to get past
    the wait: David's share is judgement only. Such a run is Blocked until #N
    lands, which is the honest state of a behaviour nothing has yet checked.
-   `node scripts/check-uat-format.mjs` refuses a step without a lane and a
-   machine-lane step whose cited check does not exist.
+   `node scripts/check-uat-format.mjs` refuses a step without a lane, a
+   machine-lane step whose cited check does not exist, a `human` step
+   without its `**Judgement:**` line, and that line on any other lane.
 
    **No Artifact page (David, 2026-08-21 — retiring the 2026-07-22 rule).**
    The Artifact existed as a reading surface for working through the doc
@@ -149,9 +179,14 @@ one phase of a phased feature (see
   phase. Without it a reviewer can't tell an out-of-scope-for-this-phase
   gap from a silently dropped requirement — and the whole point of the
   oracle is catching a PR that quietly narrowed the approved scope. Cite
-  the parent issue for the plan itself; the body's `Oracle source:` line
+  the parent issue and the committed plan file — or, for a plan that failed
+  the disclosure check, the private item holding it, with the scope line
+  under the same sanitizing (`claude-core.md` Pull requests rule 3); the body's `Oracle source:` line
   (`claude-core.md` Pull requests rule 4) names the approved plan and its
-  digest, and the scope line stays beside it in prose.
+  digest (marked `private path` for a plan that failed the check), and the scope line stays beside it in prose.
+  Before the PR opens, the whole body — summary, scope, verification, UAT
+  prose — passes the canonical disclosure check or is written sanitized
+  (`workstream-tracking.md`).
 
 **Workstream label.** Per
 [`workstream-tracking.md`](../../../docs/ai-context/workstream-tracking.md),

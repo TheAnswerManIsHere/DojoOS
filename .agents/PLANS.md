@@ -18,6 +18,11 @@
 > written to `docs/plans/PLAN_<SLUG>.md`, so the loop's digest line works
 > unchanged; a later version David asks a loop for gets the same short plan.
 >
+> **Where an approved plan lives:** committed under `docs/plans/` on its
+> feature branch once the disclosure check passes, merging with the first
+> increment's PR; a draft stays in the working tree, ignored, until
+> approval ([`core/claude-core.md`](core/claude-core.md) Planning rule 3).
+>
 > *(Path note: this lives under the repo's existing `.agents/` agent-facing
 > directory, alongside `.agents/memory/`.)*
 
@@ -43,8 +48,10 @@ inventory** —
 defines it. If this plan touches a *pattern* (a permission shape, a
 derivation rule, a naming convention) rather than one call site, name the
 class and write the mechanical oracle
-(`git grep -n`, which searches the tracked set) that finds every instance
-before scoping the plan — the hit list is what the plan's scope is drawn
+(`git grep -n`, which searches the tracked set; for the uses of a
+TypeScript declaration where the map is adopted and enabled, its symbol query
+beside it — [`agents-core.md`](core/agents-core.md), *Query the structure
+before you change it*) that finds every instance before scoping the plan — the hit list is what the plan's scope is drawn
 from, not a recalled inventory. Note the oracle and its result as a Settled
 Decision even when it finds nothing new.
 
@@ -102,7 +109,8 @@ Decisions already made during the pre-plan conversation, and why (design
 choices, trade-offs resolved before writing this plan). These four sections
 — Direction, Product Intent, Must Not Change, Settled Decisions — are the
 oracle a reviewer checks the eventual implementation PR against, verbatim
-(see
+— sanitized instead, saying so, for a plan that failed the disclosure check
+([`core/claude-core.md`](core/claude-core.md) Pull requests rule 3) (see
 [`docs/engineering/code-review.md`](../docs/engineering/code-review.md#the-review-oracle-the-pr-body)).
 
 ## Repo Context Inspected
@@ -139,7 +147,11 @@ Server-side checks, route protection (`requireAdmin`/`requireRole`), validation
 schemas, and audit needs.
 
 ## Testing Plan
-Automated tests + manual QA. Tests must prove the **general invariant**, not only
+Automated tests, plus a UAT doc for the judgement residue only — a screen fact
+is an assertion in the same PR, or a `capture` step when only pixels hold it,
+never a manual step
+([`uat-doc-format.md`](../docs/tests/uat-doc-format.md#lanes-where-each-step-is-verified-david-2026-10-07)).
+Tests must prove the **general invariant**, not only
 the reported example, with negative cases. Name the runner commands (see
 `docs/tests/TESTING.md`).
 

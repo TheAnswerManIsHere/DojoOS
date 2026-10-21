@@ -25,7 +25,9 @@ as the [planning contract](../ai-context/planning-contract.md#2-turn-agreed-inte
 For a PR built from a David-approved plan, the PR body's **Approved-plan
 oracle** section (see the
 [PR template](../../.github/pull_request_template.md)) carries that plan's
-Product Intent / Must Not Change / Settled Decisions verbatim, and its
+Product Intent / Must Not Change / Settled Decisions verbatim (or a sanitized
+copy that says so, for a plan that failed the disclosure check — see the
+exception below), and its
 **Decisions taken on my recommendation** section lists the reversible choices
 the builder proceeded on without asking
 ([`agent-working-rules.md`](../ai-context/agent-working-rules.md#a-reversible-choice-proceeds-on-the-recommendation-david-2026-10-10))
@@ -34,7 +36,14 @@ against that, not only against internal consistency: does it implement
 everything the intent called for, does it touch anything the plan marked
 must-not-change, does it match the settled decisions rather than a plausible
 alternative. Flag a dropped or narrowed requirement even if the code itself
-never mentions it — the absence is the finding.
+never mentions it — the absence is the finding. Against a sanitized oracle,
+a requirement you cannot see is not flagged as dropped: on the structured
+defect pass it is not posted at all (the body's own "sanitized" statement is
+the record that it was not reviewable there), and on a full-assessment
+write-up it is named as unseen. A clean structured pass is therefore never
+the whole review of such a PR: the two assessors read the change against
+the full text once before merge, whether or not that pass found anything
+(`claude-core.md`, *Internal tooling: what is downstream*; `pr-watch`).
 
 **If the plan cites a direction, check the code against that too, not just
 the plan's own Product Intent.** A plan built under
@@ -47,7 +56,8 @@ quietly wrong" shape this oracle exists to catch. Missing Direction on a PR
 whose plan cited one is itself a finding.
 
 **The body names the oracle's source on one plain line**, `Oracle source:` —
-the approved plan's filename and full sha256 digest, the issue where the scope
+the approved plan's filename and full sha256 digest (marked `private path` for
+a plan that failed the disclosure check), the issue where the scope
 was agreed, the bugfix tier, `no plan`, or `prototype phase — <feature>` with
 the questions file named beside it and, for a first version or a later one
 David asked a loop for, the approved plan's digest — otherwise a
@@ -63,15 +73,20 @@ be trusted until it's pinned. When the source is an issue, read it: the scope
 agreed there is the oracle. (Until 2026-09-25 this was a fenced
 `plan-provenance` block with a fixed key set per kind; it was retired, #103.)
 
-**A plan's digest is as far as an independent reviewer can verify — and
-that's accepted, not a gap to close.** An in-session plan is never committed,
-so no reviewer — Codex or human — has the bytes the filename and digest
-identify, and none can recompute the digest. Confirm it is *present and
+**A plan's digest is checkable against the committed plan.** An approved
+plan is committed under `docs/plans/` on its feature branch and merges with
+the first increment's PR (`claude-core.md` Planning rule 3), so the file the
+line names is in the reviewed tree or on `main`: confirm it is *present and
 specific* (a real filename, a full 64-character digest — not "n/a" or
-something vague) and stop there; verifying that it matches the approved plan
-is David's check alone, made when he compares the implementation PR's oracle
-text against the plan he approved. Don't flag an unverifiable-by-you digest as
-a finding.
+something vague), recompute `sha256sum` on that file, and flag a mismatch.
+A named plan file found in neither place is a finding too — the approved
+plan has no durable home. The one exception is a plan that failed the
+disclosure check, which lives on the private path instead: there, present
+and specific is as far as a reviewer can go, the body's oracle is a
+sanitized copy that says so (`claude-core.md` Pull requests rule 3), and
+matching either to the approved plan is David's check — so a full-assessment
+review of such a PR says which requirements it could not see rather than
+claiming them, and the structured defect pass posts nothing for them.
 
 ### The bugfix oracle (a PR with no plan)
 
@@ -205,19 +220,20 @@ Explicitly **not** findings on a docs-only PR, even when technically true:
 
 Docs are self-catching and fixed in one commit; pedantic findings on them
 cost more than the defects they describe. This is the *depth* rule. The
-*continuation* rule is the **two-review limit** (David, 2026-09-19 —
-[`working-modes.md`](../ai-context/working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)): on docs
-internal by the change's consequence and recoverability, a clean automatic pass
-is the whole ceremony, and when the pass finds a real defect the pushed fixes
-are re-reviewed, once — a docs change to a contract governing approvals or
+*continuation* rule is the builder's judgement under the write-gate and the
+ship gate (the two-review limit that stood here from 2026-09-19 to
+2026-10-21 is retired;
+[`working-modes.md`](../ai-context/working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)
+keeps the record): a clean automatic pass is the whole ceremony, and when
+the pass finds a real defect the pushed fixes are re-reviewed, as many times
+as the judgement says is worth it — a docs change to a contract governing approvals or
 publication is weighed like any other change, below. The internal tier (David, 2026-08-21,
 superseding the 2026-08-20 no-rounds carve-out) says what is downstream rather
 than setting a threshold, and is not the continuation rule — this paragraph
 named it as such while handing length to the limit four lines later, so a
-reader who stopped at the bolded clause got the superseded answer. **How long that re-reviewing runs is the two-review limit's**
-([`working-modes.md`](../ai-context/working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)) — this sentence used to
-add "there is no round budget and no leash", and while the limit is indeed not a
-round budget, "no leash" is exactly what it removed. The tier's old
+reader who stopped at the bolded clause got the superseded answer. **How long that re-reviewing runs is the builder's to judge** — this
+sentence said "the two-review limit's" from 2026-09-19 to 2026-10-21, and
+before that "there is no round budget and no leash", which is true again. The tier's old
 "only a critical flaw is written for" rubric is retired as a decline quota, and
 the external adjudicator that used to rule went with the #89 cut (2026-09-16)
 and was replaced by two advisory assessments per round (#96) — see
@@ -228,13 +244,14 @@ longer apply.
 **Internal tooling: the depth is lighter, and how long it loops is not this
 file's to say (David, 2026-09-19).** Guards, `scripts/`, skills, agent
 contracts, process docs and documentation harvests are reviewed by the
-automatic pass when the PR opens, and a clean pass ships — except the prose
+automatic pass when the PR opens, and a clean pass ships — save a PR whose
+plan took the private path, assessed against the full text regardless
+(above), and except the prose
 among them that is the Documentation class, and anything David declares
 Trivial, which leave this loop ([`working-modes.md`](../ai-context/working-modes.md#two-classes-outside-the-review-loop-trivial-and-documentation-david-2026-09-25)). Iteration beyond
-that is bounded by the **two-review limit** in
-[`working-modes.md`](../ai-context/working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19) — review, one
-batch of corrections, review, stop — and every changed head still gets its
-review. **That list is where such work usually lives, not what decides it:**
+that is bounded by the builder's judgement under the ship gate, never a
+count (the two-review limit is retired, 2026-10-21) — and every changed head
+still gets its review. **That list is where such work usually lives, not what decides it:**
 the limit is scoped by consequence and recoverability, asked of the change, so
 a change in it governing approvals, publication, credentials or destructive
 operations is weighed on that whatever directory it sits in. A `scripts/`
@@ -461,9 +478,9 @@ and since 2026-08-17 it is a **development stop**, not a stakes-graded
 proceed: **every PR in the standard loop gets a code review, and nothing
 merges until it returns** (a prototype-phase change never enters the loop —
 working-modes.md, *The prototype phase, per feature*).
-How many rounds follow is the **two-review limit**'s
-([`working-modes.md`](../ai-context/working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)) on work it
-bounds; nothing governs whether the first one has to come back. The Worth rule
+How many rounds follow is the builder's judgement under the ship gate (the
+two-review limit is retired, 2026-10-21); nothing governs whether the first
+one has to come back. The Worth rule
 per finding and the ship gate shape what is written *within* that bound — this
 sentence used to hand them the length question itself, which is a different
 question than either answers. So an agent that cannot get a
@@ -675,7 +692,10 @@ line — a dropped requirement, a touched must-not-change area — the most
 defensible nearby line). A clean round is an empty findings list; on a diff
 this is stronger evidence than on a plan (compiling, passing tests, and CI back
 it up), so — unlike the plan contract — silence here is a real, sufficient
-result, not a transport limitation to work around.
+result, not a transport limitation to work around. The exception is a PR
+built against a sanitized oracle: its silence covers only what the body
+shows, which is why such a PR is also assessed against the full text
+(above).
 
 (The product's plan-review skill defines the full plan-review format; this
 section is the code-review analog.)

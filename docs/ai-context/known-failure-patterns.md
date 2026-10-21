@@ -397,10 +397,14 @@ for evidence that cannot exist) or gets silently ignored, and the real gate
 goes undefined. **Avoid:** for every check in a workflow, ask *where does the
 thing being tested physically live at this moment, and can the tester reach
 it?* **Overhype:** the app runs from the Repl, and the Repl tracks `main`, so
-**everything that tests running behavior is post-merge** — David's UAT and
+**everything that tests the deployed build is post-merge** — David's UAT and
 Replit's `TEST_RUN` alike (the one later exception is a `prototype/<feature>`
 branch, tested on its own prototype environment with no merge at all —
 [`working-modes.md`](./working-modes.md#the-prototype-phase-per-feature-david-2026-09-26)).
+Running behaviour itself is testable before the merge: the per-PR E2E job
+and a local stack at the commit under test both drive the app, which is
+where a UAT doc's screen facts are checked (the `uat` skill, *Where the
+browser automation lives*); only the deployed build waits for the sync.
 Merge + sync is what makes a build testable;
 production is the separate, deferred `publish_app` step. This misfired twice
 in one day on PR #413 (2026-08-11): Codex caught a `TEST_RUN`-as-merge-gate
@@ -984,6 +988,36 @@ plans off the public channel (see
 [`decisions.md`](./decisions.md#2026-07-22--plan-review-automated-via-a-codex-draft-pr-loop-replaces-the-manual-chatgpt-paste)).
 Compare PR #217 — a production DB dump that sat committed on public `main`.
 
+## A rule that forbids publishing an artifact, and names no home for it
+
+**Looks like:** a rule that says where an artifact must *not* go — "never
+published", "pushed nowhere", "not committed unless asked" — and says nothing
+about where it *does* live. Each surrounding decision is reasonable alone: the
+public channel is removed for privacy, the replacement page is removed as
+machinery, the delivery moves to chat. **Dangerous:** the prohibition
+silently becomes the artifact's lifecycle. Its only homes are now a
+container's disk and a chat scroll-back, both of which end with the session,
+and nothing prompts anyone to ask where it went because the rule reads as
+complete. A digest or other fingerprint makes it worse by looking like
+preservation: it pins the text without keeping a copy. **Avoid:** **a rule
+that forbids publishing an artifact must say where the artifact lives
+instead, or the artifact lives nowhere.** When writing or reviewing such a
+rule, name the durable location (a branch, a private tracking item) and the
+moment the artifact reaches it; when retiring a durable home, name its
+successor in the same change. A hand-off or resume pointer that names a
+location only one container holds is the same failure one step later, and is
+refused rather than written (`handoff` skill, Step 2). **Example (handbook,
+2026-09-09 to 2026-10-12):** "a plan is never published … the plan file is
+still pushed nowhere" removed, one step at a time, every durable home an
+approved plan had — the plan-review PR, then the private page — until the
+plan existed only in a planning session's working tree. Overhype.me's
+approved Phase 2 verification plan (#631, sha256 `db036f0f…`) was lost when
+that session's container went; the digest survived and the text did not. The
+rule protected nothing in that case: none of the guarded content classes was
+present, and the plan's oracle was already public in a merged PR body. Fixed
+by committing the approved plan on its feature branch after the disclosure
+check (`claude-core.md` Planning rule 3).
+
 ## Security-relevant dependency claims written from assumption, not verification
 
 **Looks like:** writing something confident and specific about a dependency's
@@ -1387,7 +1421,11 @@ new. Same avoidance: when a change introduces a new failure mode on a shared
 resource (an endpoint, a response shape, an error code), grep for **every**
 caller of that resource before considering the fix complete — not just the
 one a review comment or the plan happened to name, and not assuming the
-count found is the count that exists.
+count found is the count that exists. Where the repository's map is adopted
+and enabled and the resource is a TypeScript declaration, its symbol query
+runs beside the grep and reaches the callers behind barrels and aliases
+([`agents-core.md`](../../.agents/core/agents-core.md), *Query the structure
+before you change it*).
 
 ### Sub-pattern: the sweep itself has three failure modes, learned one per round
 
@@ -1508,8 +1546,11 @@ fix is actually cheap. **The floor-tier exemption that stood here is gone**
 keep a "zero-re-request rule", so a post-review fix there moved the head
 without owing a pass — which is a commit merging unreviewed, the one thing the
 write-gate exists to refuse. What bounds those artifacts now is the
-**two-review limit** in [`working-modes.md`](working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19), which caps how
-long iteration runs without ever exempting a changed head from being read. The
+builder's judgement under the ship gate and the Worth rule, which ends
+iteration without ever exempting a changed head from being read (the
+**two-review limit** stood from 2026-09-20 to 2026-10-21;
+[`working-modes.md`](working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)
+keeps the record). The
 worry that made the exemption (Codex, #518) — that stating the corollary
 universally leaves an artifact unmergeable in principle — was real under the
 old re-request rule and is answered by its replacement: every changed head gets
@@ -1632,10 +1673,12 @@ at intake, not to how the request was phrased
 ([`working-modes.md`](./working-modes.md#feature-mode-ceremony-scales-to-blast-radius-not-to-phrasing-david-2026-08-05));
 carry pre-registered flip conditions naming an observable read off the round; and
 triage every finding into **fix / accept-and-document / escalate** rather than
-reading "Required Revision" as automatically meaning fix. **And where a change is
-internal by its consequence and recoverability, the sequence is bounded** by
-the two-review limit
-([`working-modes.md`](./working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)) — this entry's remedies
+reading "Required Revision" as automatically meaning fix. **And the sequence is
+bounded** by the builder's judgement under the ship
+gate and the Worth rule, with "record the gap" the ordinary answer once both
+assessors say the oracle is met; a two-review limit did that from 2026-09-20 to 2026-10-21
+([`working-modes.md`](./working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)
+keeps the record) — this entry's remedies
 were ceremony-sizing, an in-round bound and a per-finding test until
 2026-09-20, none of which answers "there is no natural stopping point", which
 is the entry's own diagnosis. **Overhype:** twice
@@ -1755,7 +1798,9 @@ whether the operation can instead be made correct **by construction**
 narrower control that doesn't need to parse intent at all — a server-side
 rule, a protocol-level restriction — already covers the actual risk. Size
 the defense to the *realistic* threat model (an honest mistake) rather than
-a fully adversarial one, when the two genuinely differ, and say so out loud
+a fully adversarial one, when the two genuinely differ — and who produced
+the value is what decides that (`agents-core.md`, *Important product principles*): a guard's own operator is one actor, the
+agent whose commands the shell guard constrained was another — and say so out loud
 rather than quietly absorbing round after round. **Overhype:**
 .claude/guard.sh / scripts/guard-decision.mjs (both since retired — #94; PR #329) — Codex review
 rounds found 11, then 11, then 12, then 19 parser gaps (fixing 9, 11, 11, 0).
@@ -1836,10 +1881,11 @@ code the last round added. **Dangerous:** it reads as diligence from inside —
 the reviewer keeps finding real bugs, so stopping feels like shipping known
 defects — and the cost is invisible because no single round is wrong. Before 2026-09-19 the
 loop ended when someone ran out of patience rather than when the code was
-right; what ends it now, where a change is internal by its consequence and
-recoverability, is the two-review limit
-([`working-modes.md`](./working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)), which was built from
-this entry's measurement.
+right; what ends it now is the builder's judgement under the ship gate and the
+Worth rule; the two-review limit, which was built from this entry's
+measurement, stood from 2026-09-20 to 2026-10-21
+([`working-modes.md`](./working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)
+keeps the record).
 
 **The tell, recognised by hand:** a round has a finding whose lines sit inside
 the diff of the last commit pushed for a finding, and so did the round before
@@ -2711,9 +2757,11 @@ retry's pass lands — because nothing was written down to be wrong.
    now is the shared judgement — two assessments that read the round
    independently and advise — asking the sharper question the self-policed rule
    never could: whether writing more code for these findings is worth it at
-   all. **And where a change is internal by its consequence and
-   recoverability, the sequence itself is bounded** by the two-review limit ([`working-modes.md`](./working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)),
-   which is what actually stops the pattern this item describes; the shared
+   all. **And the sequence itself is bounded** by the builder's judgement under the
+   ship gate and the Worth rule, which is what actually stops the pattern this
+   item describes (a two-review limit did that from 2026-09-20 to 2026-10-21;
+   [`working-modes.md`](./working-modes.md#the-two-review-limit-on-autonomous-iteration-david-2026-09-19)
+   keeps the record); the shared
    judgement answers what is written *for*, one finding at a time. This item's
    two sibling entries were given that pairing on 2026-09-20 and this one was
    not.
@@ -3056,7 +3104,11 @@ name the `Worth:` line of a fixed four-line reply form; the form was retired on
 2026-09-17 and the discipline was not.) The tell is a decline whose consequence clause quotes details
 specific to the reviewer's scenario — "gitignored", "one directory over", "a
 file I chose by hand". Those are properties of the example. Strip them and ask
-what remains reachable. And re-examine a class the reviewer raises a second
+what remains reachable — **and by whom**: who produced the value decides
+whether a guard is in scope at all (`agents-core.md`, *Important product principles*), so "I chose it" is the fact that settles a
+hostile-value finding on an operator-chosen path, while a class the operator
+reaches by an honest slip, as `--out .git/HEAD` is, is still weighed at its
+worst. And re-examine a class the reviewer raises a second
 time on its new evidence and scope, naming what the new instance shows that the
 first did not. **Repetition alone does not establish that the earlier judgement
 was wrong** (David, 2026-09-17): the rule used to say it did, which turned any

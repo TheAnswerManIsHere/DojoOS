@@ -42,12 +42,13 @@ plan until David has explicitly approved that plan.** An ambiguous nudge or anot
 agent's approval is not David's approval. A feature David has declared
 **prototype phase** has a short plan to approve for its **first version**
 only; later versions have none unless he asks (below, and working-modes.md
-*The prototype phase, per feature*). Inside an approved plan — or, for a
-Tier A or B bugfix, inside its tier oracle, which is that rule's plan — a
-choice that is yours to recommend and a corrective commit would undo proceeds
-on the recommendation and is reported; what the irreversible list names, and
-what the product should do, still ask, and a bugfix's regression test is never
-such a choice (`working-modes.md`, *Per bug — the loop*, step 3 and its carve-out)
+*The prototype phase, per feature*). A choice that is yours to recommend and
+not on the irreversible list proceeds on the recommendation and is reported,
+wherever it arises — in a plan, a bugfix, a review round, a merge (David,
+2026-10-21, widening the 2026-10-10 rule from "inside an approved plan");
+what the irreversible list names, a plan before it is enacted, and what the
+product should do still ask, mid-flight scope is taken as *next* and
+reported, and a bugfix's regression test is never such a choice (`working-modes.md`, *Per bug — the loop*, step 3 and its carve-out)
 ([`agent-working-rules.md`](../../docs/ai-context/agent-working-rules.md#a-reversible-choice-proceeds-on-the-recommendation-david-2026-10-10)).
 Full working rules:
 [`docs/ai-context/agent-working-rules.md`](../../docs/ai-context/agent-working-rules.md).
@@ -85,7 +86,9 @@ harvest (the batched harvest at `/maintenance` has none of its own) —
 has a GitHub issue as its spine, tracked on a private Project board and kept
 current via `stage:`/`waiting:`/`mode:` labels — with **two** exceptions.
 *Sensitive/disclosure-carve-out work* never becomes a public issue and is a
-private draft Project item instead. *David's Replit tweaks* — display-only UI
+private draft Project item instead — or, where it turned sensitive after its
+issue opened, keeps that issue with sanitized tracking only
+([`workstream-tracking.md`](../../docs/ai-context/workstream-tracking.md#what-must-never-happen)). *David's Replit tweaks* — display-only UI
 changes he makes himself during UAT — carry no issue of their own: like every
 change to `main` since his ruling of 2026-10-03 (*"Yes, everything goes
 through a pull request"*), each arrives as a pull request, and that PR is its
@@ -107,7 +110,9 @@ When asked to **plan**:
 
 When asked to **implement** (an approved plan):
 1. Re-read the approved plan + relevant `docs/ai-context/` files.
-2. Confirm the affected files.
+2. Confirm the affected files — where the repository's map is adopted and
+   enabled, by its queries (*Query the structure before you change it*,
+   below).
 3. Make the smallest coherent change.
 4. Run relevant tests.
 5. Summarize what changed, what was tested, what remains risky, and the
@@ -127,6 +132,28 @@ Prefer, in order:
 8. Simplicity and scope control.
 9. Observability and debuggability.
 
+## Query the structure before you change it (David, 2026-10-14)
+
+**In a repository whose map is adopted and enabled** — `.agents/map/config.json`
+says `"adopted": true` and `"enabled": true` — the structural index is how you
+learn what a change touches, and two moments require it:
+
+- **Before editing a file in the map's indexed set**, run `node scripts/map.mjs
+  deps <file>` and `node scripts/map.mjs dependents <file>`; before changing an
+  exported declaration, also `node scripts/map.mjs dependents <file>#<name>`,
+  which finds users behind barrels and aliases that text search misses.
+- **At a class sweep** ([`working-modes.md`](../../docs/ai-context/working-modes.md),
+  *A finding names an instance; the fix owes the class*) whose class is the uses
+  of a TypeScript declaration, that symbol query is the mechanical oracle,
+  beside `git grep`.
+
+**An answer's `unresolved` section is yours to read by hand**; an empty
+`resolved` section is not a clean answer while it lists anything. A query that
+refuses because the index is stale is answered with `node scripts/map.mjs
+build`, then the query again. Where the map is unadopted or disabled, this rule
+does not apply. The tool, its contract and its back-out:
+[`agent-legible-codebase.md`](../../docs/ai-context/agent-legible-codebase.md).
+
 ## Important product principles
 
 - **Human-moderated decisions must not be silently overwritten by AI reprocessing.**
@@ -136,9 +163,12 @@ Prefer, in order:
 - **A check earns its place only when the value can differ from what you
   intended — which requires something outside your control to have produced
   it.** A harness report, a network response, a real user, another program's
-  output: observe those and refuse on disagreement. Everything a hand-run
-  script gets from its own operator's argv falls into one of two kinds, and
-  the rule differs:
+  output: observe those and refuse on disagreement. Everything a script gets
+  from the agent that runs it — its argv, a file it authored following its
+  own protocol, a ref or path it chose — falls into one of two kinds, and
+  the rule differs (David, 2026-10-15, on AI-Handbook #211, where two
+  assessments weighed an id the agent would have had to mistype against its
+  own protocol: *"you are the one who would write the id"*):
   - **Derivable** — the script already holds every input needed to compute
     it (a receipt path from role and head). **Derive it; do not take it as
     input at all.** A check whose two sides you both own carries no
@@ -152,9 +182,11 @@ Prefer, in order:
     exists — is catching the operator's own mistake, which is exactly the
     threat model, and stays. A defence against a *hostile* value of it — a
     planted symlink, a traversal, a hard link the operator would have to
-    create on purpose — is not, and the response to such a finding is to
-    decline it, not to guard (AI-Handbook #7: eleven findings and no added
-    safety).
+    create on purpose, a file whose entries collide only if its author
+    contradicts the format it is writing to — is not, and the response to
+    such a finding is to decline it, not to guard (AI-Handbook #7: eleven
+    findings and no added safety; #211: two assessments and a ruling, for a
+    guard that was never written).
   **Ask who produced the value, never which directory the file sits in.** A
   script that parses a hook payload, a fetched document, a webhook body or
   another program's output is reading something it does not control, however
@@ -191,9 +223,13 @@ For non-trivial implementation work, create or update a plan using
 approves the plan.** A feature in **prototype phase** meets this standard
 once, for its first version — a short plan, Astra's review, David's
 approval — and is outside it for later versions unless he asks; no version
-gets a code review, and after the first the only reviewer is the product
-owner using it — after the version's scaled machine lanes have passed, any
-failing one repaired by the agent first
+gets a code-review loop, and after the first the only feedback that changes
+it is the product owner's — after the version's scaled machine lanes have
+passed, any failing one repaired by the agent first, any that would start a
+paid AI run within David's per-run and weekly budget (`uat-doc-format.md`,
+*Lanes*), and with one fix owed whoever finds it, Codex's automatic pass
+included: a defect that stops the built feature running and producing
+reasonable output (David, 2026-10-20)
 ([`working-modes.md`](../../docs/ai-context/working-modes.md#the-prototype-phase-per-feature-david-2026-09-26)).
 
 **Planning (not code review).** A planning loop does not run on a pull request
