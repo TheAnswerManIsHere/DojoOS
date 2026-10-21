@@ -13,7 +13,7 @@ permissions:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # pinned 2026-10-21: ubuntu-latest moved to 26.04, which Playwright 1.56 cannot install Chromium on
     # The worker's queue tests and the web step-0 journeys run against a real Postgres,
     # migrated by the same drizzle-kit command the Repl uses.
     services:
