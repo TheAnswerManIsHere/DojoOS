@@ -103,3 +103,11 @@ export async function makePeaks(input: string, output: string, hasAudio: boolean
   await writeFile(output, JSON.stringify(peaks));
   return cost(spent, output);
 }
+
+/** The speech track sent for transcription: the first audio stream, mono 16 kHz AAC at 32 kb/s, about 14 MB an hour.
+ * The input may be the proxy's signed URL, which ffmpeg reads front to back, so only the proxy is downloaded and the
+ * original never is again (architecture.md, storage: the daily download cap). */
+export async function extractSpeech(input: string, output: string, signal: AbortSignal): Promise<StepCost> {
+  return cost(await ffmpeg(["-i", input, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "16000", "-c:a", "aac", "-b:a", "32k",
+    "-f", "mp4", output], signal), output);
+}
