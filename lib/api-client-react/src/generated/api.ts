@@ -34,6 +34,7 @@ import type {
   SignedUrl,
   Source,
   TokenInput,
+  Transcript,
   Upload,
   UploadInput
 } from './api.schemas';
@@ -896,6 +897,77 @@ export function useGetPlayback<TData = Awaited<ReturnType<typeof getPlayback>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPlaybackQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTranscriptUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/sources/${id}/transcript`
+}
+
+export const getTranscript = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Transcript> => {
+
+  return customFetch<Transcript>(getGetTranscriptUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTranscriptQueryKey = (id: string,) => {
+    return [
+    `/app-api/sources/${id}/transcript`
+    ] as const;
+    }
+
+
+export const getGetTranscriptQueryOptions = <TData = Awaited<ReturnType<typeof getTranscript>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTranscript>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTranscriptQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTranscript>>> = ({ signal }) => getTranscript(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTranscript>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTranscriptQueryResult = NonNullable<Awaited<ReturnType<typeof getTranscript>>>
+export type GetTranscriptQueryError = ErrorType<void>
+
+
+
+export function useGetTranscript<TData = Awaited<ReturnType<typeof getTranscript>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTranscript>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTranscriptQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

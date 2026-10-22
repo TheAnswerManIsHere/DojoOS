@@ -66,6 +66,25 @@ export interface Source {
   lastError: string | null;
   /** The source can be processed again from the library. */
   retryable: boolean;
+  /**
+     * Words in the newest transcript; null when there is none yet.
+     * @nullable
+     */
+  transcriptWords?: number | null;
+}
+
+export type TranscriptWordsItem = {
+  text: string;
+  start_ms: number;
+  end_ms: number;
+};
+
+export interface Transcript {
+  provider: string;
+  /** The provider's model that produced it. */
+  version: string;
+  createdAt: string;
+  words: TranscriptWordsItem[];
 }
 
 export interface Shoot {

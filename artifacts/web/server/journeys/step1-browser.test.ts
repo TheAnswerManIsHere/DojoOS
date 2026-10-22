@@ -6,7 +6,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { chromium, type Browser } from "playwright";
 import { eq, inArray, sql } from "drizzle-orm";
-import { derivedKeys, jobs, shoots, sources } from "@workspace/shared";
+import { derivedKeys, jobs, shoots, sources, transcripts } from "@workspace/shared";
 import { operatorEmail, requireTestDatabase, startServer, type RunningServer } from "./harness";
 import { openPage, signInFromPage } from "./browser";
 
@@ -28,6 +28,11 @@ before(async () => {
   readyId = ready.id;
   const keys = derivedKeys(readyId);
   await db.update(sources).set({ proxyKey: keys.proxy, spriteKey: keys.sprite, peaksKey: keys.peaks }).where(eq(sources.id, readyId));
+  // Two transcripts, so the library shows the newer one.
+  await db.insert(transcripts).values({ sourceId: readyId, provider: "assemblyai", version: "universal-2", createdAt: new Date(Date.now() - 60_000),
+    words: [{ text: "stale", start_ms: 0, end_ms: 100 }] });
+  await db.insert(transcripts).values({ sourceId: readyId, provider: "assemblyai", version: "universal-3-5-pro",
+    words: [{ text: "Release", start_ms: 0, end_ms: 400 }, { text: "the", start_ms: 400, end_ms: 520 }, { text: "psoas.", start_ms: 61_000, end_ms: 61_600 }] });
   server = await startServer();
   browser = await chromium.launch();
 });
@@ -39,6 +44,7 @@ after(async () => {
   } finally {
     if (shootId) {
       const ids = [readyId, probingId, failedId].filter((id): id is string => !!id);
+      await db.delete(transcripts).where(inArray(transcripts.sourceId, ids));
       await db.delete(jobs).where(sql`${jobs.payload}->>'sourceId' in (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})`);
       await db.delete(sources).where(inArray(sources.id, ids));
       await db.delete(shoots).where(eq(shoots.id, shootId));
@@ -101,5 +107,20 @@ test("a failed source shows its error and Process again, which puts it back in i
   await row.getByTestId(`button-retry-ingest-${failedId}`).click();
   await row.getByTestId(`text-ingest-state-${failedId}`).filter({ hasText: "uploaded" }).waitFor();
   assert.equal(await row.getByTestId(`button-retry-ingest-${failedId}`).count(), 0, "no second retry while one is queued");
+  await page.context().close();
+});
+
+test("a transcribed source shows its newest transcript's word count, and the words with their times on request", async () => {
+  const page = await openPage(browser);
+  await signInFromPage(page, server.origin, operatorEmail);
+  const ready = page.getByTestId(`row-source-${readyId}`);
+  const button = ready.getByTestId(`button-transcript-${readyId}`);
+  assert.equal(await button.textContent(), "Show transcript (3 words)", "the newest transcript's count, not the stale one's");
+  assert.equal(await page.getByTestId(`row-source-${probingId}`).getByRole("button", { name: /transcript/ }).count(), 0, "none until there is one");
+  await button.click();
+  const text = page.getByTestId(`transcript-${readyId}`);
+  await text.waitFor();
+  assert.match(await text.textContent() ?? "", /universal-3-5-pro.*\[0:00\] Release the psoas\./s);
+  assert.equal(await text.getByText("psoas.").getAttribute("title"), "1:01–1:01", "each word carries its time");
   await page.context().close();
 });

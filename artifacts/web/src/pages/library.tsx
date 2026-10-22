@@ -4,6 +4,7 @@ import { getListShootsQueryKey, useCreateShoot, useListShoots } from '@workspace
 import { UploadManager } from '@/components/upload-manager';
 import { ProxyPlayer } from '@/components/proxy-player';
 import { SourceState } from '@/components/source-state';
+import { TranscriptView } from '@/components/transcript-view';
 
 /** States the worker moves a source through on its own; while any source is in one, the library refreshes itself.
  * `uploading` is not among them: it ends only when the browser finishes, and an abandoned upload must not poll forever. */
@@ -52,10 +53,11 @@ export function Library({ accountId }: { accountId: string }) {
         <h3>Sources</h3>
         {shoot.sources.length === 0 ? <p>No sources yet.</p> :
           <div className="table-scroll"><table className="plain-table">
-            <thead><tr><th>ID</th><th>Role</th><th>Ingest state</th><th>Duration</th><th>Width</th><th>Height</th><th>FPS</th><th>Proxy</th></tr></thead>
+            <thead><tr><th>ID</th><th>Role</th><th>Ingest state</th><th>Duration</th><th>Width</th><th>Height</th><th>FPS</th><th>Proxy</th><th>Transcript</th></tr></thead>
             <tbody>{shoot.sources.map(source => <tr key={source.id} data-testid={`row-source-${source.id}`}>
               <td>{source.id}</td><td>{source.role}</td><td><SourceState source={source} /></td><td>{source.durationMs == null ? '—' : `${source.durationMs} ms`}</td><td>{source.width ?? '—'}</td><td>{source.height ?? '—'}</td><td>{source.fps ?? '—'}</td>
               <td>{source.ingestState === 'ready' && source.hasProxy ? <ProxyPlayer sourceId={source.id} /> : '—'}</td>
+              <td><TranscriptView sourceId={source.id} words={source.transcriptWords ?? null} /></td>
             </tr>)}</tbody>
           </table></div>}
         <UploadManager shootId={shoot.id} accountId={accountId} />

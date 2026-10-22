@@ -62,6 +62,17 @@ overruled. Newest last. Product truth that is not a decision lives in
   and worst-case sizes, S3 API, egress allowance of three times stored
   volume covers preview and render. R2 is the fallback because its egress
   is free without a cap. The storage client speaks S3 only.
+- **AssemblyAI for transcription, as its own job after ingest** (2026-10-22,
+  Claude's recommendation; the plan left the provider to the build).
+  Compared on word timings, cost per audio hour and domain vocabulary:
+  AssemblyAI Universal-3.5 Pro ($0.21/h, keyterms +$0.05/h, word times in
+  ms), Deepgram Nova-3 (about $0.26/h by third-party listings), ElevenLabs
+  Scribe v2 ($0.22/h), OpenAI `whisper-1` ($0.36/h, a 25 MB upload limit,
+  and the only OpenAI model with word timestamps). All are within cents an
+  hour, so the deciders were millisecond word times (the unit `transcripts`
+  stores) and keyterm prompting for anatomy vocabulary. The interface makes
+  a second provider one more implementation. The job reads the proxy's
+  speech track, not the original, because of the daily download cap.
 - **ffmpeg for probe, proxy and render; MLT the fallback.** Compared on
   2026-09-30 against MLT, GStreamer Editing Services, hosted render APIs
   and Node wrappers: every credible option is ffmpeg or wraps it, and the

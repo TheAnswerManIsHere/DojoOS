@@ -27,4 +27,9 @@ export interface Source {
   lastError: string | null;
   /** The source can be processed again from the library. */
   retryable: boolean;
+  /**
+     * Words in the newest transcript; null when there is none yet.
+     * @nullable
+     */
+  transcriptWords?: number | null;
 }

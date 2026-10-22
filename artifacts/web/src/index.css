@@ -412,3 +412,5 @@ small, .subtle { color: hsl(var(--muted-foreground)); }
     inset: -1px;
   }
 }
+
+.transcript { max-width: 40rem; max-height: 20rem; overflow-y: auto; white-space: normal; }

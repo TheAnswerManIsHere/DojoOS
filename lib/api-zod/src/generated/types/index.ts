@@ -25,6 +25,8 @@ export * from './signedUrl';
 export * from './source';
 export * from './sourceRole';
 export * from './tokenInput';
+export * from './transcript';
+export * from './transcriptWordsItem';
 export * from './upload';
 export * from './uploadInput';
 export * from './uploadInputRole';

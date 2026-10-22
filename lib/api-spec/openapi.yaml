@@ -143,6 +143,19 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SignedUrl" }
+  /sources/{id}/transcript:
+    get:
+      operationId: getTranscript
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The source's newest transcript
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Transcript" }
+        "404":
+          description: The source has no transcript
   /questions:
     get:
       operationId: listQuestions
@@ -219,6 +232,20 @@ components:
         hasProxy: { type: boolean, description: "A playable proxy exists; the playback URL is then the proxy's." }
         lastError: { type: ["string", "null"], description: "The last ingest error, while the source is failed." }
         retryable: { type: boolean, description: "The source can be processed again from the library." }
+        transcriptWords: { type: ["integer", "null"], description: "Words in the newest transcript; null when there is none yet." }
+    Transcript:
+      type: object
+      required: [provider, version, createdAt, words]
+      properties:
+        provider: { type: string }
+        version: { type: string, description: "The provider's model that produced it." }
+        createdAt: { type: string }
+        words:
+          type: array
+          items:
+            type: object
+            required: [text, start_ms, end_ms]
+            properties: { text: { type: string }, start_ms: { type: integer }, end_ms: { type: integer } }
     Shoot:
       type: object
       required: [id, name, sources]

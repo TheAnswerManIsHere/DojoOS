@@ -8,7 +8,9 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { peaksPerSecond, spriteLayout, type Peaks } from "@workspace/shared";
-import { makePeaks, makeProxy, makeSprite } from "./media";
+import { extractSpeech, makePeaks, makeProxy, makeSprite } from "./media";
+import { createServer } from "node:http";
+import { createReadStream } from "node:fs";
 
 let dir: string;
 const signal = new AbortController().signal;
@@ -121,4 +123,22 @@ test("an aborted encode stops and rejects instead of finishing", async () => {
   const pending = makeProxy(join(dir, "large.mp4"), join(dir, "aborted.mp4"), controller.signal, { hasVideo: true, hasAudio: true });
   controller.abort();
   await assert.rejects(pending);
+});
+
+test("the speech track is mono 16 kHz AAC, read over HTTP as it is from a signed proxy URL", async () => {
+  // A proxy is written with its index first (+faststart), which is what lets ffmpeg read it front to back over HTTP.
+  const proxy = join(dir, "speech-source.mp4");
+  await makeProxy(join(dir, "landscape.mp4"), proxy, signal, { hasVideo: true, hasAudio: true });
+  const server = createServer((_req, res) => { res.writeHead(200, { "content-type": "video/mp4" }); createReadStream(proxy).pipe(res); });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const { port } = server.address() as { port: number };
+    const out = join(dir, "landscape.speech.m4a");
+    const cost = await extractSpeech(`http://127.0.0.1:${port}/proxy.mp4`, out, signal);
+    const info = execFileSync("ffprobe", ["-v", "error", "-show_streams", "-show_format", "-of", "json", out]).toString();
+    const { streams, format } = JSON.parse(info) as { streams: Array<{ codec_type: string; codec_name: string; channels: number; sample_rate: string }>; format: { duration: string } };
+    assert.deepEqual(streams.map((s) => [s.codec_type, s.codec_name, s.channels, s.sample_rate]), [["audio", "aac", 1, "16000"]]);
+    assert.ok(Math.abs(Number(format.duration) - 8) < 0.3);
+    assert.ok(cost.bytes > 0 && cost.bytes < 100_000, "about 4 KB a second");
+  } finally { server.close(); }
 });
