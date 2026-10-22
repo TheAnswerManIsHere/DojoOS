@@ -32,4 +32,14 @@ export interface Source {
      * @nullable
      */
   transcriptWords?: number | null;
+  /**
+     * The newest transcription job's state (queued, claimed, completed, failed); null when none has run.
+     * @nullable
+     */
+  transcriptionState?: string | null;
+  /**
+     * Why the newest transcription failed, while it is failed.
+     * @nullable
+     */
+  transcriptionError?: string | null;
 }

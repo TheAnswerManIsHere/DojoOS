@@ -838,6 +838,74 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRetryIngestMutationOptions(options));
     }
 
+export const getTranscribeSourceUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/sources/${id}/transcribe`
+}
+
+export const transcribeSource = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Source> => {
+
+  return customFetch<Source>(getTranscribeSourceUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTranscribeSourceMutationKey = () => ['transcribeSource'] as const;
+
+export const getTranscribeSourceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transcribeSource>>, TError,TranscribeSourceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof transcribeSource>>, TError,TranscribeSourceMutationVariables, TContext> => {
+
+const mutationKey = getTranscribeSourceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transcribeSource>>, TranscribeSourceMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  transcribeSource(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TranscribeSourceMutationResult = NonNullable<Awaited<ReturnType<typeof transcribeSource>>>
+
+    export type TranscribeSourceMutationError = ErrorType<void>
+    export type TranscribeSourceMutationVariables = {id: string}
+
+    export const useTranscribeSource = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transcribeSource>>, TError,TranscribeSourceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof transcribeSource>>,
+        TError,
+        TranscribeSourceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTranscribeSourceMutationOptions(options));
+    }
+
 export const getGetPlaybackUrl = (id: string,) => {
 
 

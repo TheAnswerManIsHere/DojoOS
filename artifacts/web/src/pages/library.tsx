@@ -6,14 +6,16 @@ import { ProxyPlayer } from '@/components/proxy-player';
 import { SourceState } from '@/components/source-state';
 import { TranscriptView } from '@/components/transcript-view';
 
-/** States the worker moves a source through on its own; while any source is in one, the library refreshes itself.
+/** States the worker moves a source through on its own; while any source is in one, or has a transcription queued or
+ * running, the library refreshes itself.
  * `uploading` is not among them: it ends only when the browser finishes, and an abandoned upload must not poll forever. */
 const inFlight = new Set(['uploaded', 'probing', 'proxying', 'transcribing']);
 const refreshMs = 5000;
 
 export function Library({ accountId }: { accountId: string }) {
   const shoots = useListShoots({ query: { queryKey: getListShootsQueryKey(),
-    refetchInterval: query => query.state.data?.some(shoot => shoot.sources.some(source => inFlight.has(source.ingestState))) ? refreshMs : false } });
+    refetchInterval: query => query.state.data?.some(shoot => shoot.sources.some(source => inFlight.has(source.ingestState) ||
+      source.transcriptionState === 'queued' || source.transcriptionState === 'claimed')) ? refreshMs : false } });
   const create = useCreateShoot();
   const client = useQueryClient();
   const [name, setName] = useState('');
@@ -57,7 +59,7 @@ export function Library({ accountId }: { accountId: string }) {
             <tbody>{shoot.sources.map(source => <tr key={source.id} data-testid={`row-source-${source.id}`}>
               <td>{source.id}</td><td>{source.role}</td><td><SourceState source={source} /></td><td>{source.durationMs == null ? '—' : `${source.durationMs} ms`}</td><td>{source.width ?? '—'}</td><td>{source.height ?? '—'}</td><td>{source.fps ?? '—'}</td>
               <td>{source.ingestState === 'ready' && source.hasProxy ? <ProxyPlayer sourceId={source.id} /> : '—'}</td>
-              <td><TranscriptView sourceId={source.id} words={source.transcriptWords ?? null} /></td>
+              <td><TranscriptView source={source} /></td>
             </tr>)}</tbody>
           </table></div>}
         <UploadManager shootId={shoot.id} accountId={accountId} />

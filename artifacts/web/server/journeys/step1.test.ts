@@ -11,7 +11,8 @@ let server: RunningServer;
 let cookie: string;
 let shootId: string;
 const ids: Record<string, string> = {};
-type ApiSource = { id: string; ingestState: string; hasProxy: boolean; lastError: string | null; retryable: boolean };
+type ApiSource = { id: string; ingestState: string; hasProxy: boolean; lastError: string | null; retryable: boolean;
+  transcriptionState: string | null; transcriptionError: string | null };
 
 before(async () => {
   const [shoot] = await db.insert(shoots).values({ name: `Step-1 recovery ${Date.now()}` }).returning();
@@ -34,7 +35,7 @@ before(async () => {
 after(async () => {
   try { await server?.stop(); } finally {
     const all = Object.values(ids);
-    await db.delete(jobs).where(and(eq(jobs.kind, "source.probe"), sql`${jobs.payload}->>'sourceId' in (${sql.join(all.map((id) => sql`${id}`), sql`, `)})`));
+    await db.delete(jobs).where(and(inArray(jobs.kind, ["source.probe", "source.transcribe"]), sql`${jobs.payload}->>'sourceId' in (${sql.join(all.map((id) => sql`${id}`), sql`, `)})`));
     await db.delete(sources).where(inArray(sources.id, all));
     await db.delete(shoots).where(eq(shoots.id, shootId));
     await pool.end();
@@ -74,4 +75,26 @@ test("retry refuses a source that already has its proxy, one with an attempt que
   assert.equal((await retry(ids.done)).status, 409);
   assert.equal((await retry(ids.retrying)).status, 409);
   assert.equal((await retry("01NOTAREALSOURCE0000000000")).status, 409);
+});
+
+const transcribe = (id: string) => fetch(`${server.origin}/app-api/sources/${id}/transcribe`, { method: "POST", headers: { cookie } });
+
+test("transcribe queues one transcription for a source with a proxy, refuses a second while it is queued, and the library says so", async () => {
+  const first = await transcribe(ids.done);
+  assert.equal(first.status, 202);
+  assert.equal(((await first.json()) as ApiSource).transcriptionState, "queued");
+  assert.equal((await transcribe(ids.done)).status, 409, "one is already queued");
+  const queued = await db.select().from(jobs).where(and(eq(jobs.kind, "source.transcribe"), sql`${jobs.payload}->>'sourceId' = ${ids.done}`));
+  assert.equal(queued.length, 1);
+  assert.equal((await listed())[ids.done].transcriptionState, "queued");
+});
+
+test("a failed transcription shows its error and can be queued again; a source with no proxy cannot be transcribed", async () => {
+  await db.update(jobs).set({ state: "failed", error: "Transcription is off: ASSEMBLYAI_API_KEY is not set" })
+    .where(and(eq(jobs.kind, "source.transcribe"), sql`${jobs.payload}->>'sourceId' = ${ids.done}`));
+  const done = (await listed())[ids.done];
+  assert.deepEqual([done.transcriptionState, done.transcriptionError], ["failed", "Transcription is off: ASSEMBLYAI_API_KEY is not set"]);
+  assert.equal((await transcribe(ids.done)).status, 202, "a failed run is redone");
+  assert.equal((await transcribe(ids.legacy)).status, 409, "no proxy to read the speech from");
+  assert.equal((await transcribe("no-such-source")).status, 409);
 });
