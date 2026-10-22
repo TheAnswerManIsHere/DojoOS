@@ -44,7 +44,7 @@ Reasoning: a Repl carries one deployment (measured 2026-09-29) and a second Repl
 
 ## 3. Storage
 
-Backblaze B2 through the S3 API, prefixes `originals/`, `proxies/`, `renders/`, one private bucket; R2 is the fallback if B2's free egress allowance (three times stored volume per month) proves tight under preview playback. The storage client in `shared` speaks S3 only.
+Backblaze B2 through the S3 API, prefixes `originals/`, `proxies/`, `renders/`, one private bucket; R2 is the fallback if B2's free egress allowance (three times stored volume per month) proves tight under preview playback. The storage client in `shared` speaks S3 only. **The account's daily download cap binds before that allowance does** (2026-10-22): Backblaze's *Caps & Alerts* page caps each day's download spend, and at the free setting (1 GB a day) a single 1.22 GB test recording reached 100% on its ingest download, after which every download — ingest, preview playback — is refused with `download_cap_exceeded` until the day resets. David set the daily download cap to $1 (about 100 GB a day at $0.01/GB) on 2026-10-22; Backblaze emails him at 75% and 100% of it. That cap is the account-level setting to look at first when ingest or playback fails with a 403.
 
 Upload is browser-resumable and direct: the SPA asks `web` to create a multipart upload, `web` issues presigned part URLs, the browser puts parts to B2, `web` completes the upload and enqueues ingest. No file byte passes through the Repl. Playback and render inputs use short-lived signed GET URLs.
 

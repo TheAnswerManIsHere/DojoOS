@@ -61,7 +61,10 @@ overruled. Newest last. Product truth that is not a decision lives in
   2026-09-30 (table in `architecture.md`): cheapest at both Jared's current
   and worst-case sizes, S3 API, egress allowance of three times stored
   volume covers preview and render. R2 is the fallback because its egress
-  is free without a cap. The storage client speaks S3 only.
+  is free without a cap. The storage client speaks S3 only. The comparison
+  missed the account's **daily download cap**, which at its free setting
+  (1 GB a day) is smaller than one recording; David raised it to $1/day on
+  2026-10-22 (`architecture.md`, storage).
 - **AssemblyAI for transcription, as its own job after ingest** (2026-10-22,
   Claude's recommendation; the plan left the provider to the build).
   Compared on word timings, cost per audio hour and domain vocabulary:
