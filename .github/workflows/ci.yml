@@ -45,7 +45,16 @@ jobs:
       - run: pnpm --filter @workspace/web lint
       - run: pnpm --filter @workspace/shared run migrate
       # The worker's media tests run the real ffmpeg and ffprobe on generated clips.
-      - run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+      # apt stalled twice on 2026-10-22 (#24, #26) with no output for 15 minutes: a stalled mirror connection gets a
+      # 30-second network timeout and three retries, and the step a ceiling, so a hang fails fast instead of holding CI.
+      - run: |
+          for attempt in 1 2 3; do
+            sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -q &&
+            sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y -q --no-install-recommends ffmpeg && exit 0
+            echo "apt attempt $attempt failed; retrying"; sleep 10
+          done
+          exit 1
+        timeout-minutes: 12
       # The browser journey drives Chromium; one install step, pinned by the web package's playwright version.
       - run: pnpm --filter @workspace/web exec playwright install --with-deps chromium
       # Package tests need the workspace's dependencies, which only this job installs.
