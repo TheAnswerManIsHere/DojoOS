@@ -48,7 +48,8 @@ const claimed = await db.select({ id: jobs.id, claimedAt: jobs.claimedAt }).from
 for (const row of claimed) if (row.claimedAt) runner.watchLease(row.id, row.claimedAt);
 // The backfill: once a key is set, every playable source with no transcript and no transcription queued or running gets
 // one, which covers sources ingested before transcription existed and any whose transcription failed.
-if (transcriber) {
+// A backfill that fails is logged and skipped, never fatal: the worker also runs ingest.
+if (transcriber) try {
   const untranscribed = await db.select({ id: sources.id }).from(sources).where(and(
     isNull(sources.deletedAt), eq(sources.ingestState, "ready"), isNotNull(sources.proxyKey),
     sql`not exists (select 1 from ${transcripts} where ${transcripts.sourceId} = ${sources.id} and ${transcripts.deletedAt} is null)`,
@@ -56,6 +57,8 @@ if (transcriber) {
       and ${jobs.state} in ('queued', 'claimed') and ${jobs.deletedAt} is null)`));
   for (const { id } of untranscribed) await queue.enqueue("source.transcribe", { sourceId: id });
   if (untranscribed.length) console.info(`Transcription backfill queued ${untranscribed.length} source(s)`);
+} catch (error) {
+  console.error("Transcription backfill failed; ingest continues", error);
 }
 runner.drain();
 const safety = setInterval(() => { console.info("Worker six-hour safety drain"); runner.drain(); }, safetyMs);

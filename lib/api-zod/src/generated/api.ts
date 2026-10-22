@@ -56,7 +56,9 @@ export const ListShootsResponseItem = zod.object({
   "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.'),
   "lastError": zod.string().nullable().describe('The last ingest error, while the source is failed.'),
   "retryable": zod.boolean().describe('The source can be processed again from the library.'),
-  "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.')
+  "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
+  "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
+  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.')
 }))
 })
 export const ListShootsResponse = zod.array(ListShootsResponseItem)
@@ -87,7 +89,9 @@ export const CreateShootResponse = zod.object({
   "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.'),
   "lastError": zod.string().nullable().describe('The last ingest error, while the source is failed.'),
   "retryable": zod.boolean().describe('The source can be processed again from the library.'),
-  "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.')
+  "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
+  "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
+  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.')
 }))
 })
 
@@ -146,7 +150,9 @@ export const CompleteUploadResponse = zod.object({
   "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.'),
   "lastError": zod.string().nullable().describe('The last ingest error, while the source is failed.'),
   "retryable": zod.boolean().describe('The source can be processed again from the library.'),
-  "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.')
+  "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
+  "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
+  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.')
 })
 
 
@@ -165,7 +171,30 @@ export const RetryIngestResponse = zod.object({
   "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.'),
   "lastError": zod.string().nullable().describe('The last ingest error, while the source is failed.'),
   "retryable": zod.boolean().describe('The source can be processed again from the library.'),
-  "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.')
+  "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
+  "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
+  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.')
+})
+
+
+export const TranscribeSourceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const TranscribeSourceResponse = zod.object({
+  "id": zod.string(),
+  "role": zod.enum(['camera_a', 'camera_b', 'audio']),
+  "ingestState": zod.string(),
+  "durationMs": zod.number().int().nullish(),
+  "width": zod.number().int().nullish(),
+  "height": zod.number().int().nullish(),
+  "fps": zod.number().nullish(),
+  "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.'),
+  "lastError": zod.string().nullable().describe('The last ingest error, while the source is failed.'),
+  "retryable": zod.boolean().describe('The source can be processed again from the library.'),
+  "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
+  "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
+  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.')
 })
 
 

@@ -132,6 +132,19 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Source" }
+  /sources/{id}/transcribe:
+    post:
+      operationId: transcribeSource
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "202":
+          description: Transcription queued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Source" }
+        "409":
+          description: Not transcribable now (no proxy, or a transcription is already queued or running)
   /sources/{id}/playback:
     get:
       operationId: getPlayback
@@ -233,6 +246,8 @@ components:
         lastError: { type: ["string", "null"], description: "The last ingest error, while the source is failed." }
         retryable: { type: boolean, description: "The source can be processed again from the library." }
         transcriptWords: { type: ["integer", "null"], description: "Words in the newest transcript; null when there is none yet." }
+        transcriptionState: { type: ["string", "null"], description: "The newest transcription job's state (queued, claimed, completed, failed); null when none has run." }
+        transcriptionError: { type: ["string", "null"], description: "Why the newest transcription failed, while it is failed." }
     Transcript:
       type: object
       required: [provider, version, createdAt, words]
