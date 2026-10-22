@@ -49,11 +49,15 @@ jobs:
       # so ffmpeg's packages are cached: the first good run downloads them, and every later run on the same runner image
       # installs them from the cache without touching the mirror. The key carries the image version, since the packages
       # are resolved against that image's installed libraries.
+      # ImageOS and ImageVersion are the runner process's environment, which `${{ env.* }}` cannot see (it holds only
+      # what the workflow sets), so a shell step reads them; `:?` fails the step rather than keying on an empty string.
+      - id: image
+        run: echo "key=ffmpeg-debs-${ImageOS:?}-${ImageVersion:?}-v1" >> "$GITHUB_OUTPUT"
       - id: ffmpeg-cache
         uses: actions/cache@v4
         with:
           path: ~/ffmpeg-debs
-          key: ffmpeg-debs-${{ env.ImageOS }}-${{ env.ImageVersion }}-v1
+          key: ${{ steps.image.outputs.key }}
       - if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
         timeout-minutes: 25
         run: |
