@@ -44,17 +44,35 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm --filter @workspace/web lint
       - run: pnpm --filter @workspace/shared run migrate
-      # The worker's media tests run the real ffmpeg and ffprobe on generated clips.
-      # apt stalled twice on 2026-10-22 (#24, #26) with no output for 15 minutes: a stalled mirror connection gets a
-      # 30-second network timeout and three retries, and the step a ceiling, so a hang fails fast instead of holding CI.
-      - run: |
+      # The worker's media tests run the real ffmpeg and ffprobe on generated clips. The runner's package mirror crawled
+      # at 50-100 KB/s three times on 2026-10-22 (#24, #26, #28: 62.8 MB of packages, past the 12-minute ceiling #27 set),
+      # so ffmpeg's packages are cached: the first good run downloads them, and every later run on the same runner image
+      # installs them from the cache without touching the mirror. The key carries the image version, since the packages
+      # are resolved against that image's installed libraries.
+      # ImageOS and ImageVersion are the runner process's environment, which `${{ env.* }}` cannot see (it holds only
+      # what the workflow sets), so a shell step reads them; `:?` fails the step rather than keying on an empty string.
+      - id: image
+        run: echo "key=ffmpeg-debs-${ImageOS:?}-${ImageVersion:?}-v1" >> "$GITHUB_OUTPUT"
+      - id: ffmpeg-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/ffmpeg-debs
+          key: ${{ steps.image.outputs.key }}
+      - if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 25
+        run: |
+          mkdir -p ~/ffmpeg-debs
           for attempt in 1 2 3; do
-            sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -q &&
-            sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y -q --no-install-recommends ffmpeg && exit 0
+            sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update -q &&
+            sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Dir::Cache::archives="$HOME/ffmpeg-debs" \
+              install -y -q --no-install-recommends --download-only ffmpeg && break
+            if [ "$attempt" = 3 ]; then exit 1; fi
             echo "apt attempt $attempt failed; retrying"; sleep 10
           done
-          exit 1
-        timeout-minutes: 12
+          sudo chown -R "$USER" ~/ffmpeg-debs
+          find ~/ffmpeg-debs -mindepth 1 ! -name '*.deb' -exec rm -rf {} +
+      - run: sudo dpkg -i ~/ffmpeg-debs/*.deb && ffmpeg -version | head -1 && ffprobe -version | head -1
+        timeout-minutes: 5
       # The browser journey drives Chromium; one install step, pinned by the web package's playwright version.
       - run: pnpm --filter @workspace/web exec playwright install --with-deps chromium
       # Package tests need the workspace's dependencies, which only this job installs.
