@@ -16,13 +16,13 @@ const { db, pool } = connectDb();
 const storage = createStorage();
 const queue = createQueue(db);
 const transcriber = createTranscriber();
-console.info(transcriber ? `Transcription by ${transcriber.provider}` : "Transcription off: ASSEMBLYAI_API_KEY is not set");
+console.info(transcriber ? `Transcription by ${transcriber.provider}` : "Transcription off: no key is set for the chosen provider");
 
 const runner = new DrainRunner(queue, concurrency, jobLeaseMs(), async (job, signal) => {
   const sourceId = (job.payload as SourceProbePayload).sourceId;
   if (typeof sourceId !== "string") throw new Error(`Invalid ${job.kind} payload`);
   if (job.kind === "source.transcribe") {
-    if (!transcriber) throw new Error("Transcription is off: ASSEMBLYAI_API_KEY is not set");
+    if (!transcriber) throw new Error("Transcription is off: no key is set for the chosen provider");
     return transcribe(db, storage, transcriber, sourceId, signal);
   }
   if (job.kind !== "source.probe") throw new Error(`Unknown job kind: ${job.kind}`);
