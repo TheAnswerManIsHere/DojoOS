@@ -12,19 +12,19 @@
 //   PILOT_CONFIGS   comma-separated; default every configuration below but assemblyai-plain
 //   PILOT_MAX_USD   refuse when the calls not yet made would cost more; default 5, the per-run cap
 //   PILOT_SCORE_ONLY=1  make no paid call; score what is kept
-//   PILOT_OUT       default <tmpdir>/dojo-pilot
+//   PILOT_OUT       default <scratch>/dojo-pilot (scratch.ts: <repo>/tmp in the Repl)
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { assemblyAI, connectDb, createStorage, elevenLabs, sources, type Transcriber, type Transcription } from "@workspace/shared";
 import { extractSpeech } from "./media";
 import { find, frameDb, noiseFloor, scoreEdges, scoreFillers, scorePhrase, wav, type EdgeScore, type PhraseScore, type Run } from "./pilot-score";
+import { scratchDir } from "./scratch";
 
 const env = process.env;
-const out = env.PILOT_OUT || join(tmpdir(), "dojo-pilot");
+const out = env.PILOT_OUT || join(scratchDir(), "dojo-pilot");
 const terms = env.PILOT_TERMS ? (await readFile(env.PILOT_TERMS, "utf8")).split("\n") : (env.TRANSCRIPTION_KEYTERMS ?? "").split(",");
 const termList = [...new Set(terms.map((t) => t.trim()).filter(Boolean))];
 const wake = env.PILOT_WAKE || "editor punch in now";

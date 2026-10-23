@@ -8,12 +8,12 @@
 // what is missing.
 import { createWriteStream } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { and, eq, isNull } from "drizzle-orm";
 import { connectDb, createQueue, createStorage, shoots, sources } from "@workspace/shared";
+import { scratchDir } from "./scratch";
 
 /** A Drive file's sharing link becomes its direct download, past the large-file warning page; anything else is fetched as given. */
 export function downloadUrl(url: string): string {
@@ -44,7 +44,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const [existing] = await db.select({ id: sources.id }).from(sources).innerJoin(shoots, eq(sources.shootId, shoots.id))
       .where(and(eq(shoots.name, name), isNull(shoots.deletedAt), isNull(sources.deletedAt)));
     if (existing) { await response.body.cancel(); console.info(`Skipped ${name}: already imported as source ${existing.id}`); continue; }
-    const dir = await mkdtemp(join(tmpdir(), "dojo-import-"));
+    const dir = await mkdtemp(join(scratchDir(), "dojo-import-"));
     try {
       const file = join(dir, "original");
       const started = performance.now();
