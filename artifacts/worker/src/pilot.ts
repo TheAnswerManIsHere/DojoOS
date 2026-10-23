@@ -155,11 +155,12 @@ for (const source of chosenSources) {
 // Across every source: what decides the pilot, per configuration, in one place.
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const summary = Object.fromEntries(chosen.map((config) => {
-  const terms = perSource.flatMap((s) => s.terms.map((t) => t.scores.find((x) => x.config === config)!));
+  // A configuration whose call failed for a source has no entry there; it is left out of that source's sums, never a crash.
+  const terms = perSource.flatMap((s) => s.terms.flatMap((t) => t.scores.filter((x) => x.config === config)));
   const agreed = sum(perSource.flatMap((s) => s.terms.map((t) => t.agreed)));
-  const wake = perSource.map((s) => s.wake.scores.find((x) => x.config === config)!);
-  const fillers = perSource.map((s) => s.fillers.find((x) => x.config === config)!);
-  const edges = perSource.map((s) => s.edges.find((x) => x.config === config)!);
+  const wake = perSource.flatMap((s) => s.wake.scores.filter((x) => x.config === config));
+  const fillers = perSource.flatMap((s) => s.fillers.filter((x) => x.config === config));
+  const edges = perSource.flatMap((s) => s.edges.filter((x) => x.config === config));
   return [config, {
     words: sum(perSource.map((s) => s.words[config] ?? 0)),
     terms: { found: sum(terms.map((t) => t.found)), agreedHeard: sum(terms.map((t) => t.agreed)), agreedOf: agreed,
@@ -172,9 +173,9 @@ const summary = Object.fromEntries(chosen.map((config) => {
   }];
 }));
 const termTable = (perSource[0]?.terms ?? []).map(({ term }) => {
-  const rows = perSource.map((s) => s.terms.find((t) => t.term === term)!);
+  const rows = perSource.flatMap((s) => s.terms.filter((t) => t.term === term));
   return { term, agreed: sum(rows.map((r) => r.agreed)), disputed: sum(rows.map((r) => r.disputed)),
-    found: Object.fromEntries(chosen.map((c) => [c, sum(rows.map((r) => r.scores.find((x) => x.config === c)!.found))])) };
+    found: Object.fromEntries(chosen.map((c) => [c, sum(rows.flatMap((r) => r.scores.filter((x) => x.config === c).map((x) => x.found)))])) };
 });
 Object.assign(report, { paid, paidUsd: +paid.reduce((s, p) => s + p.usd, 0).toFixed(4), failed, summary, termTable, perSource });
 await writeFile(join(out, "report.json"), JSON.stringify(report, null, 2));
