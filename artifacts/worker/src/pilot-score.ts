@@ -27,12 +27,20 @@ export function normalise(text: string): string[] {
 
 const same = (heard: string, term: string) => heard === term || heard === `${term}s` || heard === `${term}es`;
 
-/** Every place the phrase's tokens occur in order, plurals allowed, with the run's times for the span. */
+/** Every place the phrase's tokens occur in order, plurals allowed, with the run's times for the span. A phrase of
+ * several tokens also matches them written as one word, so "under-hook" finds "underhook" (the pilot's six misses on
+ * 2026-10-23 were that spelling, not a mishearing). */
 export function find(run: Run, phrase: string): Hit[] {
   const want = normalise(phrase), stream = tokens(run.words), hits: Hit[] = [];
   if (!want.length) return hits;
-  for (let i = 0; i + want.length <= stream.length; i++) {
-    if (!want.every((t, k) => same(stream[i + k].token, t))) continue;
+  const joined = want.join("");
+  for (let i = 0; i < stream.length; i++) {
+    if (want.length > 1 && same(stream[i].token, joined)) {
+      const w = run.words[stream[i].word];
+      hits.push({ config: run.config, start_ms: w.start_ms, end_ms: w.end_ms, heard: w.text });
+      continue;
+    }
+    if (i + want.length > stream.length || !want.every((t, k) => same(stream[i + k].token, t))) continue;
     const first = run.words[stream[i].word], last = run.words[stream[i + want.length - 1].word];
     hits.push({ config: run.config, start_ms: first.start_ms, end_ms: last.end_ms,
       heard: run.words.slice(stream[i].word, stream[i + want.length - 1].word + 1).map((w) => w.text).join(" ") });

@@ -16,6 +16,8 @@ test("a phrase is found across word splits and plurals, with its span's times", 
   assert.deepEqual(find(run, "editor punch in now"), [{ config: "a", start_ms: 0, end_ms: 1000, heard: "Editor, punch-in now." }]);
   assert.equal(find(run, "fascia").length, 1);
   assert.equal(find(run, "psoas").length, 0);
+  const compound: Run = { config: "a", provider: "p", words: words(["Underhook,", 0, 300], ["under", 500, 600], ["hooks", 600, 800]) };
+  assert.deepEqual(find(compound, "under-hook").map((h) => h.heard), ["Underhook,", "under hooks"], "one word or two");
 });
 
 test("agreement is by provider: more configurations of one provider cannot set the reference alone", () => {
