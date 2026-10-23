@@ -116,8 +116,8 @@ for (const source of chosenSources) {
   perSource.push({
     source: source.id, minutes: +((source.durationMs ?? 0) / 60000).toFixed(1), noiseFloorDb: +floor.toFixed(1),
     words: Object.fromEntries(runs.map((r) => [r.config, r.words.length])),
-    terms: termScores.map(({ term, agreed, scores }) => ({ term, agreed, scores })),
-    wake: { agreed: wakeScore.agreed, scores: wakeScore.scores,
+    terms: termScores.map(({ term, agreed, disputed, scores }) => ({ term, agreed, disputed, scores })),
+    wake: { agreed: wakeScore.agreed, disputed: wakeScore.disputed, scores: wakeScore.scores,
       times: Object.fromEntries(runs.map((r) => [r.config, find(r, wake).map((h) => h.start_ms)])) },
     fillers: runs.map(scoreFillers),
     edges: runs.map((r) => scoreEdges(r, energy, floor)),

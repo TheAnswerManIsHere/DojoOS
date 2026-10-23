@@ -3,9 +3,8 @@
 // timed, the wake phrase found with its time, and word edges an editor can cut at without clipping speech.
 //
 // There is no hand-made reference transcript, so two of the measures are relative. A term or wake-phrase occurrence
-// is a cluster of hits within a second and a half across configurations; a cluster most configurations agree on is
-// taken as spoken, and one a single configuration alone reports is counted as its insertion and listed for a person to
-// adjudicate. Word edges are judged against the audio itself: where the speech energy around an edge actually starts
+// is a cluster of hits within a second and a half across configurations; a cluster every provider heard is taken as
+// spoken, and one only some providers heard is listed for a person to adjudicate. Word edges are judged against the audio itself: where the speech energy around an edge actually starts
 // or stops, read from the decoded samples.
 import type { TimedWord } from "@workspace/shared";
 
@@ -53,21 +52,29 @@ export function cluster(hits: Hit[], toleranceMs = 1500): Cluster[] {
   return clusters;
 }
 
-export type PhraseScore = { config: string; found: number; agreed: number; recall: number | null; alone: number };
+export type PhraseScore = { config: string; found: number; agreed: number; recall: number | null; disputed: number; alone: number };
 
-/** Per configuration: occurrences found, how many of the agreed ones (clusters a majority of configurations report),
- * and how many it reports alone (its likely insertions). */
-export function scorePhrase(runs: Run[], phrase: string): { clusters: Cluster[]; agreed: number; scores: PhraseScore[] } {
+/** Agreement is counted by provider, not by configuration, so the provider with more configurations in a run cannot set
+ * the reference by itself (the build report on #30): a cluster every provider heard, through any of its configurations,
+ * is agreed; one only some providers heard is disputed, left for a person to adjudicate from review.txt. Per
+ * configuration: occurrences found, the agreed ones among them and the recall that makes, the disputed ones it heard,
+ * and the ones no other configuration heard at all (its likeliest insertions). */
+export function scorePhrase(runs: Run[], phrase: string): { clusters: Cluster[]; agreed: number; disputed: number; scores: PhraseScore[] } {
   const clusters = cluster(runs.flatMap((r) => find(r, phrase)));
-  const majority = Math.ceil(runs.length / 2);
-  const agreedClusters = clusters.filter((c) => c.hits.length >= majority);
+  const providers = new Set(runs.map((r) => r.provider));
+  const providerOf = new Map(runs.map((r) => [r.config, r.provider]));
+  const heardBy = (c: Cluster) => new Set(c.hits.map((h) => providerOf.get(h.config)));
+  const agreedClusters = clusters.filter((c) => heardBy(c).size === providers.size);
+  const disputedClusters = clusters.filter((c) => heardBy(c).size < providers.size);
+  const has = (c: Cluster, config: string) => c.hits.some((h) => h.config === config);
   return {
-    clusters, agreed: agreedClusters.length,
+    clusters, agreed: agreedClusters.length, disputed: disputedClusters.length,
     scores: runs.map(({ config }) => ({
       config,
-      found: clusters.filter((c) => c.hits.some((h) => h.config === config)).length,
-      agreed: agreedClusters.filter((c) => c.hits.some((h) => h.config === config)).length,
-      recall: agreedClusters.length ? agreedClusters.filter((c) => c.hits.some((h) => h.config === config)).length / agreedClusters.length : null,
+      found: clusters.filter((c) => has(c, config)).length,
+      agreed: agreedClusters.filter((c) => has(c, config)).length,
+      recall: agreedClusters.length ? agreedClusters.filter((c) => has(c, config)).length / agreedClusters.length : null,
+      disputed: disputedClusters.filter((c) => has(c, config)).length,
       alone: clusters.filter((c) => c.hits.length === 1 && c.hits[0].config === config).length,
     })),
   };

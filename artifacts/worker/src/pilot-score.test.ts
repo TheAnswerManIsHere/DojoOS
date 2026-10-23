@@ -18,15 +18,18 @@ test("a phrase is found across word splits and plurals, with its span's times", 
   assert.equal(find(run, "psoas").length, 0);
 });
 
-test("a term most configurations agree on is the reference; one a configuration reports alone is its insertion", () => {
+test("agreement is by provider: more configurations of one provider cannot set the reference alone", () => {
   const runs: Run[] = [
-    { config: "a", provider: "x", words: words(["psoas", 1000, 1400], ["psoas", 9000, 9400]) },
-    { config: "b", provider: "y", words: words(["psoas", 1100, 1500]) },
-    { config: "c", provider: "y", words: words(["so", 1000, 1200], ["as", 1200, 1400]) },
+    { config: "x1", provider: "x", words: words(["psoas", 1000, 1400], ["psoas", 9000, 9400]) },
+    { config: "y1", provider: "y", words: words(["psoas", 1100, 1500], ["psoas", 20000, 20400]) },
+    { config: "y2", provider: "y", words: words(["so", 1000, 1200], ["as", 1200, 1400], ["psoas", 20050, 20400]) },
+    { config: "y3", provider: "y", words: words(["psoas", 20100, 20500]) },
   ];
-  const { agreed, scores } = scorePhrase(runs, "psoas");
-  assert.equal(agreed, 1);
-  assert.deepEqual(scores.map((s) => [s.config, s.found, s.recall, s.alone]), [["a", 2, 1, 1], ["b", 1, 1, 0], ["c", 0, 0, 0]]);
+  const { agreed, disputed, scores } = scorePhrase(runs, "psoas");
+  assert.equal(agreed, 1, "only the occurrence both providers heard; three y configurations at 20 s do not make it agreed");
+  assert.equal(disputed, 2);
+  assert.deepEqual(scores.map((s) => [s.config, s.found, s.recall, s.disputed, s.alone]),
+    [["x1", 2, 1, 1, 1], ["y1", 2, 1, 1, 0], ["y2", 1, 0, 1, 0], ["y3", 1, 0, 1, 0]]);
 });
 
 test("fillers are counted, and timed only when they carry a duration", () => {
