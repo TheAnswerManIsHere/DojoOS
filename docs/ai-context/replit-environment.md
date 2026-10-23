@@ -20,8 +20,12 @@
   `OPERATOR_EMAIL`, `TESTER_EMAIL`, `APP_ORIGIN`, `MAIL_FROM`, `SMTP_URL`,
   `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`,
   `S3_SECRET_ACCESS_KEY`. The full list with defaults is in `README.md`.
-- **Disk:** the workspace volume is 256 GB; `/tmp`, where the worker
-  currently stages files, is 32 GB. The deployment's writable disk is
+- **Disk:** the workspace volume is 256 GB; the development workspace's
+  `/tmp` is a 4 GB RAM disk (`tmpfs`, measured 2026-10-23; an earlier note
+  here said 32 GB), which a 3 GB original and its proxy overflowed with
+  `ENOSPC`. So in development the supervisor points the worker's `TMPDIR`
+  at `<repo>/tmp` on the workspace volume (gitignored). Hand-run commands
+  (`import.ts`, `pilot.ts`) should be given the same `TMPDIR`. The deployment's writable disk is
   measured at scaffold step 0.
 - **Sync after a merge:** Claude asks Replit to pull `main` and report the
   checked-out SHA and a clean tree. Every change to `main` arrives through a
