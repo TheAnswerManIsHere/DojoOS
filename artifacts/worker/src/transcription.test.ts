@@ -1,7 +1,7 @@
 // The AssemblyAI client against a fake of its v2 API: what is sent, how polling ends, and how a failure reads.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assemblyAI, createTranscriber } from "@workspace/shared";
+import { assemblyAI, createTranscriber, elevenLabs } from "@workspace/shared";
 
 const signal = new AbortController().signal;
 type Call = { url: string; method: string; headers: Record<string, string>; body: unknown };
@@ -53,8 +53,44 @@ test("an HTTP refusal names the call and the status", async () => {
   await assert.rejects(assemblyAI({ apiKey: "bad", fetch }).transcribe(new Uint8Array(), signal), /POST \/upload answered 401: Invalid API key/);
 });
 
-test("transcription is off without a key, on with one", () => {
+test("disfluencies is sent only when asked for", async () => {
+  const { calls, fetch } = fake([{ status: "completed", words: [], text: "" }]);
+  await assemblyAI({ apiKey: "key", disfluencies: true, fetch, pollMs: 1 }).transcribe(new Uint8Array(), signal);
+  assert.equal(JSON.parse(calls[1].body as string).disfluencies, true);
+});
+
+test("Scribe: one multipart call with the model, word timing and the usable keyterms; only words kept, seconds made ms", async () => {
+  let sent: { url: string; headers: Record<string, string>; form: FormData } | undefined;
+  const fetch = (async (url: string, init: RequestInit) => {
+    sent = { url, headers: init.headers as Record<string, string>, form: init.body as FormData };
+    return new Response(JSON.stringify({ text: "Um, psoas.", words: [
+      { text: "Um,", type: "word", start: 0.1, end: 0.32, logprob: -0.1 }, { text: " ", type: "spacing", start: 0.32, end: 0.4 },
+      { text: "(cough)", type: "audio_event", start: 0.4, end: 0.6 }, { text: "psoas.", type: "word", start: 0.6, end: 1.1049 }] }), { status: 200 });
+  }) as unknown as typeof globalThis.fetch;
+  const result = await elevenLabs({ apiKey: "xi", model: "scribe_v2_medical", fetch,
+    keyterms: [" psoas ", "", "one two three four five six", "a{b}", "x".repeat(50)] }).transcribe(new Uint8Array([1]), signal);
+  assert.deepEqual(result, { provider: "elevenlabs", version: "scribe_v2_medical", text: "Um, psoas.",
+    words: [{ text: "Um,", start_ms: 100, end_ms: 320 }, { text: "psoas.", start_ms: 600, end_ms: 1105 }] });
+  assert.equal(sent!.url, "https://api.elevenlabs.io/v1/speech-to-text");
+  assert.equal(sent!.headers["xi-api-key"], "xi");
+  assert.equal(sent!.form.get("model_id"), "scribe_v2_medical");
+  assert.equal(sent!.form.get("timestamps_granularity"), "word");
+  assert.deepEqual(sent!.form.getAll("keyterms"), ["psoas"], "empty, six-word, bracketed and 50-character terms are dropped");
+  assert.equal((sent!.form.get("file") as Blob).size, 1);
+});
+
+test("Scribe: an HTTP refusal names the call and the status", async () => {
+  const fetch = (async () => new Response("invalid_api_key", { status: 401 })) as unknown as typeof globalThis.fetch;
+  await assert.rejects(elevenLabs({ apiKey: "bad", fetch }).transcribe(new Uint8Array(), signal), /speech-to-text answered 401: invalid_api_key/);
+});
+
+test("transcription is off without a key, on with one, and TRANSCRIPTION_PROVIDER picks among those keyed", () => {
   assert.equal(createTranscriber({}), null);
   assert.equal(createTranscriber({ ASSEMBLYAI_API_KEY: "  " }), null);
   assert.equal(createTranscriber({ ASSEMBLYAI_API_KEY: "k" })?.provider, "assemblyai");
+  assert.equal(createTranscriber({ ELEVENLABS_API_KEY: "k" })?.provider, "elevenlabs");
+  assert.equal(createTranscriber({ ASSEMBLYAI_API_KEY: "k", ELEVENLABS_API_KEY: "k" })?.provider, "assemblyai", "unchanged default");
+  assert.equal(createTranscriber({ ASSEMBLYAI_API_KEY: "k", ELEVENLABS_API_KEY: "k", TRANSCRIPTION_PROVIDER: "scribe_v2_medical" })?.provider, "elevenlabs");
+  assert.equal(createTranscriber({ ASSEMBLYAI_API_KEY: "k", TRANSCRIPTION_PROVIDER: "scribe_v2" }), null, "chosen provider has no key");
+  assert.throws(() => createTranscriber({ TRANSCRIPTION_PROVIDER: "whisper" }), /must be assemblyai, scribe_v2 or scribe_v2_medical/);
 });
