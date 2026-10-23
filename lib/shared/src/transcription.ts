@@ -1,8 +1,7 @@
 // Transcription (architecture.md §4): a hosted provider called from the worker behind one interface. The provider is
-// AssemblyAI (chosen in the build, 2026-10-22: word timings in milliseconds, keyterm prompting for Jared's anatomy
-// vocabulary, the lowest published async rate of the providers that time every word). The interface is what the
-// worker sees, so a second provider is one more implementation of it: ElevenLabs Scribe is that second one, built for
-// the paired pilot David ruled on 2026-10-22 (issue #1), which decides which of the two transcribes the backlog.
+// ElevenLabs Scribe v2, chosen 2026-10-23 by the paired pilot (issue #1, decisions.md): terms heard as well as
+// AssemblyAI's, three times the fillers kept, tighter word edges and a more verbatim transcript. AssemblyAI Universal-3.5
+// Pro, the build's first choice, stays as the second implementation.
 
 export type TimedWord = { text: string; start_ms: number; end_ms: number };
 export type Transcription = { provider: string; version: string; words: TimedWord[]; text: string };
@@ -93,12 +92,12 @@ export function elevenLabs({ apiKey, model = "scribe_v2", keyterms = [], fetch: 
 
 /** The configured transcriber, or null when no key is set: with none, sources still ingest and play, and the worker
  * transcribes them once a key appears (the startup backfill). TRANSCRIPTION_PROVIDER picks `assemblyai`, `scribe_v2`
- * or `scribe_v2_medical`; unset, it is AssemblyAI when its key is set, else Scribe v2 when ElevenLabs' is.
+ * or `scribe_v2_medical`; unset, it is Scribe v2 when ElevenLabs' key is set, else AssemblyAI when its key is.
  * TRANSCRIPTION_KEYTERMS is a comma-separated list of the vocabulary to favour. */
 export function createTranscriber(env: NodeJS.ProcessEnv = process.env): Transcriber | null {
   const keyterms = (env.TRANSCRIPTION_KEYTERMS ?? "").split(",");
   const assembly = env.ASSEMBLYAI_API_KEY?.trim(), eleven = env.ELEVENLABS_API_KEY?.trim();
-  const chosen = env.TRANSCRIPTION_PROVIDER?.trim() || (assembly ? "assemblyai" : eleven ? "scribe_v2" : "");
+  const chosen = env.TRANSCRIPTION_PROVIDER?.trim() || (eleven ? "scribe_v2" : assembly ? "assemblyai" : "");
   if (chosen === "assemblyai") return assembly ? assemblyAI({ apiKey: assembly, keyterms }) : null;
   if ((scribeModels as readonly string[]).includes(chosen)) return eleven ? elevenLabs({ apiKey: eleven, model: chosen as ScribeModel, keyterms }) : null;
   if (chosen) throw new Error(`TRANSCRIPTION_PROVIDER is ${chosen}; it must be assemblyai, ${scribeModels.join(" or ")}`);

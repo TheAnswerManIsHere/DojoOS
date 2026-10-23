@@ -1,4 +1,5 @@
-// The AssemblyAI client against a fake of its v2 API: what is sent, how polling ends, and how a failure reads.
+// The transcription clients against fakes of their APIs — AssemblyAI (what is sent, how polling ends, how a failure
+// reads) and ElevenLabs Scribe — and how the configured provider is chosen.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { assemblyAI, createTranscriber, elevenLabs } from "@workspace/shared";
@@ -89,7 +90,8 @@ test("transcription is off without a key, on with one, and TRANSCRIPTION_PROVIDE
   assert.equal(createTranscriber({ ASSEMBLYAI_API_KEY: "  " }), null);
   assert.equal(createTranscriber({ ASSEMBLYAI_API_KEY: "k" })?.provider, "assemblyai");
   assert.equal(createTranscriber({ ELEVENLABS_API_KEY: "k" })?.provider, "elevenlabs");
-  assert.equal(createTranscriber({ ASSEMBLYAI_API_KEY: "k", ELEVENLABS_API_KEY: "k" })?.provider, "assemblyai", "unchanged default");
+  assert.equal(createTranscriber({ ASSEMBLYAI_API_KEY: "k", ELEVENLABS_API_KEY: "k" })?.provider, "elevenlabs", "the pilot's winner is the default");
+  assert.equal(createTranscriber({ ASSEMBLYAI_API_KEY: "k", ELEVENLABS_API_KEY: "k", TRANSCRIPTION_PROVIDER: "assemblyai" })?.provider, "assemblyai");
   assert.equal(createTranscriber({ ASSEMBLYAI_API_KEY: "k", ELEVENLABS_API_KEY: "k", TRANSCRIPTION_PROVIDER: "scribe_v2_medical" })?.provider, "elevenlabs");
   assert.equal(createTranscriber({ ASSEMBLYAI_API_KEY: "k", TRANSCRIPTION_PROVIDER: "scribe_v2" }), null, "chosen provider has no key");
   assert.throws(() => createTranscriber({ TRANSCRIPTION_PROVIDER: "whisper" }), /must be assemblyai, scribe_v2 or scribe_v2_medical/);

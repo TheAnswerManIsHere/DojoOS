@@ -76,6 +76,25 @@ overruled. Newest last. Product truth that is not a decision lives in
   stores) and keyterm prompting for anatomy vocabulary. The interface makes
   a second provider one more implementation. The job reads the proxy's
   speech track, not the original, because of the daily download cap.
+- **ElevenLabs Scribe v2 with keyterms, replacing AssemblyAI** (2026-10-23,
+  decided by the paired pilot David ruled on 2026-10-22; issue #1). Six
+  configurations — AssemblyAI Universal-3.5 Pro (`disfluencies` on), Scribe
+  v2 and Scribe v2 Medical, each with and without a 30-term list from the
+  lessons — on four of Jared's real takes, 32 minutes, $0.77. Terms: a tie;
+  without the list each provider heard 64 of 70 occurrences both providers
+  agreed on (all six misses were "under-hook"/"over-hook", most likely written
+  as one word, so a matcher artefact), and with it every configuration heard
+  all 70. Fillers: Scribe v2 kept 35 (28 timed), AssemblyAI 10 (7 timed), so
+  `disfluencies` on 3.5 Pro keeps only a fraction. Word edges, judged against
+  the audio's energy: median error 40–50 ms for Scribe against 49–75 ms for
+  AssemblyAI on every lesson; the threshold is uncalibrated, so the ordering is
+  the evidence, not the sizes. Verbatim: adjudicating every occurrence only one
+  provider heard, Scribe's were real speech AssemblyAI dropped (an exchange
+  with the partner, a background line), and AssemblyAI rewrote "hammy" as
+  "hamstring" and "kinda" as "kind of". Scribe v2 Medical added nothing. Not
+  tested: the wake phrase, which the footage does not contain. Same price
+  within cents. AssemblyAI stays implemented; `TRANSCRIPTION_PROVIDER=assemblyai`
+  goes back.
 - **ffmpeg for probe, proxy and render; MLT the fallback.** Compared on
   2026-09-30 against MLT, GStreamer Editing Services, hosted render APIs
   and Node wrappers: every credible option is ffmpeg or wraps it, and the
