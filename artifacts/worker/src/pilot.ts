@@ -2,7 +2,8 @@
 //   pnpm --filter @workspace/worker exec tsx src/pilot.ts
 // Each chosen source's speech track is read out of its proxy (never the original: the download cap) and sent to every
 // configuration once; each answer is kept under PILOT_OUT, outside the repository, so scoring again costs nothing.
-// What it prints is counts and times only. The adjudication file (review.txt) and the rendered cuts quote Jared's
+// What it prints is counts only: a summary per configuration across every source, and a per-term table; report.json
+// keeps the per-source detail too. The adjudication file (review.txt) and the rendered cuts quote Jared's
 // words, so they stay in PILOT_OUT and are never committed.
 //
 //   PILOT_SOURCES   comma-separated source ids; default every ready source with a proxy
@@ -20,7 +21,7 @@ import { join } from "node:path";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { assemblyAI, connectDb, createStorage, elevenLabs, sources, type Transcriber, type Transcription } from "@workspace/shared";
 import { extractSpeech } from "./media";
-import { find, frameDb, noiseFloor, scoreEdges, scoreFillers, scorePhrase, wav, type Run } from "./pilot-score";
+import { find, frameDb, noiseFloor, scoreEdges, scoreFillers, scorePhrase, wav, type EdgeScore, type PhraseScore, type Run } from "./pilot-score";
 
 const env = process.env;
 const out = env.PILOT_OUT || join(tmpdir(), "dojo-pilot");
@@ -78,7 +79,13 @@ const report: Record<string, unknown> = { at: new Date().toISOString(), sources:
   audioMinutes: +(chosenSources.reduce((m, s) => m + (s.durationMs ?? 0), 0) / 60000).toFixed(1), configs: chosen, terms: termList.length, wake };
 const paid: Array<{ source: string; config: string; version: string; audioMinutes: number; usd: number; ms: number }> = [];
 const failed: Array<{ source: string; config: string; error: string }> = [];
-const perSource: unknown[] = [];
+type PerSource = {
+  source: string; minutes: number; noiseFloorDb: number; words: Record<string, number>;
+  terms: Array<{ term: string; agreed: number; disputed: number; scores: PhraseScore[] }>;
+  wake: { agreed: number; disputed: number; scores: PhraseScore[]; times: Record<string, number[]> };
+  fillers: ReturnType<typeof scoreFillers>[]; edges: EdgeScore[];
+};
+const perSource: PerSource[] = [];
 const review: string[] = [];
 
 for (const source of chosenSources) {
@@ -145,8 +152,33 @@ for (const source of chosenSources) {
   }
 }
 
-Object.assign(report, { paid, paidUsd: +paid.reduce((s, p) => s + p.usd, 0).toFixed(4), failed, perSource });
+// Across every source: what decides the pilot, per configuration, in one place.
+const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+const summary = Object.fromEntries(chosen.map((config) => {
+  const terms = perSource.flatMap((s) => s.terms.map((t) => t.scores.find((x) => x.config === config)!));
+  const agreed = sum(perSource.flatMap((s) => s.terms.map((t) => t.agreed)));
+  const wake = perSource.map((s) => s.wake.scores.find((x) => x.config === config)!);
+  const fillers = perSource.map((s) => s.fillers.find((x) => x.config === config)!);
+  const edges = perSource.map((s) => s.edges.find((x) => x.config === config)!);
+  return [config, {
+    words: sum(perSource.map((s) => s.words[config] ?? 0)),
+    terms: { found: sum(terms.map((t) => t.found)), agreedHeard: sum(terms.map((t) => t.agreed)), agreedOf: agreed,
+      recall: agreed ? +(sum(terms.map((t) => t.agreed)) / agreed).toFixed(3) : null,
+      disputedHeard: sum(terms.map((t) => t.disputed)), alone: sum(terms.map((t) => t.alone)) },
+    wake: { found: sum(wake.map((w) => w.found)), agreedHeard: sum(wake.map((w) => w.agreed)), alone: sum(wake.map((w) => w.alone)) },
+    fillers: { kept: sum(fillers.map((f) => f.fillers)), timed: sum(fillers.map((f) => f.timed)) },
+    edges: { judged: sum(edges.map((e) => e.edges)), clipped: sum(edges.map((e) => e.clipped)),
+      medianAbsMsPerSource: edges.map((e) => e.medianAbsMs), p90IntoMsPerSource: edges.map((e) => e.p90IntoMs) },
+  }];
+}));
+const termTable = (perSource[0]?.terms ?? []).map(({ term }) => {
+  const rows = perSource.map((s) => s.terms.find((t) => t.term === term)!);
+  return { term, agreed: sum(rows.map((r) => r.agreed)), disputed: sum(rows.map((r) => r.disputed)),
+    found: Object.fromEntries(chosen.map((c) => [c, sum(rows.map((r) => r.scores.find((x) => x.config === c)!.found))])) };
+});
+Object.assign(report, { paid, paidUsd: +paid.reduce((s, p) => s + p.usd, 0).toFixed(4), failed, summary, termTable, perSource });
 await writeFile(join(out, "report.json"), JSON.stringify(report, null, 2));
 await writeFile(join(out, "review.txt"), review.join("\n"));
-console.log(JSON.stringify(report, null, 2));
+console.log(JSON.stringify({ at: report.at, sources: report.sources, audioMinutes: report.audioMinutes, paidUsd: report.paidUsd,
+  failed, summary, termTable }));
 console.log(`\nKept in ${out}: report.json, review.txt (quotes the audio; never commit), cuts/ per source and configuration.`);
