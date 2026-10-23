@@ -16,7 +16,7 @@ run = "node ../../scripts/run-production.mjs --dev"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/web", "run", "build" ]
-run = [ "node", "scripts/run-production.mjs" ]
+run = [ "sh", "-c", "if [ -f scripts/run-production.mjs ]; then exec node scripts/run-production.mjs; else exec node ../../scripts/run-production.mjs; fi" ]
 
 [services.env]
 PORT = "22333"

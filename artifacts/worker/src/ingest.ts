@@ -7,12 +7,12 @@ import { eq } from "drizzle-orm";
 import { derivedKeys, sources, type connectDb, type createStorage, type SourceIngestResult } from "@workspace/shared";
 import { createWriteStream } from "node:fs";
 import { mkdtemp, rm, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import type { ReadableStream } from "node:stream/web";
 import { pipeline } from "node:stream/promises";
 import { makePeaks, makeProxy, makeSprite, probe } from "./media";
+import { scratchDir } from "./scratch";
 
 type Db = ReturnType<typeof connectDb>["db"];
 type Storage = ReturnType<typeof createStorage>;
@@ -29,7 +29,7 @@ export async function ingest(db: Db, storage: Storage, sourceId: string, signal:
   const [source] = await db.select().from(sources).where(eq(sources.id, sourceId));
   if (!source || !ingestable(source)) throw new Error("Source is missing, still uploading, or already has its proxy");
   await db.update(sources).set({ ingestState: "probing" }).where(eq(sources.id, sourceId));
-  const dir = await mkdtemp(join(tmpdir(), "dojo-ingest-"));
+  const dir = await mkdtemp(join(scratchDir(), "dojo-ingest-"));
   try {
     const file = join(dir, "source");
     const downloadStarted = performance.now();

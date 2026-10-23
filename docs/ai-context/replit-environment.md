@@ -14,6 +14,11 @@
   workspace's run command is the same supervisor with `--dev` (the web
   server's dev script), so the worker runs there too; until 2026-10-23 it
   ran the web server alone and queued ingest waited for a hand-started worker.
+  Both commands run from `artifacts/web` (measured for development, when
+  #33's root-relative path failed with `MODULE_NOT_FOUND`); the production
+  command finds the supervisor from either the root or `artifacts/web`,
+  since its working directory is not yet measured. Hand-run worker commands
+  stage under `<repo>/tmp` when it exists (`artifacts/worker/src/scratch.ts`).
 - **Nix packages:** `ffmpeg` 7.1.1 (with `ffprobe`) and `libreoffice`
   24.8.7.2, declared in `.replit`.
 - **Secrets** (the Replit Secrets pane; never committed): `SESSION_SECRET`,
@@ -25,7 +30,7 @@
   here said 32 GB), which a 3 GB original and its proxy overflowed with
   `ENOSPC`. So in development the supervisor points the worker's `TMPDIR`
   at `<repo>/tmp` on the workspace volume (gitignored). Hand-run commands
-  (`import.ts`, `pilot.ts`) should be given the same `TMPDIR`. The deployment's writable disk is
+  (`import.ts`, `pilot.ts`) find that folder themselves. The deployment's writable disk is
   measured at scaffold step 0.
 - **Sync after a merge:** Claude asks Replit to pull `main` and report the
   checked-out SHA and a clean tree. Every change to `main` arrives through a
