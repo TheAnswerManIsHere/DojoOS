@@ -12,7 +12,7 @@ paths = [ "/" ]
 localPort = 22333
 
 [services.development]
-run = "node scripts/run-production.mjs --dev"
+run = "node ../../scripts/run-production.mjs --dev"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/web", "run", "build" ]
