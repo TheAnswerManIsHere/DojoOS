@@ -91,8 +91,17 @@ overruled. Newest last. Product truth that is not a decision lives in
   the evidence, not the sizes. Verbatim: adjudicating every occurrence only one
   provider heard, Scribe's were real speech AssemblyAI dropped (an exchange
   with the partner, a background line), and AssemblyAI rewrote "hammy" as
-  "hamstring" and "kinda" as "kind of". Scribe v2 Medical added nothing. Not
-  tested: the wake phrase, which the footage does not contain. Same price
+  "hamstring" and "kinda" as "kind of". The term tie is partly by
+  construction — under the every-provider rule a one-sided hearing is
+  disputed, not a miss — so the term comparison is that adjudication:
+  AssemblyAI had 1 disputed hearing, Scribe v2 4, all real speech. A rerun
+  without `disfluencies` kept 4 fillers against 10 with it, so the flag
+  works on 3.5 Pro but keeps far fewer than Scribe's 35. Scribe v2 Medical
+  added nothing. Decided before the wake phrase could be tested (the footage
+  does not contain it), on Claude's recommendation: the pilot's cache makes
+  the undo one take that says it a dozen times, scored for about $0.10. The
+  four lessons were re-transcribed on Scribe v2 the same day, so no brick
+  anchors to the losing provider's timings. Same price
   within cents. AssemblyAI stays implemented; `TRANSCRIPTION_PROVIDER=assemblyai`
   goes back.
 - **ffmpeg for probe, proxy and render; MLT the fallback.** Compared on
