@@ -99,7 +99,12 @@ overruled. Newest last. Product truth that is not a decision lives in
   works on 3.5 Pro but keeps far fewer than Scribe's 35. Scribe v2 Medical
   added nothing. Decided before the wake phrase could be tested (the footage
   does not contain it), on Claude's recommendation: the pilot's cache makes
-  the undo one take that says it a dozen times, scored for about $0.10. The
+  the undo one take that says it a dozen times, scored for about $0.10.
+  Re-scored after the matcher learned that "underhook" is "under-hook"
+  (#40): both providers heard all 70 occurrences without the list, so on
+  these lessons the list changed no recognition (Scribe v2 Medical alone went
+  from 68 to 70 with it); `TRANSCRIPTION_KEYTERMS` stays worth setting for
+  rarer words, not for these. The
   four lessons were re-transcribed on Scribe v2 the same day, so no brick
   anchors to the losing provider's timings. Same price
   within cents. AssemblyAI stays implemented; `TRANSCRIPTION_PROVIDER=assemblyai`
