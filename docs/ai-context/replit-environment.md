@@ -10,7 +10,10 @@
   and production schema changes are applied by Replit's publish flow.
 - **Deployment:** one Reserved VM (2 vCPU / 8 GB), production command
   `node scripts/run-production.mjs`, which supervises web and worker and
-  exits non-zero if either dies. Not yet published.
+  exits non-zero if either dies. Not yet published. The development
+  workspace's run command is the same supervisor with `--dev` (the web
+  server's dev script), so the worker runs there too; until 2026-10-23 it
+  ran the web server alone and queued ingest waited for a hand-started worker.
 - **Nix packages:** `ffmpeg` 7.1.1 (with `ffprobe`) and `libreoffice`
   24.8.7.2, declared in `.replit`.
 - **Secrets** (the Replit Secrets pane; never committed): `SESSION_SECRET`,

@@ -1,7 +1,10 @@
 import { spawn } from "node:child_process";
 
+// `--dev` is the development workspace's run command: the same supervision, with the web server's dev script, so the
+// worker runs there too and an upload or import is ingested without anyone starting it by hand.
+const dev = process.argv.includes("--dev");
 const services = [
-  ["web", ["--filter", "@workspace/web", "run", "serve"]],
+  ["web", ["--filter", "@workspace/web", "run", dev ? "dev" : "serve"]],
   ["worker", ["--filter", "@workspace/worker", "run", "start"]],
 ];
 
