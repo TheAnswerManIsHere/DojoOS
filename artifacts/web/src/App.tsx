@@ -28,14 +28,14 @@ function AuthenticatedShell({ children, feature, page, email, tier }: {
       <nav className="app-nav" aria-label="Main navigation">
         <Link href="/library" data-testid="link-library">Library</Link>
         {tier === 'operator' && <Link href="/feedback" data-testid="link-feedback">Feedback</Link>}
-        <span className="subtle" data-testid="text-account-email">{email}</span>
+        <span className="subtle" data-testid="text-account-email">{tier === 'tester' ? 'Jared' : 'David'} · {email}</span>
         <button type="button" disabled={logout.isPending} onClick={async () => {
           try {
             await logout.mutateAsync();
             client.clear();
             navigate('/sign-in', { replace: true });
           } catch { /* error shown below */ }
-        }} data-testid="button-sign-out">Sign out</button>
+        }} data-testid="button-sign-out">{import.meta.env.DEV ? 'Switch person' : 'Sign out'}</button>
       </nav>
     </header>
     {logout.isError && <p role="alert" className="error">Could not sign out. {logout.error.message}</p>}

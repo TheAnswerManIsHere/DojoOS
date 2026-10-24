@@ -145,3 +145,15 @@ test("a cross-origin mutation is refused even with a valid session", async () =>
   });
   assert.equal(sameOrigin.status, 201);
 });
+
+test("prototype phase: in development you say who you are and are let in, with no link and no password", async () => {
+  const choose = (who: string) => fetch(`${origin}/app-api/auth/choose`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ who }) });
+  const jared = await choose("jared");
+  assert.equal(jared.status, 200);
+  assert.deepEqual([((await jared.json()) as Session["account"]).email], [testerEmail], "Jared is the tester account, who answers the rail");
+  const cookie = (jared.headers.get("set-cookie") ?? "").split(";")[0];
+  assert.equal((await fetch(`${origin}/app-api/session`, { headers: { cookie } })).status, 200, "the session works like a signed-in one");
+  const david = await choose("david");
+  assert.equal(((await david.json()) as Session["account"]).email, operatorEmail, "David is the operator account, who reads the answers");
+  assert.equal((await choose("someone")).status, 400, "only the two people the app knows");
+});

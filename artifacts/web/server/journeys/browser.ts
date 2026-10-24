@@ -1,7 +1,8 @@
-// Shared browser steps for the journeys: a fresh page per account, and sign-in the way an emailed link is
-// followed — the sign-in page requests it, the page renders it in development, the browser follows it, and the
-// page verifies the token and lands on the library.
+// Shared browser steps for the journeys: a fresh page per account, and getting in the way the development app lets
+// you in during prototype phase — the page asks who you are, David or Jared, with no link and no password (David,
+// 2026-10-24). Jared is the tester account (he answers the rail); David is the operator account (he reads it).
 import type { Browser, Page } from "playwright";
+import { operatorEmail, testerEmail } from "./harness";
 
 export async function openPage(browser: Browser) {
   const page = await (await browser.newContext()).newPage();
@@ -10,10 +11,10 @@ export async function openPage(browser: Browser) {
 }
 
 export async function signInFromPage(page: Page, origin: string, email: string) {
+  const who = email === testerEmail ? "jared" : email === operatorEmail ? "david" : null;
+  if (!who) throw new Error(`no person for ${email}`);
   await page.goto(`${origin}/sign-in`);
-  await page.getByTestId("input-email").fill(email);
-  await page.getByTestId("button-request-link").click();
-  await page.getByTestId("status-check-inbox").getByRole("link", { name: "Sign in to DojoOS" }).click();
+  await page.getByTestId(`button-i-am-${who}`).click();
   await page.waitForURL(`${origin}/library`);
   await page.getByTestId("text-account-email").filter({ hasText: email }).waitFor();
 }
