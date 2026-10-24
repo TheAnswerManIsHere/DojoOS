@@ -38,6 +38,11 @@ export function createStorage() {
       await new Upload({ client, params: { Bucket: bucket, Key: key, Body: createReadStream(file), ContentType: contentType },
         partSize: 64 * 1024 * 1024, queueSize: 4, abortController: signal ? abortControllerFor(signal) : undefined }).done();
     },
+    /** One small object's body as text, for a derivative the server relays (the peaks file). */
+    async readText(key: string) {
+      const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+      return object.Body!.transformToString();
+    },
     playback(key: string) {
       return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 300 });
     },

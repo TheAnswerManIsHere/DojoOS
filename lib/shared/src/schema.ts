@@ -1,8 +1,10 @@
-import { relations } from "drizzle-orm";
-import { boolean, date, integer, jsonb, pgEnum, pgTable, real, text, timestamp, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import { boolean, check, date, integer, jsonb, pgEnum, pgTable, real, text, timestamp, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { ulid } from "ulid";
 
 const uid = () => ulid();
+/** A new row id, for a caller that must know it before the insert. */
+export const newId = uid;
 const audit = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
@@ -33,7 +35,8 @@ export const transcripts = pgTable("transcripts", {
 });
 export const bricks = pgTable("bricks", {
   id: id(), sourceId: text("source_id").notNull().references(() => sources.id), inMs: integer("in_ms").notNull(),
-  outMs: integer("out_ms").notNull(), attributes: jsonb("attributes").$type<Record<string, unknown>>().notNull().default({}),
+  // Null while the brick is open: marked in, not yet out (the logging viewer, PLAN_LOGGING_VIEWER.md §3).
+  outMs: integer("out_ms"), attributes: jsonb("attributes").$type<Record<string, unknown>>().notNull().default({}),
   tags: text("tags").array().notNull().default([]), beatId: text("beat_id"), isChosen: boolean("is_chosen").notNull().default(false), ...audit,
 });
 export const templates = pgTable("templates", { id: id(), name: text("name").notNull(), spec: jsonb("spec").$type<Record<string, unknown>>().notNull(), ...audit });
@@ -71,11 +74,15 @@ export const cutSlides = pgTable("cut_slides", {
   anchorCutBrickId: text("anchor_cut_brick_id").references(() => cutBricks.id),
   anchorSourceMs: integer("anchor_source_ms"), ...audit,
 });
+// A usage record of applied commands, never replayed (architecture.md §5). An event belongs to a cut, or — for logging,
+// which edits a source's bricks before any cut exists — to a source; exactly one of the two.
 export const cutEvents = pgTable("cut_events", {
-  id: id(), cutId: text("cut_id").notNull().references(() => cuts.id), sequence: integer("sequence").notNull(),
-  command: jsonb("command").notNull(), actor: text("actor").notNull(),
+  id: id(), cutId: text("cut_id").references(() => cuts.id), sourceId: text("source_id").references(() => sources.id),
+  sequence: integer("sequence").notNull(), command: jsonb("command").notNull(), actor: text("actor").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [uniqueIndex("cut_events_cut_sequence_unique").on(t.cutId, t.sequence)]);
+}, (t) => [uniqueIndex("cut_events_cut_sequence_unique").on(t.cutId, t.sequence),
+  uniqueIndex("cut_events_source_sequence_unique").on(t.sourceId, t.sequence),
+  check("cut_events_one_owner", sql`num_nonnulls(${t.cutId}, ${t.sourceId}) = 1`)]);
 export const jobs = pgTable("jobs", {
   id: id(), kind: text("kind").notNull(), payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
   state: jobStateEnum("state").notNull().default("queued"), attempts: integer("attempts").notNull().default(0),
@@ -137,6 +144,7 @@ export const cutSlidesRelations = relations(cutSlides, ({ one }) => ({
 }));
 export const cutEventsRelations = relations(cutEvents, ({ one }) => ({
   cut: one(cuts, { fields: [cutEvents.cutId], references: [cuts.id] }),
+  source: one(sources, { fields: [cutEvents.sourceId], references: [sources.id] }),
 }));
 export const feedbackRelations = relations(feedback, ({ one }) => ({
   user: one(users, { fields: [feedback.userId], references: [users.id] }),

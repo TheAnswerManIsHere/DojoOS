@@ -4,6 +4,97 @@
  * Api
  * OpenAPI spec version: 0.1.0
  */
+export type LogBrickAction = typeof LogBrickAction[keyof typeof LogBrickAction];
+
+
+export const LogBrickAction = {
+  keep: 'keep',
+  punch_in: 'punch_in',
+} as const;
+
+export interface LogBrick {
+  id: string;
+  inMs: number;
+  /**
+     * Null while the brick is open.
+     * @nullable
+     */
+  outMs: number | null;
+  /**
+     * Order among open bricks; O closes the highest.
+     * @nullable
+     */
+  openSeq: number | null;
+  action: LogBrickAction;
+  /**
+     * The framing preset of a punch-in.
+     * @nullable
+     */
+  preset: string | null;
+  tags: string[];
+}
+
+export type SourceLogWordsItem = {
+  text: string;
+  start_ms: number;
+  end_ms: number;
+};
+
+/**
+ * @nullable
+ */
+export type SourceLogSpriteLayout = {
+  intervalSeconds: number;
+  count: number;
+  columns: number;
+  rows: number;
+  tileWidth: number;
+  tileHeight: number;
+} | null;
+
+export interface SourceLog {
+  sourceId: string;
+  shootName: string;
+  durationMs: number;
+  /** @nullable */
+  fps: number | null;
+  bricks: LogBrick[];
+  /**
+     * The newest transcript's words; null when the source has none.
+     * @nullable
+     */
+  words: SourceLogWordsItem[] | null;
+  /** @nullable */
+  spriteUrl: string | null;
+  /** @nullable */
+  spriteLayout: SourceLogSpriteLayout;
+  hasPeaks: boolean;
+}
+
+/**
+ * One command of the closed set in lib/shared/src/commands.ts.
+ */
+export type CommandInputCommand = { [key: string]: unknown };
+
+export interface CommandInput {
+  /** One command of the closed set in lib/shared/src/commands.ts. */
+  command: CommandInputCommand;
+}
+
+export type CommandResultInverse = { [key: string]: unknown };
+
+export interface CommandResult {
+  bricks: LogBrick[];
+  inverse: CommandResultInverse;
+}
+
+export interface Peaks {
+  sample_rate: number;
+  samples_per_pixel: number;
+  length: number;
+  data: number[];
+}
+
 export interface Ok {
   ok: boolean;
 }

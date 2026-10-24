@@ -1,3 +1,4 @@
+import { Link } from 'wouter';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getListShootsQueryKey, useCreateShoot, useListShoots } from '@workspace/api-client-react';
@@ -58,7 +59,7 @@ export function Library({ accountId }: { accountId: string }) {
             <thead><tr><th>ID</th><th>Role</th><th>Ingest state</th><th>Duration</th><th>Width</th><th>Height</th><th>FPS</th><th>Proxy</th><th>Transcript</th></tr></thead>
             <tbody>{shoot.sources.map(source => <tr key={source.id} data-testid={`row-source-${source.id}`}>
               <td>{source.id}</td><td>{source.role}</td><td><SourceState source={source} /></td><td>{source.durationMs == null ? '—' : `${source.durationMs} ms`}</td><td>{source.width ?? '—'}</td><td>{source.height ?? '—'}</td><td>{source.fps ?? '—'}</td>
-              <td>{source.ingestState === 'ready' && source.hasProxy ? <ProxyPlayer sourceId={source.id} /> : '—'}</td>
+              <td>{source.ingestState === 'ready' && source.hasProxy ? <><ProxyPlayer sourceId={source.id} /> <Link href={`/sources/${source.id}/log`} data-testid={`link-log-${source.id}`}>Log</Link></> : '—'}</td>
               <td><TranscriptView source={source} /></td>
             </tr>)}</tbody>
           </table></div>}

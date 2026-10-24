@@ -1,0 +1,18 @@
+{
+  "feature": "logging-viewer",
+  "note": "PROTOTYPE — the questions the logging viewer's first version exists to answer (PLAN_LOGGING_VIEWER.md). The web server syncs these into the questions table at boot; the rail shows them on the logging page.",
+  "questions": [
+    { "key": "logging-viewer.speed", "type": "choice", "choices": ["under 1×", "1–1.5×", "1.5–2×", "over 2×"],
+      "prompt": "How long did logging this lesson take, against the lesson's own length? (under 1×, 1–1.5×, 1.5–2×, over 2×)" },
+    { "key": "logging-viewer.edge-fixes", "type": "scale", "choices": ["1", "2", "3", "4", "5"],
+      "prompt": "How often did you fix a brick's edge after marking it? (1 = never, 5 = almost every brick)" },
+    { "key": "logging-viewer.snapping", "type": "choice", "choices": ["helped", "neutral", "got in the way"],
+      "prompt": "Did snapping in and out points to word edges help or get in the way? (helped, neutral, got in the way)" },
+    { "key": "logging-viewer.keys", "type": "text",
+      "prompt": "Which keys felt wrong, and what would you press instead?" },
+    { "key": "logging-viewer.retakes", "type": "choice", "choices": ["yes", "no", "sometimes"],
+      "prompt": "Did you want to mark retakes as alternatives of one moment? (yes, no, sometimes)" },
+    { "key": "logging-viewer.voice", "type": "scale", "choices": ["1", "2", "3", "4", "5"],
+      "prompt": "Would you rather say commands than press keys? (1 = keys are fine, 5 = I'd rather speak)" }
+  ]
+}
