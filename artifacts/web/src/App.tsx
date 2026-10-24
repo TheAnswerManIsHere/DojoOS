@@ -6,6 +6,7 @@ import { QuestionRail } from '@/components/question-rail';
 import { Library } from '@/pages/library';
 import { FeedbackPage } from '@/pages/feedback';
 import { SignIn } from '@/pages/sign-in';
+import { LoggingViewer } from '@/prototypes/logging-viewer/logging-viewer';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } });
 
@@ -64,6 +65,7 @@ function Routes() {
   return <Switch>
     <Route path="/"><Redirect to="/library" /></Route>
     <Route path="/library"><AuthenticatedShell feature="library" page="/library" email={account.email} tier={account.tier}><Library accountId={account.id} /></AuthenticatedShell></Route>
+    <Route path="/sources/:id/log">{(params: { id: string }) => <AuthenticatedShell feature="logging-viewer" page={`/sources/${params.id}/log`} email={account.email} tier={account.tier}><LoggingViewer sourceId={params.id} /></AuthenticatedShell>}</Route>
     <Route path="/feedback">{account.tier === 'operator' ? <AuthenticatedShell feature="feedback" page="/feedback" email={account.email} tier={account.tier}><FeedbackPage /></AuthenticatedShell> : <Redirect to="/library" />}</Route>
     <Route><AuthenticatedShell feature="not-found" page={location} email={account.email} tier={account.tier}><h1>Page not found</h1><p><Link href="/library" data-testid="link-return-library">Return to library</Link></p></AuthenticatedShell></Route>
   </Switch>;

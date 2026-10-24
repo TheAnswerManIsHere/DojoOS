@@ -20,6 +20,8 @@ import type {
 
 import type {
   Account,
+  CommandInput,
+  CommandResult,
   EmailInput,
   Feedback,
   FeedbackInput,
@@ -28,11 +30,13 @@ import type {
   Ok,
   PartInput,
   PartsInput,
+  Peaks,
   Question,
   Shoot,
   ShootInput,
   SignedUrl,
   Source,
+  SourceLog,
   TokenInput,
   Transcript,
   Upload,
@@ -1036,6 +1040,240 @@ export function useGetTranscript<TData = Awaited<ReturnType<typeof getTranscript
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetTranscriptQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSourceLogUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/sources/${id}/log`
+}
+
+/**
+ * Everything the logging viewer needs for one source — its bricks, the newest transcript's words, and the derived media that exist.
+ */
+export const getSourceLog = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<SourceLog> => {
+
+  return customFetch<SourceLog>(getGetSourceLogUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSourceLogQueryKey = (id: string,) => {
+    return [
+    `/app-api/sources/${id}/log`
+    ] as const;
+    }
+
+
+export const getGetSourceLogQueryOptions = <TData = Awaited<ReturnType<typeof getSourceLog>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSourceLog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSourceLogQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSourceLog>>> = ({ signal }) => getSourceLog(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSourceLog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSourceLogQueryResult = NonNullable<Awaited<ReturnType<typeof getSourceLog>>>
+export type GetSourceLogQueryError = ErrorType<void>
+
+
+
+export function useGetSourceLog<TData = Awaited<ReturnType<typeof getSourceLog>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSourceLog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSourceLogQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApplySourceCommandUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/sources/${id}/commands`
+}
+
+/**
+ * Applies one command of the closed set to the source's bricks, and records it as a source-owned event.
+ */
+export const applySourceCommand = async (id: string,
+    commandInput: CommandInput, options?: Parameters<typeof customFetch>[1]): Promise<CommandResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CommandResult>(getApplySourceCommandUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(commandInput)
+  }
+);}
+
+
+
+
+
+export const getApplySourceCommandMutationKey = () => ['applySourceCommand'] as const;
+
+export const getApplySourceCommandMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applySourceCommand>>, TError,ApplySourceCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applySourceCommand>>, TError,ApplySourceCommandMutationVariables, TContext> => {
+
+const mutationKey = getApplySourceCommandMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applySourceCommand>>, ApplySourceCommandMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  applySourceCommand(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplySourceCommandMutationResult = NonNullable<Awaited<ReturnType<typeof applySourceCommand>>>
+    export type ApplySourceCommandMutationBody = BodyType<CommandInput>
+    export type ApplySourceCommandMutationError = ErrorType<void>
+    export type ApplySourceCommandMutationVariables = {id: string;data: BodyType<CommandInput>}
+
+    export const useApplySourceCommand = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applySourceCommand>>, TError,ApplySourceCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof applySourceCommand>>,
+        TError,
+        ApplySourceCommandMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApplySourceCommandMutationOptions(options));
+    }
+
+export const getGetSourcePeaksUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/sources/${id}/peaks`
+}
+
+/**
+ * The waveform peaks file, relayed from storage (the bucket is private and serves no cross-origin reads).
+ */
+export const getSourcePeaks = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Peaks> => {
+
+  return customFetch<Peaks>(getGetSourcePeaksUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSourcePeaksQueryKey = (id: string,) => {
+    return [
+    `/app-api/sources/${id}/peaks`
+    ] as const;
+    }
+
+
+export const getGetSourcePeaksQueryOptions = <TData = Awaited<ReturnType<typeof getSourcePeaks>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSourcePeaks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSourcePeaksQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSourcePeaks>>> = ({ signal }) => getSourcePeaks(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSourcePeaks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSourcePeaksQueryResult = NonNullable<Awaited<ReturnType<typeof getSourcePeaks>>>
+export type GetSourcePeaksQueryError = ErrorType<void>
+
+
+
+export function useGetSourcePeaks<TData = Awaited<ReturnType<typeof getSourcePeaks>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSourcePeaks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSourcePeaksQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

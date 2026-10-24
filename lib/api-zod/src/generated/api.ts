@@ -223,6 +223,85 @@ export const GetTranscriptResponse = zod.object({
 })
 
 
+/**
+ * Everything the logging viewer needs for one source — its bricks, the newest transcript's words, and the derived media that exist.
+ */
+export const GetSourceLogParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetSourceLogResponse = zod.object({
+  "sourceId": zod.string(),
+  "shootName": zod.string(),
+  "durationMs": zod.number().int(),
+  "fps": zod.number().nullable(),
+  "bricks": zod.array(zod.object({
+  "id": zod.string(),
+  "inMs": zod.number().int(),
+  "outMs": zod.number().int().nullable().describe('Null while the brick is open.'),
+  "openSeq": zod.number().int().nullable().describe('Order among open bricks; O closes the highest.'),
+  "action": zod.enum(['keep', 'punch_in']),
+  "preset": zod.string().nullable().describe('The framing preset of a punch-in.'),
+  "tags": zod.array(zod.string())
+})),
+  "words": zod.array(zod.object({
+  "text": zod.string(),
+  "start_ms": zod.number().int(),
+  "end_ms": zod.number().int()
+})).nullable().describe('The newest transcript\'s words; null when the source has none.'),
+  "spriteUrl": zod.string().nullable(),
+  "spriteLayout": zod.object({
+  "intervalSeconds": zod.number(),
+  "count": zod.number().int(),
+  "columns": zod.number().int(),
+  "rows": zod.number().int(),
+  "tileWidth": zod.number().int(),
+  "tileHeight": zod.number().int()
+}).nullable(),
+  "hasPeaks": zod.boolean()
+})
+
+
+/**
+ * Applies one command of the closed set to the source's bricks, and records it as a source-owned event.
+ */
+export const ApplySourceCommandParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ApplySourceCommandBody = zod.object({
+  "command": zod.record(zod.string(), zod.unknown()).describe('One command of the closed set in lib/shared/src/commands.ts.')
+})
+
+export const ApplySourceCommandResponse = zod.object({
+  "bricks": zod.array(zod.object({
+  "id": zod.string(),
+  "inMs": zod.number().int(),
+  "outMs": zod.number().int().nullable().describe('Null while the brick is open.'),
+  "openSeq": zod.number().int().nullable().describe('Order among open bricks; O closes the highest.'),
+  "action": zod.enum(['keep', 'punch_in']),
+  "preset": zod.string().nullable().describe('The framing preset of a punch-in.'),
+  "tags": zod.array(zod.string())
+})),
+  "inverse": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * The waveform peaks file, relayed from storage (the bucket is private and serves no cross-origin reads).
+ */
+export const GetSourcePeaksParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetSourcePeaksResponse = zod.object({
+  "sample_rate": zod.number().int(),
+  "samples_per_pixel": zod.number().int(),
+  "length": zod.number().int(),
+  "data": zod.array(zod.number().int())
+})
+
+
 export const ListQuestionsQueryParams = zod.object({
   "feature": zod.coerce.string()
 })

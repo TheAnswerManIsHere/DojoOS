@@ -169,6 +169,55 @@ paths:
               schema: { $ref: "#/components/schemas/Transcript" }
         "404":
           description: The source has no transcript
+  /sources/{id}/log:
+    get:
+      operationId: getSourceLog
+      description: Everything the logging viewer needs for one source — its bricks, the newest transcript's words, and the derived media that exist.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The source's log
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SourceLog" }
+        "404":
+          description: The source does not exist or is not ready
+  /sources/{id}/commands:
+    post:
+      operationId: applySourceCommand
+      description: Applies one command of the closed set to the source's bricks, and records it as a source-owned event.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CommandInput" }
+      responses:
+        "200":
+          description: The bricks after the command, and the command that reverses it
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommandResult" }
+        "400":
+          description: Not a command of the set
+        "409":
+          description: The command does not apply to the bricks as they stand
+  /sources/{id}/peaks:
+    get:
+      operationId: getSourcePeaks
+      description: The waveform peaks file, relayed from storage (the bucket is private and serves no cross-origin reads).
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Peaks in the audiowaveform JSON shape
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Peaks" }
+        "404":
+          description: The source has no peaks file
   /questions:
     get:
       operationId: listQuestions
@@ -208,6 +257,64 @@ paths:
               schema: { $ref: "#/components/schemas/Feedback" }
 components:
   schemas:
+    LogBrick:
+      type: object
+      required: [id, inMs, outMs, openSeq, action, preset, tags]
+      properties:
+        id: { type: string }
+        inMs: { type: integer }
+        outMs: { type: ["integer", "null"], description: "Null while the brick is open." }
+        openSeq: { type: ["integer", "null"], description: "Order among open bricks; O closes the highest." }
+        action: { type: string, enum: [keep, punch_in] }
+        preset: { type: ["string", "null"], description: "The framing preset of a punch-in." }
+        tags: { type: array, items: { type: string } }
+    SourceLog:
+      type: object
+      required: [sourceId, shootName, durationMs, fps, bricks, words, spriteUrl, spriteLayout, hasPeaks]
+      properties:
+        sourceId: { type: string }
+        shootName: { type: string }
+        durationMs: { type: integer }
+        fps: { type: ["number", "null"] }
+        bricks: { type: array, items: { $ref: "#/components/schemas/LogBrick" } }
+        words:
+          type: ["array", "null"]
+          description: The newest transcript's words; null when the source has none.
+          items:
+            type: object
+            required: [text, start_ms, end_ms]
+            properties: { text: { type: string }, start_ms: { type: integer }, end_ms: { type: integer } }
+        spriteUrl: { type: ["string", "null"] }
+        spriteLayout:
+          type: ["object", "null"]
+          required: [intervalSeconds, count, columns, rows, tileWidth, tileHeight]
+          properties:
+            intervalSeconds: { type: number }
+            count: { type: integer }
+            columns: { type: integer }
+            rows: { type: integer }
+            tileWidth: { type: integer }
+            tileHeight: { type: integer }
+        hasPeaks: { type: boolean }
+    CommandInput:
+      type: object
+      required: [command]
+      properties:
+        command: { type: object, additionalProperties: true, description: "One command of the closed set in lib/shared/src/commands.ts." }
+    CommandResult:
+      type: object
+      required: [bricks, inverse]
+      properties:
+        bricks: { type: array, items: { $ref: "#/components/schemas/LogBrick" } }
+        inverse: { type: object, additionalProperties: true }
+    Peaks:
+      type: object
+      required: [sample_rate, samples_per_pixel, length, data]
+      properties:
+        sample_rate: { type: integer }
+        samples_per_pixel: { type: integer }
+        length: { type: integer }
+        data: { type: array, items: { type: integer } }
     Ok:
       type: object
       required: [ok]

@@ -6,7 +6,8 @@ import { connectDb, createQueue, createStorage } from "@workspace/shared";
 import { authRoutes, requireSession, seedAccounts, sessionRoutes } from "./modules/auth";
 import { libraryRoutes } from "./modules/library";
 import { ingestRoutes } from "./modules/ingest";
-import { feedbackRoutes } from "./modules/feedback";
+import { feedbackRoutes, featureOfPage, syncPrototypeQuestions } from "./modules/feedback";
+import { loggingRoutes } from "./modules/logging";
 import { nudgeWorker, workerNudgePort } from "./worker-nudge";
 import { createDevVite, listen } from "./http-server";
 
@@ -23,6 +24,7 @@ const ctx = { db, queue: { ...queue, enqueue: async (...args: Parameters<typeof 
   return id;
 } }, storage: createStorage() };
 await seedAccounts(ctx);
+await syncPrototypeQuestions(ctx);
 const app = express();
 const httpServer = createServer(app);
 app.disable("x-powered-by");
@@ -41,17 +43,20 @@ app.use((req, res, next) => {
 });
 app.use("/app-api/auth", authRoutes(ctx)); // Unauthenticated request and verification are required for sign-in.
 app.use("/app-api", requireSession(ctx));
-app.use("/app-api", sessionRoutes(ctx), libraryRoutes(ctx), ingestRoutes(ctx), feedbackRoutes(ctx));
+app.use("/app-api", sessionRoutes(ctx), libraryRoutes(ctx), ingestRoutes(ctx), feedbackRoutes(ctx), loggingRoutes(ctx));
 app.use("/app-api", (_req, res) => res.status(404).json({ error: "Not found" }));
 const gatePage = requireSession(ctx);
 app.get("/", gatePage, (_req, res) => res.redirect("/library"));
 app.get("/library", gatePage, (_req, _res, next) => next());
+app.get("/sources/:id/log", gatePage, (_req, _res, next) => next());
+// The pages the SPA serves: sign-in, and every page the rail knows (featureOfPage).
+const isPage = (path: string) => path === "/sign-in" || featureOfPage(path) !== null;
 app.get("/feedback", gatePage, (req, res, next) => req.account?.tier === "operator" ? next() : res.status(403).end());
 if (process.env.NODE_ENV !== "production") {
   const vite = await createDevVite(httpServer, join(root, "vite.config.ts"));
   app.use(vite.middlewares);
   app.get("/{*path}", async (req, res, next) => {
-    if (!["/sign-in", "/library", "/feedback"].includes(req.path)) return res.status(404).end();
+    if (!isPage(req.path)) return res.status(404).end();
     try {
       const html = await vite.transformIndexHtml(req.originalUrl, await (await import("node:fs/promises")).readFile(join(root, "index.html"), "utf8"));
       res.type("html").send(html);
@@ -60,7 +65,7 @@ if (process.env.NODE_ENV !== "production") {
 } else {
   app.use(express.static(join(root, "dist/public"), { index: false, dotfiles: "deny" }));
   app.get("/{*path}", (req, res) => {
-    if (!["/sign-in", "/library", "/feedback"].includes(req.path)) return res.status(404).end();
+    if (!isPage(req.path)) return res.status(404).end();
     return res.sendFile(join(root, "dist/public/index.html"));
   });
 }

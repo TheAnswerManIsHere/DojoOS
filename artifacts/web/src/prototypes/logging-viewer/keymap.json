@@ -1,0 +1,20 @@
+{
+  "note": "PROTOTYPE — the logging viewer's key bindings, as data (architecture.md §5): change a key here, not in code. Shift is read by the action itself: Shift+I/O marks the raw playhead, Shift+arrows nudge by a second, Shift+Tab selects the previous brick.",
+  "bindings": {
+    "Space": "playPause",
+    "KeyJ": "back",
+    "KeyK": "pause",
+    "KeyL": "faster",
+    "KeyI": "markIn",
+    "KeyO": "markOut",
+    "KeyA": "cycleAction",
+    "KeyT": "tags",
+    "ArrowLeft": "nudgeEarlier",
+    "ArrowRight": "nudgeLater",
+    "Tab": "selectNext",
+    "Delete": "delete",
+    "Backspace": "delete",
+    "Escape": "undo",
+    "KeyP": "preview"
+  }
+}
