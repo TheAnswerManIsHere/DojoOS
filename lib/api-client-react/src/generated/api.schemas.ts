@@ -4,6 +4,18 @@
  * Api
  * OpenAPI spec version: 0.1.0
  */
+export type ChooseAccountInputWho = typeof ChooseAccountInputWho[keyof typeof ChooseAccountInputWho];
+
+
+export const ChooseAccountInputWho = {
+  jared: 'jared',
+  david: 'david',
+} as const;
+
+export interface ChooseAccountInput {
+  who: ChooseAccountInputWho;
+}
+
 export type LogBrickAction = typeof LogBrickAction[keyof typeof LogBrickAction];
 
 

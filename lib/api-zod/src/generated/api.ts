@@ -35,6 +35,20 @@ export const VerifyLinkResponse = zod.object({
 })
 
 
+/**
+ * Development only (prototype phase). Signs in as Jared (the tester account) or David (the operator account), with no link and no password.
+ */
+export const ChooseAccountBody = zod.object({
+  "who": zod.enum(['jared', 'david'])
+})
+
+export const ChooseAccountResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "tier": zod.enum(['operator', 'tester'])
+})
+
+
 export const LogoutResponse = zod.object({
   "ok": zod.boolean()
 })

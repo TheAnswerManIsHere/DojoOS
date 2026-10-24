@@ -156,7 +156,7 @@ What is not decided here is which flow Jared prefers. The logging viewer's first
 
 ## 7. Access
 
-Every route and page behind session sign-in; magic link by email, single-use, fifteen-minute expiry; two accounts from environment variables; every media URL signed and short-lived; nothing public; no sign-up. The tester tier gates the feedback rail and prototype-phase surfaces.
+Every route and page behind session sign-in; magic link by email, single-use, fifteen-minute expiry; two accounts from environment variables; every media URL signed and short-lived; nothing public; no sign-up. The tester tier gates the feedback rail and prototype-phase surfaces. **In prototype phase the development app has no sign-in** (David, 2026-10-24, `decisions.md`): its page asks who you are — Jared, the tester account, or David, the operator account — and lets you in as that account; a published (production) build keeps the emailed link until there is data worth a password.
 
 ## 8. Operator surface
 

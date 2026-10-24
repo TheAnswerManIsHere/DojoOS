@@ -428,3 +428,6 @@ small, .subtle { color: hsl(var(--muted-foreground)); }
 .logging-words { min-height: 3em; }
 .logging-words .current { background: hsl(var(--primary) / .25); }
 .logging-row-target td { font-weight: 600; }
+
+.who-picker { display: flex; gap: 12px; }
+.who-picker button { font-size: 1.1rem; padding: 12px 24px; }

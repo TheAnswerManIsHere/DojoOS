@@ -42,6 +42,23 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Account" }
+  /auth/choose:
+    post:
+      operationId: chooseAccount
+      description: Development only (prototype phase). Signs in as Jared (the tester account) or David (the operator account), with no link and no password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChooseAccountInput" }
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+        "404":
+          description: Not available in a published app
   /auth/logout:
     post:
       operationId: logout
@@ -257,6 +274,10 @@ paths:
               schema: { $ref: "#/components/schemas/Feedback" }
 components:
   schemas:
+    ChooseAccountInput:
+      type: object
+      required: [who]
+      properties: { who: { type: string, enum: [jared, david] } }
     LogBrick:
       type: object
       required: [id, inMs, outMs, openSeq, action, preset, tags]

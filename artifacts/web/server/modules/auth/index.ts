@@ -70,12 +70,28 @@ export function authRoutes(ctx: Context) {
     if (!record) return res.status(400).json({ error: "Invalid or expired link" });
     const [user] = await ctx.db.select().from(users).where(and(eq(users.id, record.userId), isNull(users.deletedAt)));
     if (!user) return res.status(403).json({ error: "Account unavailable" });
-    const session = token();
-    await ctx.db.insert(sessions).values({ userId: user.id, tokenHash: hash(session), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60_000) });
-    res.cookie(cookieName, session, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: 7 * 24 * 60 * 60_000 });
+    await startSession(ctx, res, user.id);
+    return res.json({ id: user.id, email: user.email, tier: user.tier });
+  });
+  // Prototype phase: no sign-in in development (David, 2026-10-24: "No signing in. Remove it. … it's fine to ask
+  // which user I am, David or Jared but no password"). The page asks who you are and lets you in as that account:
+  // Jared answers the rail (the tester account), David reads the answers (the operator account). A published
+  // (production) app keeps the emailed link until there is data worth a password, so this route does not exist there.
+  router.post("/choose", async (req, res) => {
+    if (process.env.NODE_ENV === "production") return res.status(404).json({ error: "Not found" });
+    const tier = ({ jared: "tester", david: "operator" } as const)[String(req.body?.who) as "jared" | "david"];
+    if (!tier) return res.status(400).json({ error: "Say who you are: jared or david" });
+    const [user] = await ctx.db.select().from(users).where(and(eq(users.tier, tier), isNull(users.deletedAt)));
+    if (!user) return res.status(403).json({ error: "Account unavailable" });
+    await startSession(ctx, res, user.id);
     return res.json({ id: user.id, email: user.email, tier: user.tier });
   });
   return router;
+}
+async function startSession(ctx: Context, res: Response, userId: string) {
+  const session = token();
+  await ctx.db.insert(sessions).values({ userId, tokenHash: hash(session), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60_000) });
+  res.cookie(cookieName, session, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: 7 * 24 * 60 * 60_000 });
 }
 export function requireSession(ctx: Context) {
   return async (req: Request, res: Response, next: NextFunction) => {

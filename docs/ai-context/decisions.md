@@ -109,6 +109,20 @@ overruled. Newest last. Product truth that is not a decision lives in
   anchors to the losing provider's timings. Same price
   within cents. AssemblyAI stays implemented; `TRANSCRIPTION_PROVIDER=assemblyai`
   goes back.
+- **No sign-in while in prototype phase** (David, 2026-10-24, overriding
+  `architecture.md` §7's magic-link sign-in for now: *"This is ridiculous.
+  We're building a prototype. No signing in. Remove it. If you need to keep
+  track of who is doing what, it's fine to ask which user I am, David or
+  Jared but no password or anything, just let me in. Once we're ready to go
+  live and there's actual data that we care about, we can add a password."*).
+  The development app asks who you are and lets you in: Jared as the tester
+  account (the rail), David as the operator account (the Feedback page).
+  On Claude's recommendation, taken and reported: the change applies to the
+  development app only, and a published build keeps the emailed link, so a
+  publish cannot expose Jared's lessons before the password David names
+  arrives. Said once, beside the build: Jared's four real lessons are in the
+  library, so anyone holding the development URL can watch them. Revisit at
+  go-live, when the password replaces both.
 - **ffmpeg for probe, proxy and render; MLT the fallback.** Compared on
   2026-09-30 against MLT, GStreamer Editing Services, hosted render APIs
   and Node wrappers: every credible option is ffmpeg or wraps it, and the
