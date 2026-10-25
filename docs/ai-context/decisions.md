@@ -120,11 +120,19 @@ overruled. Newest last. Product truth that is not a decision lives in
   the 2026-10-24 mapping, which had them backwards); both answer the rail and
   both read the Feedback page.
   On Claude's recommendation, taken and reported: the change applies to the
-  development app only, and a published build keeps the emailed link, so a
-  publish cannot expose Jared's lessons before the password David names
-  arrives. Said once, beside the build: Jared's four real lessons are in the
-  library, so anyone holding the development URL can watch them. Revisit at
-  go-live, when the password replaces both.
+  development app only. Said once, beside the build: Jared's four real
+  lessons are in the library, so anyone holding the development URL can
+  watch them.
+- **Username and password, not the emailed link** (David, 2026-10-25,
+  before the first publish: *"We should change the sign-in function. I
+  don't like the email link. Simple user name and password please. KISS."*).
+  Usernames `jared` and `david`; each person's password is a Replit secret
+  (`JARED_PASSWORD`, `DAVID_PASSWORD`) that David sets, so no password is
+  stored in the database, sent by mail or written in chat, and there is no
+  change-password screen. On Claude's recommendation, taken and reported:
+  ten wrong passwords in fifteen minutes lock that username and address out
+  for the rest of the window (in memory, cleared by a restart); the
+  development app keeps its no-password picker; the mail settings are gone.
 - **ffmpeg for probe, proxy and render; MLT the fallback.** Compared on
   2026-09-30 against MLT, GStreamer Editing Services, hosted render APIs
   and Node wrappers: every credible option is ffmpeg or wraps it, and the

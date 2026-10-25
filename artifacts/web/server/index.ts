@@ -12,7 +12,6 @@ import { cutRoutes } from "./modules/cuts";
 import { nudgeWorker, workerNudgePort } from "./worker-nudge";
 import { createDevVite, listen } from "./http-server";
 
-if (process.env.NODE_ENV === "production" && !process.env.SMTP_URL) throw new Error("SMTP_URL is required in production");
 const port = Number(process.env.PORT);
 if (!Number.isSafeInteger(port) || port < 1) throw new Error("PORT is required");
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -42,7 +41,7 @@ app.use((req, res, next) => {
   }
   return next();
 });
-app.use("/app-api/auth", authRoutes(ctx)); // Unauthenticated request and verification are required for sign-in.
+app.use("/app-api/auth", authRoutes(ctx)); // Sign-in itself is the one unauthenticated operation.
 app.use("/app-api", requireSession(ctx));
 app.use("/app-api", sessionRoutes(ctx), libraryRoutes(ctx), ingestRoutes(ctx), feedbackRoutes(ctx), loggingRoutes(ctx), cutRoutes(ctx));
 app.use("/app-api", (_req, res) => res.status(404).json({ error: "Not found" }));

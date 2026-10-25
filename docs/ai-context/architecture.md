@@ -156,7 +156,7 @@ What is not decided here is which flow Jared prefers. The logging viewer's first
 
 ## 7. Access
 
-Every route and page behind session sign-in; magic link by email, single-use, fifteen-minute expiry; two accounts from environment variables; every media URL signed and short-lived; nothing public; no sign-up. The tester tier gated the feedback rail and the operator tier the Feedback page until 2026-10-25; in prototype phase both are open to both accounts. **In prototype phase the development app has no sign-in** (David, 2026-10-24, `decisions.md`): its page asks who you are — Jared, the operator account, or David, the tester account (swapped 2026-10-25) — and lets you in as that account; a published (production) build keeps the emailed link until there is data worth a password.
+Every route and page behind session sign-in; **a username and password** (David, 2026-10-25, replacing the emailed link: *"Simple user name and password please. KISS."*) — usernames `jared` and `david`, each password a Replit secret, wrong attempts throttled; two accounts from environment variables; every media URL signed and short-lived; nothing public; no sign-up. The tester tier gated the feedback rail and the operator tier the Feedback page until 2026-10-25; in prototype phase both are open to both accounts. **In prototype phase the development app has no sign-in** (David, 2026-10-24, `decisions.md`): its page asks who you are — Jared, the operator account, or David, the tester account (swapped 2026-10-25) — and lets you in as that account; a published (production) build asks for the username and password.
 
 ## 8. Operator surface
 

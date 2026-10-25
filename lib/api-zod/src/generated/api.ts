@@ -14,21 +14,15 @@ export const GetSessionResponse = zod.object({
 })
 
 
-export const RequestLinkBody = zod.object({
-  "email": zod.string().email()
+/**
+ * Signs in with a username (jared or david) and that person's password, set as a Replit secret.
+ */
+export const LoginBody = zod.object({
+  "username": zod.string(),
+  "password": zod.string()
 })
 
-export const RequestLinkResponse = zod.object({
-  "ok": zod.boolean(),
-  "magicLink": zod.string().optional().describe('Development-only sign-in link; never returned in production.')
-})
-
-
-export const VerifyLinkBody = zod.object({
-  "token": zod.string()
-})
-
-export const VerifyLinkResponse = zod.object({
+export const LoginResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
   "tier": zod.enum(['operator', 'tester'])
@@ -36,7 +30,7 @@ export const VerifyLinkResponse = zod.object({
 
 
 /**
- * Development only (prototype phase). Signs in as Jared (the tester account) or David (the operator account), with no link and no password.
+ * Development only (prototype phase). Signs in as Jared (the operator account) or David (the tester account), with no password.
  */
 export const ChooseAccountBody = zod.object({
   "who": zod.enum(['jared', 'david'])

@@ -23,13 +23,12 @@ import type {
   ChooseAccountInput,
   CommandInput,
   CommandResult,
-  EmailInput,
   Feedback,
   FeedbackInput,
   Lesson,
   LessonCommandResult,
-  LinkRequestResponse,
   ListQuestionsParams,
+  LoginInput,
   Ok,
   PartInput,
   PartsInput,
@@ -41,7 +40,6 @@ import type {
   SignedUrl,
   Source,
   SourceLog,
-  TokenInput,
   Transcript,
   Upload,
   UploadInput
@@ -145,15 +143,18 @@ export function useGetSession<TData = Awaited<ReturnType<typeof getSession>>, TE
 
 
 
-export const getRequestLinkUrl = () => {
+export const getLoginUrl = () => {
 
 
 
 
-  return `/app-api/auth/request`
+  return `/app-api/auth/login`
 }
 
-export const requestLink = async (emailInput: EmailInput, options?: Parameters<typeof customFetch>[1]): Promise<LinkRequestResponse> => {
+/**
+ * Signs in with a username (jared or david) and that person's password, set as a Replit secret.
+ */
+export const login = async (loginInput: LoginInput, options?: Parameters<typeof customFetch>[1]): Promise<Account> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -169,12 +170,12 @@ export const requestLink = async (emailInput: EmailInput, options?: Parameters<t
     }
     return headers;
   };
-return customFetch<LinkRequestResponse>(getRequestLinkUrl(),
+return customFetch<Account>(getLoginUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(emailInput)
+    body: JSON.stringify(loginInput)
   }
 );}
 
@@ -182,13 +183,13 @@ return customFetch<LinkRequestResponse>(getRequestLinkUrl(),
 
 
 
-export const getRequestLinkMutationKey = () => ['requestLink'] as const;
+export const getLoginMutationKey = () => ['login'] as const;
 
-export const getRequestLinkMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestLink>>, TError,RequestLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof requestLink>>, TError,RequestLinkMutationVariables, TContext> => {
+export const getLoginMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof login>>, TError,LoginMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof login>>, TError,LoginMutationVariables, TContext> => {
 
-const mutationKey = getRequestLinkMutationKey();
+const mutationKey = getLoginMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -198,10 +199,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestLink>>, RequestLinkMutationVariables> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof login>>, LoginMutationVariables> = (props) => {
           const {data} = props ?? {};
 
-          return  requestLink(data,requestOptions)
+          return  login(data,requestOptions)
         }
 
 
@@ -211,102 +212,20 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type RequestLinkMutationResult = NonNullable<Awaited<ReturnType<typeof requestLink>>>
-    export type RequestLinkMutationBody = BodyType<EmailInput>
-    export type RequestLinkMutationError = ErrorType<unknown>
-    export type RequestLinkMutationVariables = {data: BodyType<EmailInput>}
+    export type LoginMutationResult = NonNullable<Awaited<ReturnType<typeof login>>>
+    export type LoginMutationBody = BodyType<LoginInput>
+    export type LoginMutationError = ErrorType<void>
+    export type LoginMutationVariables = {data: BodyType<LoginInput>}
 
-    export const useRequestLink = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestLink>>, TError,RequestLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+    export const useLogin = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof login>>, TError,LoginMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof requestLink>>,
+        Awaited<ReturnType<typeof login>>,
         TError,
-        RequestLinkMutationVariables,
+        LoginMutationVariables,
         TContext
       > => {
-      return useMutation(getRequestLinkMutationOptions(options));
-    }
-
-export const getVerifyLinkUrl = () => {
-
-
-
-
-  return `/app-api/auth/verify`
-}
-
-export const verifyLink = async (tokenInput: TokenInput, options?: Parameters<typeof customFetch>[1]): Promise<Account> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<Account>(getVerifyLinkUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(tokenInput)
-  }
-);}
-
-
-
-
-
-export const getVerifyLinkMutationKey = () => ['verifyLink'] as const;
-
-export const getVerifyLinkMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyLink>>, TError,VerifyLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof verifyLink>>, TError,VerifyLinkMutationVariables, TContext> => {
-
-const mutationKey = getVerifyLinkMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyLink>>, VerifyLinkMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  verifyLink(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type VerifyLinkMutationResult = NonNullable<Awaited<ReturnType<typeof verifyLink>>>
-    export type VerifyLinkMutationBody = BodyType<TokenInput>
-    export type VerifyLinkMutationError = ErrorType<unknown>
-    export type VerifyLinkMutationVariables = {data: BodyType<TokenInput>}
-
-    export const useVerifyLink = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyLink>>, TError,VerifyLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof verifyLink>>,
-        TError,
-        VerifyLinkMutationVariables,
-        TContext
-      > => {
-      return useMutation(getVerifyLinkMutationOptions(options));
+      return useMutation(getLoginMutationOptions(options));
     }
 
 export const getChooseAccountUrl = () => {
@@ -318,7 +237,7 @@ export const getChooseAccountUrl = () => {
 }
 
 /**
- * Development only (prototype phase). Signs in as Jared (the tester account) or David (the operator account), with no link and no password.
+ * Development only (prototype phase). Signs in as Jared (the operator account) or David (the tester account), with no password.
  */
 export const chooseAccount = async (chooseAccountInput: ChooseAccountInput, options?: Parameters<typeof customFetch>[1]): Promise<Account> => {
 

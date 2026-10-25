@@ -5,7 +5,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { and, eq } from "drizzle-orm";
 import { feedback } from "@workspace/shared";
-import { operatorEmail, removeQuestion, requireTestDatabase, seedQuestion, startServer, testerEmail, type RunningServer } from "./harness";
+import { operatorEmail, passwords, removeQuestion, requireTestDatabase, seedQuestion, startServer, testerEmail, type RunningServer } from "./harness";
 
 const questionKey = "step0-journey";
 const { db, pool } = requireTestDatabase();
@@ -14,25 +14,20 @@ let origin: string;
 
 type Session = { cookie: string; account: { id: string; email: string; tier: string } };
 
+const login = (username: string, password: string) => fetch(`${origin}/app-api/auth/login`, { method: "POST",
+  headers: { "content-type": "application/json" }, body: JSON.stringify({ username, password }) });
+
 async function signIn(email: string): Promise<Session> {
-  const requested = await fetch(`${origin}/app-api/auth/request`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }) });
-  assert.equal(requested.status, 200);
-  const { magicLink } = (await requested.json()) as { ok: true; magicLink?: string };
-  assert.ok(magicLink, "development sign-in returns the magic link in the response");
-  const token = new URL(magicLink).searchParams.get("token");
-  assert.ok(token, "the magic link carries a token");
-  const verified = await fetch(`${origin}/app-api/auth/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) });
-  assert.equal(verified.status, 200);
-  const setCookie = verified.headers.get("set-cookie") ?? "";
+  const username = email === operatorEmail ? "jared" : "david";
+  const response = await login(username, passwords[username]);
+  assert.equal(response.status, 200);
+  const setCookie = response.headers.get("set-cookie") ?? "";
   assert.match(setCookie, /^dojo_session=/);
   assert.match(setCookie, /HttpOnly/i);
   assert.match(setCookie, /SameSite=Strict/i);
   const cookie = setCookie.split(";")[0];
-  const account = (await verified.json()) as Session["account"];
+  const account = (await response.json()) as Session["account"];
   assert.equal(account.email, email);
-  // The link is single-use: a second verification of the same token is refused.
-  const replay = await fetch(`${origin}/app-api/auth/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) });
-  assert.equal(replay.status, 400);
   return { cookie, account };
 }
 
@@ -57,17 +52,17 @@ test("signed-out requests are refused: the gate holds before any page is served"
   assert.equal((await get("/app-api/session")).status, 401);
 });
 
-test("an address that is not configured gets { ok: true } and no link", async () => {
-  // In development a configured address gets its link in the same response, by design, so this
-  // is not a comparison of the two replies. In production both branches end at the one
-  // `res.json({ ok: true })` in modules/auth (the request route's last line), which is where
-  // the no-enumeration property lives; that path is not exercised here.
-  const response = await fetch(`${origin}/app-api/auth/request`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "nobody@example.test" }) });
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { ok: true });
+test("a wrong password and an unknown username get the same refusal, and no session", async () => {
+  for (const [username, password] of [["jared", "not-his-password"], ["nobody", passwords.jared], ["JARED ", ""]] as const) {
+    const response = await login(username, password);
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { error: "Wrong username or password." });
+    assert.equal(response.headers.get("set-cookie"), null);
+  }
+  assert.equal((await login(" Jared ", passwords.jared)).status, 200, "the username is trimmed and not case-sensitive");
 });
 
-test("the operator signs in by magic link and reaches the library and the feedback page", async () => {
+test("Jared signs in with his username and password and reaches the library and the feedback page", async () => {
   const operator = await signIn(operatorEmail);
   assert.equal(operator.account.tier, "operator");
   const session = await get("/app-api/session", operator);
@@ -157,4 +152,14 @@ test("prototype phase: in development you say who you are and are let in, with n
   const david = await choose("david");
   assert.equal(((await david.json()) as Session["account"]).email, testerEmail, "David is the tester account");
   assert.equal((await choose("someone")).status, 400, "only the two people the app knows");
+});
+
+// Last in the file: it locks this address out of sign-in for the rest of the server's window.
+test("ten wrong passwords lock the username out for fifteen minutes, even with the right one", async () => {
+  // The earlier test's wrong attempts count against this address too, so the lock may come before the tenth.
+  let tries = 0;
+  while ((await login("david", `wrong-${tries}`)).status === 401) assert.ok(++tries <= 10, "locked by the tenth wrong password");
+  const locked = await login("david", passwords.david);
+  assert.equal(locked.status, 429);
+  assert.match(((await locked.json()) as { error: string }).error, /Wait 15 minutes/);
 });

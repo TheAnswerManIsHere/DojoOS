@@ -1,58 +1,43 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
-import { getGetSessionQueryKey, useChooseAccount, useRequestLink, useVerifyLink } from '@workspace/api-client-react';
+import { getGetSessionQueryKey, useChooseAccount, useLogin, type Account } from '@workspace/api-client-react';
+
+const reason = (cause: unknown) => (cause as { data?: { error?: string } })?.data?.error ?? (cause instanceof Error ? cause.message : 'Could not sign in.');
 
 export function SignIn() {
-  const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
-  const [magicLink, setMagicLink] = useState<string>();
-  const request = useRequestLink();
-  const [location, navigate] = useLocation();
-  const verify = useVerifyLink();
+  const [, navigate] = useLocation();
   const client = useQueryClient();
-  const attempted = useRef<string | null>(null);
-  const token = new URLSearchParams(window.location.search).get('token');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const login = useLogin();
   const choose = useChooseAccount();
-  const pick = (who: 'jared' | 'david') => choose.mutate({ data: { who } }, {
-    onSuccess: account => { client.setQueryData(getGetSessionQueryKey(), account); navigate('/library', { replace: true }); },
-  });
-  useEffect(() => {
-    if (!token || attempted.current === token) return;
-    attempted.current = token;
-    verify.mutate({ data: { token } }, {
-      onSuccess: account => { client.setQueryData(getGetSessionQueryKey(), account); window.history.replaceState({}, '', location); navigate('/library', { replace: true }); },
-    });
-  }, [token, verify.mutate, client, navigate, location]);
+  const signedIn = (account: Account) => { client.setQueryData(getGetSessionQueryKey(), account); navigate('/library', { replace: true }); };
 
-  if (token) return <main className="app-shell">
-    <h1>DojoOS</h1>
-    {verify.isPending && <p role="status">Signing in…</p>}
-    {verify.isError && <><p role="alert" className="error">This link could not be verified. {verify.error?.message}</p><button type="button" onClick={() => { window.history.replaceState({}, '', '/sign-in'); navigate('/sign-in'); }} data-testid="button-back-sign-in">Request another link</button></>}
-  </main>;
-
-  // Prototype phase, development only: no sign-in, just who you are (David, 2026-10-24). A published app keeps the link.
+  // Development only: no password, just who you are (David, 2026-10-24). A published app asks for a username and password.
   if (import.meta.env.DEV) return <main className="app-shell">
     <h1>DojoOS</h1>
     <h2>Who are you?</h2>
     <div className="who-picker">
-      <button type="button" disabled={choose.isPending} onClick={() => pick('jared')} data-testid="button-i-am-jared">I'm Jared</button>
-      <button type="button" disabled={choose.isPending} onClick={() => pick('david')} data-testid="button-i-am-david">I'm David</button>
+      <button type="button" disabled={choose.isPending} onClick={() => choose.mutate({ data: { who: 'jared' } }, { onSuccess: signedIn })} data-testid="button-i-am-jared">I'm Jared</button>
+      <button type="button" disabled={choose.isPending} onClick={() => choose.mutate({ data: { who: 'david' } }, { onSuccess: signedIn })} data-testid="button-i-am-david">I'm David</button>
     </div>
-    {choose.isError && <p className="error" role="alert">Could not let you in. {choose.error?.message}</p>}
+    {choose.isError && <p className="error" role="alert">Could not let you in. {reason(choose.error)}</p>}
   </main>;
 
   return <main className="app-shell">
     <h1>DojoOS</h1>
     <h2>Sign in</h2>
-    {sent ? <div role="status" data-testid="status-check-inbox"><p>{magicLink ? <a href={magicLink}>Sign in to DojoOS</a> : 'Check your inbox.'}</p>{magicLink && <p>{magicLink}</p>}<p>A sign-in link was requested for {email}.</p><button type="button" onClick={() => { setSent(false); setMagicLink(undefined); }} data-testid="button-use-another-email">Use another email</button></div> :
-      <form className="plain-form" onSubmit={async event => {
-        event.preventDefault();
-        try { const response = await request.mutateAsync({ data: { email: email.trim() } }); setMagicLink(import.meta.env.DEV ? response.magicLink : undefined); setSent(true); } catch { /* error shown below */ }
-      }}>
-        <label htmlFor="email">Email address<input id="email" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} data-testid="input-email" /></label>
-        <div><button type="submit" disabled={request.isPending} data-testid="button-request-link">{request.isPending ? 'Sending…' : 'Send sign-in link'}</button></div>
-        {request.isError && <p className="error" role="alert">{request.error.message}</p>}
-      </form>}
+    <form className="plain-form" onSubmit={event => {
+      event.preventDefault();
+      login.mutate({ data: { username: username.trim(), password } }, { onSuccess: signedIn });
+    }}>
+      <label htmlFor="username">Username<input id="username" autoComplete="username" autoCapitalize="none" autoCorrect="off" required value={username}
+        onChange={event => setUsername(event.target.value)} data-testid="input-username" /></label>
+      <label htmlFor="password">Password<input id="password" type="password" autoComplete="current-password" required value={password}
+        onChange={event => setPassword(event.target.value)} data-testid="input-password" /></label>
+      <div><button type="submit" disabled={login.isPending} data-testid="button-sign-in">{login.isPending ? 'Signing in…' : 'Sign in'}</button></div>
+      {login.isError && <p className="error" role="alert" data-testid="text-sign-in-error">{reason(login.error)}</p>}
+    </form>
   </main>;
 }
