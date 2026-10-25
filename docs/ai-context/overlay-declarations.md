@@ -48,6 +48,7 @@ workspace, which tracks `main`.
 |---|---|---|---|---|
 | Ingest (step 1: proxy, sprite, peaks, playback; transcription and deck ingest to come) | prototype | 2026-10-20 | `main` | none — built in production phase before the declaration (#15), in `artifacts/worker/src/{ingest,media}.ts` and `lib/shared/src/media.ts`; ledger: #16; questions file written with its next version |
 | Logging viewer with live preview (step 2) | prototype | 2026-10-23 | `main` | `artifacts/web/src/prototypes/logging-viewer/` (with its `questions.json` and ledger), written with its first version |
+| Brick timeline and lesson render (step 3) | prototype | 2026-10-25 | `main` | `artifacts/web/src/prototypes/lesson-timeline/` (with its `questions.json` and ledger), written with its first version |
 
 The scaffold is the repository's machinery, not a product feature. **Every
 build step is in prototype phase until David declares it production**
