@@ -46,12 +46,14 @@ app.use("/app-api", requireSession(ctx));
 app.use("/app-api", sessionRoutes(ctx), libraryRoutes(ctx), ingestRoutes(ctx), feedbackRoutes(ctx), loggingRoutes(ctx), cutRoutes(ctx));
 app.use("/app-api", (_req, res) => res.status(404).json({ error: "Not found" }));
 const gatePage = requireSession(ctx);
-app.get("/", gatePage, (_req, res) => res.redirect("/library"));
+// The home page answers 200 to anyone, signed in or not: the deployment's health check calls it with no session, and a
+// 401 there fails the publish. The page itself is the app shell, which sends a visitor to the library or to sign-in.
+app.get("/", (_req, _res, next) => next());
 app.get("/library", gatePage, (_req, _res, next) => next());
 app.get("/sources/:id/log", gatePage, (_req, _res, next) => next());
 app.get("/shoots/:id/lesson", gatePage, (_req, _res, next) => next());
 // The pages the SPA serves: sign-in, and every page the rail knows (featureOfPage).
-const isPage = (path: string) => path === "/sign-in" || featureOfPage(path) !== null;
+const isPage = (path: string) => path === "/" || path === "/sign-in" || featureOfPage(path) !== null;
 app.get("/feedback", gatePage, (_req, _res, next) => next());
 if (process.env.NODE_ENV !== "production") {
   const vite = await createDevVite(httpServer, join(root, "vite.config.ts"));

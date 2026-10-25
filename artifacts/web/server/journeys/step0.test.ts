@@ -47,6 +47,11 @@ after(async () => {
 });
 
 test("signed-out requests are refused: the gate holds before any page is served", async () => {
+  // Except the home page: the deployment's health check calls it with no session and must get 200 (2026-10-25's failed
+  // publish). It serves only the app shell; every data route stays behind the session.
+  const home = await get("/");
+  assert.equal(home.status, 200);
+  assert.match(home.headers.get("content-type") ?? "", /text\/html/);
   assert.equal((await get("/library")).status, 401);
   assert.equal((await get("/feedback")).status, 401);
   assert.equal((await get("/app-api/session")).status, 401);
@@ -73,8 +78,7 @@ test("Jared signs in with his username and password and reaches the library and 
   assert.match(library.headers.get("content-type") ?? "", /text\/html/);
   assert.equal((await get("/feedback", operator)).status, 200);
   const root = await get("/", operator);
-  assert.equal(root.status, 302);
-  assert.equal(root.headers.get("location"), "/library");
+  assert.equal(root.status, 200, "the home page is the app shell, which sends a signed-in visitor on to the library");
 });
 
 test("one account answers the rail's question and the other reads the answer back; both may do either", async () => {
