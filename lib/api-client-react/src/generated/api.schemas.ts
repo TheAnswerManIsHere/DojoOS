@@ -200,6 +200,117 @@ export interface Transcript {
   words: TranscriptWordsItem[];
 }
 
+export interface LessonBrick {
+  id: string;
+  sourceId: string;
+  inMs: number;
+  outMs: number;
+  tags: string[];
+}
+
+/**
+ * The transition into the entry that follows.
+ */
+export type LessonEntryTransition = typeof LessonEntryTransition[keyof typeof LessonEntryTransition];
+
+
+export const LessonEntryTransition = {
+  cut: 'cut',
+  dissolve: 'dissolve',
+} as const;
+
+export interface LessonEntry {
+  id: string;
+  brickId: string;
+  sourceId: string;
+  brickInMs: number;
+  brickOutMs: number;
+  /** ≥ 0: how far the in point is moved later than the brick's. */
+  trimInMs: number;
+  /** ≤ 0: how far the out point is moved earlier than the brick's. */
+  trimOutMs: number;
+  /** The transition into the entry that follows. */
+  transition: LessonEntryTransition;
+  tags: string[];
+}
+
+/**
+ * @nullable
+ */
+export type LessonSourceSpriteLayout = {
+  intervalSeconds: number;
+  count: number;
+  columns: number;
+  rows: number;
+  tileWidth: number;
+  tileHeight: number;
+} | null;
+
+export interface LessonSource {
+  id: string;
+  role: string;
+  /** @nullable */
+  fps: number | null;
+  hasProxy: boolean;
+  /** @nullable */
+  spriteUrl: string | null;
+  /** @nullable */
+  spriteLayout: LessonSourceSpriteLayout;
+}
+
+export interface LessonRender {
+  id: string;
+  number: number;
+  createdAt: string;
+  lengthMs: number;
+  /** queued, claimed (rendering), ready, failed, or not queued */
+  state: string;
+  /** @nullable */
+  error: string | null;
+  /** @nullable */
+  bytes: number | null;
+}
+
+/**
+ * The ResolvedEDL of lib/shared/src/edl.ts.
+ */
+export type LessonResolved = { [key: string]: unknown };
+
+export interface Lesson {
+  cutId: string;
+  shootId: string;
+  shootName: string;
+  entries: LessonEntry[];
+  /** Closed bricks not in the lesson. */
+  available: LessonBrick[];
+  /** The ResolvedEDL of lib/shared/src/edl.ts. */
+  resolved: LessonResolved;
+  lengthMs: number;
+  sources: LessonSource[];
+  renders: LessonRender[];
+}
+
+export type LessonCommandResultInverse = { [key: string]: unknown };
+
+export interface LessonCommandResult {
+  lesson: Lesson;
+  inverse: LessonCommandResultInverse;
+}
+
+export interface RenderQueued {
+  id: string;
+  number: number;
+}
+
+/**
+ * The lesson's newest render job, while it is queued or running.
+ * @nullable
+ */
+export type ShootLessonRender = {
+  number: number;
+  state: string;
+} | null;
+
 export interface Shoot {
   id: string;
   name: string;
@@ -208,6 +319,11 @@ export interface Shoot {
   /** @nullable */
   notes?: string | null;
   sources: Source[];
+  /**
+     * The lesson's newest render job, while it is queued or running.
+     * @nullable
+     */
+  lessonRender?: ShootLessonRender;
 }
 
 export interface ShootInput {

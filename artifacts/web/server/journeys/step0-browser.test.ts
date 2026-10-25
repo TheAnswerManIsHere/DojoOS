@@ -55,7 +55,7 @@ test("the tester signs in from the page, answers the rendered rail, and the oper
 
   const operator = await openPage();
   await signInFromPage(operator, operatorEmail);
-  assert.equal(await operator.getByRole("complementary", { name: "Tester questions" }).count(), 0, "the operator has no rail");
+  assert.equal(await operator.getByRole("complementary", { name: "Tester questions" }).count(), 1, "in prototype phase the operator has the rail too (David, 2026-10-25)");
   await operator.goto(`${server.origin}/feedback`);
   await operator.getByTestId(`row-feedback-${rows[0].id}`).filter({ hasText: answer }).waitFor();
   await operator.context().close();

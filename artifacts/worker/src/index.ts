@@ -1,10 +1,11 @@
 import { eq, and, isNull, isNotNull, sql } from "drizzle-orm";
 import { connectDb, createQueue, createStorage, createTranscriber, jobs, jobLeaseMs, sources, transcripts } from "@workspace/shared";
-import type { SourceProbePayload } from "@workspace/shared";
+import type { CutRenderPayload, SourceProbePayload } from "@workspace/shared";
 import { createServer } from "node:http";
 import { DrainRunner } from "./runner";
 import { ingest } from "./ingest";
 import { transcribe } from "./transcribe";
+import { renderRevision } from "./render";
 
 const concurrency = Number(process.env.WORKER_CONCURRENCY ?? "2");
 if (!Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 16) throw new Error("WORKER_CONCURRENCY must be an integer from 1 to 16");
@@ -19,6 +20,11 @@ const transcriber = createTranscriber();
 console.info(transcriber ? `Transcription by ${transcriber.provider}` : "Transcription off: no key is set for the chosen provider");
 
 const runner = new DrainRunner(queue, concurrency, jobLeaseMs(), async (job, signal) => {
+  if (job.kind === "cut.render") {
+    const revisionId = (job.payload as CutRenderPayload).revisionId;
+    if (typeof revisionId !== "string") throw new Error("Invalid cut.render payload");
+    return renderRevision(db, storage, revisionId, signal);
+  }
   const sourceId = (job.payload as SourceProbePayload).sourceId;
   if (typeof sourceId !== "string") throw new Error(`Invalid ${job.kind} payload`);
   if (job.kind === "source.transcribe") {

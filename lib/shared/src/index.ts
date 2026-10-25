@@ -5,5 +5,6 @@ export * from "./storage";
 export * from "./contracts";
 export * from "./edl";
 export * from "./commands";
+export * from "./lesson";
 export * from "./media";
 export * from "./transcription";

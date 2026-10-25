@@ -79,7 +79,7 @@ export function authRoutes(ctx: Context) {
   // (production) app keeps the emailed link until there is data worth a password, so this route does not exist there.
   router.post("/choose", async (req, res) => {
     if (process.env.NODE_ENV === "production") return res.status(404).json({ error: "Not found" });
-    const tier = ({ jared: "tester", david: "operator" } as const)[String(req.body?.who) as "jared" | "david"];
+    const tier = ({ jared: "operator", david: "tester" } as const)[String(req.body?.who) as "jared" | "david"];
     if (!tier) return res.status(400).json({ error: "Say who you are: jared or david" });
     const [user] = await ctx.db.select().from(users).where(and(eq(users.tier, tier), isNull(users.deletedAt)));
     if (!user) return res.status(403).json({ error: "Account unavailable" });

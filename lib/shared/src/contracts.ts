@@ -1,6 +1,10 @@
 export type SourceProbePayload = { sourceId: string };
 export type SourceTranscribePayload = { sourceId: string };
-export type JobPayloads = { "source.probe": SourceProbePayload; "source.transcribe": SourceTranscribePayload };
+/** Render one revision's frozen composition (PLAN_LESSON_TIMELINE.md §3); shootId lets the library show it running. */
+export type CutRenderPayload = { revisionId: string; shootId: string };
+export type JobPayloads = { "source.probe": SourceProbePayload; "source.transcribe": SourceTranscribePayload; "cut.render": CutRenderPayload };
+/** What a completed cut.render job records. */
+export type CutRenderResult = { durationMs: number | null; bytes: number; downloadMs: number; renderMs: number; uploadMs: number; sources: number };
 export type JobKind = keyof JobPayloads;
 export type SourceProbeResult = { durationMs: number | null; width: number | null; height: number | null; fps: number | null; probe: unknown };
 /** One ffmpeg step's cost, read from its own -benchmark report. */

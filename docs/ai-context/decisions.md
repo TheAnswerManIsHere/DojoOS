@@ -115,8 +115,10 @@ overruled. Newest last. Product truth that is not a decision lives in
   track of who is doing what, it's fine to ask which user I am, David or
   Jared but no password or anything, just let me in. Once we're ready to go
   live and there's actual data that we care about, we can add a password."*).
-  The development app asks who you are and lets you in: Jared as the tester
-  account (the rail), David as the operator account (the Feedback page).
+  The development app asks who you are and lets you in: Jared as the
+  operator account, David as the tester account (David, 2026-10-25, swapping
+  the 2026-10-24 mapping, which had them backwards); both answer the rail and
+  both read the Feedback page.
   On Claude's recommendation, taken and reported: the change applies to the
   development app only, and a published build keeps the emailed link, so a
   publish cannot expose Jared's lessons before the password David names

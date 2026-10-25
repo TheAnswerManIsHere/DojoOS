@@ -1,0 +1,16 @@
+{
+  "feature": "lesson-timeline",
+  "note": "PROTOTYPE — the questions the lesson timeline's first version exists to answer (PLAN_LESSON_TIMELINE.md). The web server syncs these into the questions table at boot; the rail shows them on the lesson page.",
+  "questions": [
+    { "key": "lesson-timeline.speed", "type": "choice", "choices": ["under 5 min", "5–15 min", "15–30 min", "over 30 min"],
+      "prompt": "How long did it take to get from logged bricks to a lesson you'd watch? (under 5 min, 5–15, 15–30, over 30)" },
+    { "key": "lesson-timeline.parity", "type": "choice", "choices": ["yes", "mostly", "no"],
+      "prompt": "Did the preview play the way the rendered file plays? (yes / mostly / no — what differed?)" },
+    { "key": "lesson-timeline.start-full", "type": "text",
+      "prompt": "Did starting with every brick in filmed order help, or would you rather start empty?" },
+    { "key": "lesson-timeline.transitions", "type": "text",
+      "prompt": "Was cut-or-dissolve enough, or what transition did you reach for?" },
+    { "key": "lesson-timeline.missing", "type": "text",
+      "prompt": "What did you want to do on the strip that you couldn't?" }
+  ]
+}

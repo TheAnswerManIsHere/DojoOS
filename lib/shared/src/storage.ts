@@ -1,6 +1,9 @@
 import { S3Client, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
-import { createReadStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export const prefixes = { originals: "originals/", proxies: "proxies/", renders: "renders/" } as const;
@@ -43,8 +46,16 @@ export function createStorage() {
       const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
       return object.Body!.transformToString();
     },
-    playback(key: string) {
-      return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 300 });
+    /** A short-lived signed read; with a filename, the browser saves it under that name instead of playing it. */
+    playback(key: string, downloadAs?: string) {
+      return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key,
+        ...(downloadAs && { ResponseContentDisposition: `attachment; filename="${downloadAs.replace(/["\\]/g, "")}"` }) }), { expiresIn: 300 });
+    },
+    /** Streams one object to a local file, for the worker. */
+    async download(key: string, file: string, signal?: AbortSignal) {
+      const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }), { abortSignal: signal });
+      if (!object.Body) throw new Error(`Stored object ${key} was empty`);
+      await pipeline(Readable.fromWeb(object.Body.transformToWebStream() as WebReadableStream), createWriteStream(file), { signal });
     },
   };
 }

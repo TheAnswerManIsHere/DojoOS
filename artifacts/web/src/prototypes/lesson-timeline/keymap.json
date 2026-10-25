@@ -1,0 +1,19 @@
+{
+  "note": "PROTOTYPE — the lesson timeline's key bindings, as data (architecture.md §5): change a key here, not in code. Shift is read by the action itself: Shift+←/→ moves the selected brick, and with [ ] , . trims by a second instead of a frame. [ and ] tighten the in and out points; , and . extend them back out.",
+  "bindings": {
+    "ArrowLeft": "selectPrevious",
+    "ArrowRight": "selectNext",
+    "KeyX": "remove",
+    "Delete": "remove",
+    "Backspace": "remove",
+    "KeyA": "add",
+    "BracketLeft": "trimIn",
+    "BracketRight": "trimOut",
+    "KeyD": "toggleTransition",
+    "Space": "playPause",
+    "Escape": "undo",
+    "KeyR": "render",
+    "Comma": "extendIn",
+    "Period": "extendOut"
+  }
+}

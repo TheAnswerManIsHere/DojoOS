@@ -235,6 +235,81 @@ paths:
               schema: { $ref: "#/components/schemas/Peaks" }
         "404":
           description: The source has no peaks file
+  /shoots/{id}/lesson:
+    get:
+      operationId: getLesson
+      description: The shoot's lesson — created on first open with every closed brick of the shoot — with its resolved EDL, its sources' media and its renders.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The lesson
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Lesson" }
+        "404":
+          description: No such shoot
+  /cuts/{id}/commands:
+    post:
+      operationId: applyLessonCommand
+      description: Applies one command of the lesson's closed set to the cut, and records it as a cut-owned event.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CommandInput" }
+      responses:
+        "200":
+          description: The lesson after the command, and the command that reverses it
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LessonCommandResult" }
+        "400":
+          description: Not a command of the set
+        "409":
+          description: The command does not apply, or would leave a dissolve that does not fit
+  /cuts/{id}/render:
+    post:
+      operationId: renderLesson
+      description: Freezes the lesson as it stands into a numbered revision and queues the job that renders it.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "202":
+          description: The revision, queued for rendering
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RenderQueued" }
+        "409":
+          description: The lesson has no bricks
+  /revisions/{id}/file:
+    get:
+      operationId: getRenderFile
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: A short-lived signed link to play the rendered file
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignedUrl" }
+        "404":
+          description: Not rendered yet
+  /revisions/{id}/download:
+    get:
+      operationId: getRenderDownload
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: A short-lived signed link that saves the rendered file
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignedUrl" }
+        "404":
+          description: Not rendered yet
   /questions:
     get:
       operationId: listQuestions
@@ -389,6 +464,81 @@ components:
             type: object
             required: [text, start_ms, end_ms]
             properties: { text: { type: string }, start_ms: { type: integer }, end_ms: { type: integer } }
+    LessonBrick:
+      type: object
+      required: [id, sourceId, inMs, outMs, tags]
+      properties:
+        id: { type: string }
+        sourceId: { type: string }
+        inMs: { type: integer }
+        outMs: { type: integer }
+        tags: { type: array, items: { type: string } }
+    LessonEntry:
+      type: object
+      required: [id, brickId, sourceId, brickInMs, brickOutMs, trimInMs, trimOutMs, transition, tags]
+      properties:
+        id: { type: string }
+        brickId: { type: string }
+        sourceId: { type: string }
+        brickInMs: { type: integer }
+        brickOutMs: { type: integer }
+        trimInMs: { type: integer, description: "≥ 0: how far the in point is moved later than the brick's." }
+        trimOutMs: { type: integer, description: "≤ 0: how far the out point is moved earlier than the brick's." }
+        transition: { type: string, enum: [cut, dissolve], description: "The transition into the entry that follows." }
+        tags: { type: array, items: { type: string } }
+    LessonSource:
+      type: object
+      required: [id, role, fps, hasProxy, spriteUrl, spriteLayout]
+      properties:
+        id: { type: string }
+        role: { type: string }
+        fps: { type: ["number", "null"] }
+        hasProxy: { type: boolean }
+        spriteUrl: { type: ["string", "null"] }
+        spriteLayout:
+          type: ["object", "null"]
+          required: [intervalSeconds, count, columns, rows, tileWidth, tileHeight]
+          properties:
+            intervalSeconds: { type: number }
+            count: { type: integer }
+            columns: { type: integer }
+            rows: { type: integer }
+            tileWidth: { type: integer }
+            tileHeight: { type: integer }
+    LessonRender:
+      type: object
+      required: [id, number, createdAt, lengthMs, state, error, bytes]
+      properties:
+        id: { type: string }
+        number: { type: integer }
+        createdAt: { type: string }
+        lengthMs: { type: integer }
+        state: { type: string, description: "queued, claimed (rendering), ready, failed, or not queued" }
+        error: { type: ["string", "null"] }
+        bytes: { type: ["integer", "null"] }
+    Lesson:
+      type: object
+      required: [cutId, shootId, shootName, entries, available, resolved, lengthMs, sources, renders]
+      properties:
+        cutId: { type: string }
+        shootId: { type: string }
+        shootName: { type: string }
+        entries: { type: array, items: { $ref: "#/components/schemas/LessonEntry" } }
+        available: { type: array, items: { $ref: "#/components/schemas/LessonBrick" }, description: "Closed bricks not in the lesson." }
+        resolved: { type: object, additionalProperties: true, description: "The ResolvedEDL of lib/shared/src/edl.ts." }
+        lengthMs: { type: integer }
+        sources: { type: array, items: { $ref: "#/components/schemas/LessonSource" } }
+        renders: { type: array, items: { $ref: "#/components/schemas/LessonRender" } }
+    LessonCommandResult:
+      type: object
+      required: [lesson, inverse]
+      properties:
+        lesson: { $ref: "#/components/schemas/Lesson" }
+        inverse: { type: object, additionalProperties: true }
+    RenderQueued:
+      type: object
+      required: [id, number]
+      properties: { id: { type: string }, number: { type: integer } }
     Shoot:
       type: object
       required: [id, name, sources]
@@ -400,6 +550,11 @@ components:
         sources:
           type: array
           items: { $ref: "#/components/schemas/Source" }
+        lessonRender:
+          type: ["object", "null"]
+          description: The lesson's newest render job, while it is queued or running.
+          required: [number, state]
+          properties: { number: { type: integer }, state: { type: string } }
     ShootInput:
       type: object
       required: [name]

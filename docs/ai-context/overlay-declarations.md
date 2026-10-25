@@ -60,14 +60,16 @@ own one-line PR before its first version's planning loop opens**.
 
 - **Tier:** `tester` in the `users.tier` enum.
 - **Setting that switches it on:** `TESTER_EMAIL` — the account named
-  there is provisioned at web boot with the tester tier, and the feedback
-  rail renders only for that tier.
+  there is provisioned at web boot with the tester tier. In prototype phase
+  the feedback rail and the Feedback page are open to both accounts (David,
+  2026-10-25), so the tier no longer gates them.
 - **Members:** in the development app, which has no sign-in in prototype
   phase (David, 2026-10-24), the page asks who you are: **Jared** is let in
-  as the tester account, so the rail shows for him and his answers are
-  recorded as his; **David** as the operator account, who reads them on the
-  Feedback page. (Until 2026-10-24: David held the tester account and Jared
-  the operator one, signing in by emailed link.)
+  as the operator account, **David** as the tester account (David,
+  2026-10-25: *"please swap the names and email addresses you have for David
+  and Jared, they're backwards"* — the mapping of 2026-10-24 had Jared on the
+  tester account). Each person's answers on the rail are recorded as theirs,
+  and both read them on the Feedback page.
 - **CI `push` trigger on `prototype/**`:** not declared. DojoOS is in the
   `main` regime; the trigger is added before the first branch-regime
   prototype, if one is ever needed.
