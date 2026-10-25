@@ -11,7 +11,8 @@
     "./media": "./src/media.ts",
     "./contracts": "./src/contracts.ts",
     "./edl": "./src/edl.ts",
-    "./commands": "./src/commands.ts"
+    "./commands": "./src/commands.ts",
+    "./lesson": "./src/lesson.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -8,6 +8,7 @@ import { libraryRoutes } from "./modules/library";
 import { ingestRoutes } from "./modules/ingest";
 import { feedbackRoutes, featureOfPage, syncPrototypeQuestions } from "./modules/feedback";
 import { loggingRoutes } from "./modules/logging";
+import { cutRoutes } from "./modules/cuts";
 import { nudgeWorker, workerNudgePort } from "./worker-nudge";
 import { createDevVite, listen } from "./http-server";
 
@@ -43,15 +44,16 @@ app.use((req, res, next) => {
 });
 app.use("/app-api/auth", authRoutes(ctx)); // Unauthenticated request and verification are required for sign-in.
 app.use("/app-api", requireSession(ctx));
-app.use("/app-api", sessionRoutes(ctx), libraryRoutes(ctx), ingestRoutes(ctx), feedbackRoutes(ctx), loggingRoutes(ctx));
+app.use("/app-api", sessionRoutes(ctx), libraryRoutes(ctx), ingestRoutes(ctx), feedbackRoutes(ctx), loggingRoutes(ctx), cutRoutes(ctx));
 app.use("/app-api", (_req, res) => res.status(404).json({ error: "Not found" }));
 const gatePage = requireSession(ctx);
 app.get("/", gatePage, (_req, res) => res.redirect("/library"));
 app.get("/library", gatePage, (_req, _res, next) => next());
 app.get("/sources/:id/log", gatePage, (_req, _res, next) => next());
+app.get("/shoots/:id/lesson", gatePage, (_req, _res, next) => next());
 // The pages the SPA serves: sign-in, and every page the rail knows (featureOfPage).
 const isPage = (path: string) => path === "/sign-in" || featureOfPage(path) !== null;
-app.get("/feedback", gatePage, (req, res, next) => req.account?.tier === "operator" ? next() : res.status(403).end());
+app.get("/feedback", gatePage, (_req, _res, next) => next());
 if (process.env.NODE_ENV !== "production") {
   const vite = await createDevVite(httpServer, join(root, "vite.config.ts"));
   app.use(vite.middlewares);

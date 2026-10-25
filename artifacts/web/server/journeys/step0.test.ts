@@ -82,7 +82,7 @@ test("the operator signs in by magic link and reaches the library and the feedba
   assert.equal(root.headers.get("location"), "/library");
 });
 
-test("the tester answers the rail's question and the operator reads the answer back", async () => {
+test("one account answers the rail's question and the other reads the answer back; both may do either", async () => {
   const tester = await signIn(testerEmail);
   assert.equal(tester.account.tier, "tester");
   const listed = await get("/app-api/questions?feature=library", tester);
@@ -100,9 +100,9 @@ test("the tester answers the rail's question and the operator reads the answer b
   assert.equal(row.answer, answer);
   assert.equal(row.userId, tester.account.id);
 
-  // The tester sees neither the operator's list nor the operator's page.
-  assert.equal((await get("/app-api/feedback", tester)).status, 403);
-  assert.equal((await get("/feedback", tester)).status, 403);
+  // In prototype phase both people read the answers (David, 2026-10-25).
+  assert.equal((await get("/app-api/feedback", tester)).status, 200);
+  assert.equal((await get("/feedback", tester)).status, 200);
 
   const operator = await signIn(operatorEmail);
   const read = await get("/app-api/feedback", operator);
@@ -113,12 +113,13 @@ test("the tester answers the rail's question and the operator reads the answer b
   assert.equal(found.answer, answer);
   assert.equal(found.questionKey, questionKey);
   assert.equal(found.userId, tester.account.id);
-  // And the operator cannot answer for the tester.
+  // And the operator answers too, as themself.
   const asOperator = await fetch(`${origin}/app-api/feedback`, {
     method: "POST", headers: { "content-type": "application/json", cookie: operator.cookie },
     body: JSON.stringify({ questionKey, answer, page: "/library", state: {} }),
   });
-  assert.equal(asOperator.status, 403);
+  assert.equal(asOperator.status, 201);
+  assert.equal(((await asOperator.json()) as { userId: string }).userId, operator.account.id);
   const stored = await db.select().from(feedback).where(and(eq(feedback.questionKey, questionKey), eq(feedback.id, row.id)));
   assert.equal(stored.length, 1);
 });
@@ -150,10 +151,10 @@ test("prototype phase: in development you say who you are and are let in, with n
   const choose = (who: string) => fetch(`${origin}/app-api/auth/choose`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ who }) });
   const jared = await choose("jared");
   assert.equal(jared.status, 200);
-  assert.deepEqual([((await jared.json()) as Session["account"]).email], [testerEmail], "Jared is the tester account, who answers the rail");
+  assert.deepEqual([((await jared.json()) as Session["account"]).email], [operatorEmail], "Jared is the operator account (David, 2026-10-25)");
   const cookie = (jared.headers.get("set-cookie") ?? "").split(";")[0];
   assert.equal((await fetch(`${origin}/app-api/session`, { headers: { cookie } })).status, 200, "the session works like a signed-in one");
   const david = await choose("david");
-  assert.equal(((await david.json()) as Session["account"]).email, operatorEmail, "David is the operator account, who reads the answers");
+  assert.equal(((await david.json()) as Session["account"]).email, testerEmail, "David is the tester account");
   assert.equal((await choose("someone")).status, 400, "only the two people the app knows");
 });

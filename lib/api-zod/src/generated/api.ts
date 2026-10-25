@@ -73,7 +73,11 @@ export const ListShootsResponseItem = zod.object({
   "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
   "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
   "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.')
-}))
+})),
+  "lessonRender": zod.object({
+  "number": zod.number().int(),
+  "state": zod.string()
+}).nullish().describe('The lesson\'s newest render job, while it is queued or running.')
 })
 export const ListShootsResponse = zod.array(ListShootsResponseItem)
 
@@ -106,7 +110,11 @@ export const CreateShootResponse = zod.object({
   "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
   "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
   "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.')
-}))
+})),
+  "lessonRender": zod.object({
+  "number": zod.number().int(),
+  "state": zod.string()
+}).nullish().describe('The lesson\'s newest render job, while it is queued or running.')
 })
 
 
@@ -313,6 +321,160 @@ export const GetSourcePeaksResponse = zod.object({
   "samples_per_pixel": zod.number().int(),
   "length": zod.number().int(),
   "data": zod.array(zod.number().int())
+})
+
+
+/**
+ * The shoot's lesson — created on first open with every closed brick of the shoot — with its resolved EDL, its sources' media and its renders.
+ */
+export const GetLessonParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetLessonResponse = zod.object({
+  "cutId": zod.string(),
+  "shootId": zod.string(),
+  "shootName": zod.string(),
+  "entries": zod.array(zod.object({
+  "id": zod.string(),
+  "brickId": zod.string(),
+  "sourceId": zod.string(),
+  "brickInMs": zod.number().int(),
+  "brickOutMs": zod.number().int(),
+  "trimInMs": zod.number().int().describe('≥ 0: how far the in point is moved later than the brick\'s.'),
+  "trimOutMs": zod.number().int().describe('≤ 0: how far the out point is moved earlier than the brick\'s.'),
+  "transition": zod.enum(['cut', 'dissolve']).describe('The transition into the entry that follows.'),
+  "tags": zod.array(zod.string())
+})),
+  "available": zod.array(zod.object({
+  "id": zod.string(),
+  "sourceId": zod.string(),
+  "inMs": zod.number().int(),
+  "outMs": zod.number().int(),
+  "tags": zod.array(zod.string())
+})).describe('Closed bricks not in the lesson.'),
+  "resolved": zod.record(zod.string(), zod.unknown()).describe('The ResolvedEDL of lib/shared/src/edl.ts.'),
+  "lengthMs": zod.number().int(),
+  "sources": zod.array(zod.object({
+  "id": zod.string(),
+  "role": zod.string(),
+  "fps": zod.number().nullable(),
+  "hasProxy": zod.boolean(),
+  "spriteUrl": zod.string().nullable(),
+  "spriteLayout": zod.object({
+  "intervalSeconds": zod.number(),
+  "count": zod.number().int(),
+  "columns": zod.number().int(),
+  "rows": zod.number().int(),
+  "tileWidth": zod.number().int(),
+  "tileHeight": zod.number().int()
+}).nullable()
+})),
+  "renders": zod.array(zod.object({
+  "id": zod.string(),
+  "number": zod.number().int(),
+  "createdAt": zod.string(),
+  "lengthMs": zod.number().int(),
+  "state": zod.string().describe('queued, claimed (rendering), ready, failed, or not queued'),
+  "error": zod.string().nullable(),
+  "bytes": zod.number().int().nullable()
+}))
+})
+
+
+/**
+ * Applies one command of the lesson's closed set to the cut, and records it as a cut-owned event.
+ */
+export const ApplyLessonCommandParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ApplyLessonCommandBody = zod.object({
+  "command": zod.record(zod.string(), zod.unknown()).describe('One command of the closed set in lib/shared/src/commands.ts.')
+})
+
+export const ApplyLessonCommandResponse = zod.object({
+  "lesson": zod.object({
+  "cutId": zod.string(),
+  "shootId": zod.string(),
+  "shootName": zod.string(),
+  "entries": zod.array(zod.object({
+  "id": zod.string(),
+  "brickId": zod.string(),
+  "sourceId": zod.string(),
+  "brickInMs": zod.number().int(),
+  "brickOutMs": zod.number().int(),
+  "trimInMs": zod.number().int().describe('≥ 0: how far the in point is moved later than the brick\'s.'),
+  "trimOutMs": zod.number().int().describe('≤ 0: how far the out point is moved earlier than the brick\'s.'),
+  "transition": zod.enum(['cut', 'dissolve']).describe('The transition into the entry that follows.'),
+  "tags": zod.array(zod.string())
+})),
+  "available": zod.array(zod.object({
+  "id": zod.string(),
+  "sourceId": zod.string(),
+  "inMs": zod.number().int(),
+  "outMs": zod.number().int(),
+  "tags": zod.array(zod.string())
+})).describe('Closed bricks not in the lesson.'),
+  "resolved": zod.record(zod.string(), zod.unknown()).describe('The ResolvedEDL of lib/shared/src/edl.ts.'),
+  "lengthMs": zod.number().int(),
+  "sources": zod.array(zod.object({
+  "id": zod.string(),
+  "role": zod.string(),
+  "fps": zod.number().nullable(),
+  "hasProxy": zod.boolean(),
+  "spriteUrl": zod.string().nullable(),
+  "spriteLayout": zod.object({
+  "intervalSeconds": zod.number(),
+  "count": zod.number().int(),
+  "columns": zod.number().int(),
+  "rows": zod.number().int(),
+  "tileWidth": zod.number().int(),
+  "tileHeight": zod.number().int()
+}).nullable()
+})),
+  "renders": zod.array(zod.object({
+  "id": zod.string(),
+  "number": zod.number().int(),
+  "createdAt": zod.string(),
+  "lengthMs": zod.number().int(),
+  "state": zod.string().describe('queued, claimed (rendering), ready, failed, or not queued'),
+  "error": zod.string().nullable(),
+  "bytes": zod.number().int().nullable()
+}))
+}),
+  "inverse": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * Freezes the lesson as it stands into a numbered revision and queues the job that renders it.
+ */
+export const RenderLessonParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RenderLessonResponse = zod.object({
+  "id": zod.string(),
+  "number": zod.number().int()
+})
+
+
+export const GetRenderFileParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetRenderFileResponse = zod.object({
+  "url": zod.string()
+})
+
+
+export const GetRenderDownloadParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetRenderDownloadResponse = zod.object({
+  "url": zod.string()
 })
 
 

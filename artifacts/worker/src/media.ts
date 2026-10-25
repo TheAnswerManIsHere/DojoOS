@@ -26,7 +26,7 @@ function run(command: string, args: string[], signal: AbortSignal, onStdout?: (c
   });
 }
 
-const ffmpeg = (args: string[], signal: AbortSignal, onStdout?: (chunk: Buffer) => void) =>
+export const ffmpeg = (args: string[], signal: AbortSignal, onStdout?: (chunk: Buffer) => void) =>
   run("ffmpeg", ["-hide_banner", "-nostdin", "-benchmark", "-y", ...args], signal, onStdout);
 
 const cost = async ({ wallMs, maxRssKiB }: Run, output: string): Promise<StepCost> => ({ wallMs, maxRssKiB, bytes: (await stat(output)).size });

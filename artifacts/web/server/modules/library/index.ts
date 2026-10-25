@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { and, eq, isNull, isNotNull, desc, inArray, sql } from "drizzle-orm";
-import { jobs, shoots, sources, transcripts } from "@workspace/shared";
+import { jobs, revisions, shoots, sources, transcripts } from "@workspace/shared";
 import type { Context } from "../../context";
 
 type IngestJob = Pick<typeof jobs.$inferSelect, "state" | "error">;
@@ -38,7 +38,13 @@ export function libraryRoutes(ctx: Context) {
       words: sql<number>`jsonb_array_length(${transcripts.words})` }).from(transcripts).where(isNull(transcripts.deletedAt))
       .orderBy(transcripts.sourceId, desc(transcripts.createdAt));
     const wordCounts = new Map(counts.map((c) => [c.sourceId, Number(c.words)]));
-    res.json(rows.map((row) => ({ id: row.id, name: row.name, shotOn: row.shotOn, notes: row.notes,
+    // A lesson render queued or running, per shoot, so the library shows it while it runs (async-ui-status.md).
+    const rendering = await ctx.db.select({ shootId: sql<string>`${jobs.payload}->>'shootId'`, state: jobs.state, number: revisions.number })
+      .from(jobs).innerJoin(revisions, sql`${revisions.id} = ${jobs.payload}->>'revisionId'`)
+      .where(and(eq(jobs.kind, "cut.render"), inArray(jobs.state, ["queued", "claimed"]), isNull(jobs.deletedAt))).orderBy(desc(jobs.createdAt));
+    const renderOf = new Map<string, { number: number; state: string }>();
+    for (const r of rendering) if (!renderOf.has(r.shootId)) renderOf.set(r.shootId, { number: r.number, state: r.state });
+    res.json(rows.map((row) => ({ id: row.id, name: row.name, shotOn: row.shotOn, notes: row.notes, lessonRender: renderOf.get(row.id) ?? null,
       sources: media.filter((s) => s.shootId === row.id).map((s) => publicSource(s, latest.get(s.id), wordCounts.get(s.id) ?? null, latestTranscribe.get(s.id))) })));
   });
   router.post("/shoots", async (req, res) => {

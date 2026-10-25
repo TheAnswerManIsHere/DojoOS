@@ -26,6 +26,8 @@ import type {
   EmailInput,
   Feedback,
   FeedbackInput,
+  Lesson,
+  LessonCommandResult,
   LinkRequestResponse,
   ListQuestionsParams,
   Ok,
@@ -33,6 +35,7 @@ import type {
   PartsInput,
   Peaks,
   Question,
+  RenderQueued,
   Shoot,
   ShootInput,
   SignedUrl,
@@ -1360,6 +1363,379 @@ export function useGetSourcePeaks<TData = Awaited<ReturnType<typeof getSourcePea
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetSourcePeaksQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetLessonUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/shoots/${id}/lesson`
+}
+
+/**
+ * The shoot's lesson — created on first open with every closed brick of the shoot — with its resolved EDL, its sources' media and its renders.
+ */
+export const getLesson = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Lesson> => {
+
+  return customFetch<Lesson>(getGetLessonUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLessonQueryKey = (id: string,) => {
+    return [
+    `/app-api/shoots/${id}/lesson`
+    ] as const;
+    }
+
+
+export const getGetLessonQueryOptions = <TData = Awaited<ReturnType<typeof getLesson>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLesson>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLessonQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLesson>>> = ({ signal }) => getLesson(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLesson>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLessonQueryResult = NonNullable<Awaited<ReturnType<typeof getLesson>>>
+export type GetLessonQueryError = ErrorType<void>
+
+
+
+export function useGetLesson<TData = Awaited<ReturnType<typeof getLesson>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLesson>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLessonQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApplyLessonCommandUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/cuts/${id}/commands`
+}
+
+/**
+ * Applies one command of the lesson's closed set to the cut, and records it as a cut-owned event.
+ */
+export const applyLessonCommand = async (id: string,
+    commandInput: CommandInput, options?: Parameters<typeof customFetch>[1]): Promise<LessonCommandResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<LessonCommandResult>(getApplyLessonCommandUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(commandInput)
+  }
+);}
+
+
+
+
+
+export const getApplyLessonCommandMutationKey = () => ['applyLessonCommand'] as const;
+
+export const getApplyLessonCommandMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyLessonCommand>>, TError,ApplyLessonCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyLessonCommand>>, TError,ApplyLessonCommandMutationVariables, TContext> => {
+
+const mutationKey = getApplyLessonCommandMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyLessonCommand>>, ApplyLessonCommandMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  applyLessonCommand(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyLessonCommandMutationResult = NonNullable<Awaited<ReturnType<typeof applyLessonCommand>>>
+    export type ApplyLessonCommandMutationBody = BodyType<CommandInput>
+    export type ApplyLessonCommandMutationError = ErrorType<void>
+    export type ApplyLessonCommandMutationVariables = {id: string;data: BodyType<CommandInput>}
+
+    export const useApplyLessonCommand = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyLessonCommand>>, TError,ApplyLessonCommandMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof applyLessonCommand>>,
+        TError,
+        ApplyLessonCommandMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApplyLessonCommandMutationOptions(options));
+    }
+
+export const getRenderLessonUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/cuts/${id}/render`
+}
+
+/**
+ * Freezes the lesson as it stands into a numbered revision and queues the job that renders it.
+ */
+export const renderLesson = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<RenderQueued> => {
+
+  return customFetch<RenderQueued>(getRenderLessonUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRenderLessonMutationKey = () => ['renderLesson'] as const;
+
+export const getRenderLessonMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renderLesson>>, TError,RenderLessonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof renderLesson>>, TError,RenderLessonMutationVariables, TContext> => {
+
+const mutationKey = getRenderLessonMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renderLesson>>, RenderLessonMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  renderLesson(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenderLessonMutationResult = NonNullable<Awaited<ReturnType<typeof renderLesson>>>
+
+    export type RenderLessonMutationError = ErrorType<void>
+    export type RenderLessonMutationVariables = {id: string}
+
+    export const useRenderLesson = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renderLesson>>, TError,RenderLessonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof renderLesson>>,
+        TError,
+        RenderLessonMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRenderLessonMutationOptions(options));
+    }
+
+export const getGetRenderFileUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/revisions/${id}/file`
+}
+
+export const getRenderFile = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<SignedUrl> => {
+
+  return customFetch<SignedUrl>(getGetRenderFileUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRenderFileQueryKey = (id: string,) => {
+    return [
+    `/app-api/revisions/${id}/file`
+    ] as const;
+    }
+
+
+export const getGetRenderFileQueryOptions = <TData = Awaited<ReturnType<typeof getRenderFile>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRenderFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRenderFileQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRenderFile>>> = ({ signal }) => getRenderFile(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRenderFile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRenderFileQueryResult = NonNullable<Awaited<ReturnType<typeof getRenderFile>>>
+export type GetRenderFileQueryError = ErrorType<void>
+
+
+
+export function useGetRenderFile<TData = Awaited<ReturnType<typeof getRenderFile>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRenderFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRenderFileQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRenderDownloadUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/revisions/${id}/download`
+}
+
+export const getRenderDownload = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<SignedUrl> => {
+
+  return customFetch<SignedUrl>(getGetRenderDownloadUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRenderDownloadQueryKey = (id: string,) => {
+    return [
+    `/app-api/revisions/${id}/download`
+    ] as const;
+    }
+
+
+export const getGetRenderDownloadQueryOptions = <TData = Awaited<ReturnType<typeof getRenderDownload>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRenderDownload>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRenderDownloadQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRenderDownload>>> = ({ signal }) => getRenderDownload(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRenderDownload>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRenderDownloadQueryResult = NonNullable<Awaited<ReturnType<typeof getRenderDownload>>>
+export type GetRenderDownloadQueryError = ErrorType<void>
+
+
+
+export function useGetRenderDownload<TData = Awaited<ReturnType<typeof getRenderDownload>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRenderDownload>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRenderDownloadQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

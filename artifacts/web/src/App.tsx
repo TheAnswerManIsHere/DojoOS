@@ -7,6 +7,7 @@ import { Library } from '@/pages/library';
 import { FeedbackPage } from '@/pages/feedback';
 import { SignIn } from '@/pages/sign-in';
 import { LoggingViewer } from '@/prototypes/logging-viewer/logging-viewer';
+import { LessonTimeline } from '@/prototypes/lesson-timeline/lesson-timeline';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } });
 
@@ -27,8 +28,8 @@ function AuthenticatedShell({ children, feature, page, email, tier }: {
       <strong>DojoOS</strong>
       <nav className="app-nav" aria-label="Main navigation">
         <Link href="/library" data-testid="link-library">Library</Link>
-        {tier === 'operator' && <Link href="/feedback" data-testid="link-feedback">Feedback</Link>}
-        <span className="subtle" data-testid="text-account-email">{tier === 'tester' ? 'Jared' : 'David'} · {email}</span>
+        <Link href="/feedback" data-testid="link-feedback">Feedback</Link>
+        <span className="subtle" data-testid="text-account-email">{tier === 'operator' ? 'Jared' : 'David'} · {email}</span>
         <button type="button" disabled={logout.isPending} onClick={async () => {
           try {
             await logout.mutateAsync();
@@ -41,7 +42,7 @@ function AuthenticatedShell({ children, feature, page, email, tier }: {
     {logout.isError && <p role="alert" className="error">Could not sign out. {logout.error.message}</p>}
     <div className="app-main">
       <main className="app-content">{children}</main>
-      {tier === 'tester' && <QuestionRail feature={feature} page={page} />}
+      <QuestionRail feature={feature} page={page} />
     </div>
   </div>;
 }
@@ -65,8 +66,9 @@ function Routes() {
   return <Switch>
     <Route path="/"><Redirect to="/library" /></Route>
     <Route path="/library"><AuthenticatedShell feature="library" page="/library" email={account.email} tier={account.tier}><Library accountId={account.id} /></AuthenticatedShell></Route>
+    <Route path="/shoots/:id/lesson">{(params: { id: string }) => <AuthenticatedShell feature="lesson-timeline" page={`/shoots/${params.id}/lesson`} email={account.email} tier={account.tier}><LessonTimeline shootId={params.id} /></AuthenticatedShell>}</Route>
     <Route path="/sources/:id/log">{(params: { id: string }) => <AuthenticatedShell feature="logging-viewer" page={`/sources/${params.id}/log`} email={account.email} tier={account.tier}><LoggingViewer sourceId={params.id} /></AuthenticatedShell>}</Route>
-    <Route path="/feedback">{account.tier === 'operator' ? <AuthenticatedShell feature="feedback" page="/feedback" email={account.email} tier={account.tier}><FeedbackPage /></AuthenticatedShell> : <Redirect to="/library" />}</Route>
+    <Route path="/feedback"><AuthenticatedShell feature="feedback" page="/feedback" email={account.email} tier={account.tier}><FeedbackPage /></AuthenticatedShell></Route>
     <Route><AuthenticatedShell feature="not-found" page={location} email={account.email} tier={account.tier}><h1>Page not found</h1><p><Link href="/library" data-testid="link-return-library">Return to library</Link></p></AuthenticatedShell></Route>
   </Switch>;
 }

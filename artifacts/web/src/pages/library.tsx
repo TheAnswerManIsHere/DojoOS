@@ -15,7 +15,7 @@ const refreshMs = 5000;
 
 export function Library({ accountId }: { accountId: string }) {
   const shoots = useListShoots({ query: { queryKey: getListShootsQueryKey(),
-    refetchInterval: query => query.state.data?.some(shoot => shoot.sources.some(source => inFlight.has(source.ingestState) ||
+    refetchInterval: query => query.state.data?.some(shoot => shoot.lessonRender || shoot.sources.some(source => inFlight.has(source.ingestState) ||
       source.transcriptionState === 'queued' || source.transcriptionState === 'claimed')) ? refreshMs : false } });
   const create = useCreateShoot();
   const client = useQueryClient();
@@ -50,6 +50,8 @@ export function Library({ accountId }: { accountId: string }) {
       {shoots.data?.length === 0 && <p>No shoots yet. Create one to add source files.</p>}
       {shoots.data?.map(shoot => <article className="plain-row" key={shoot.id} data-testid={`shoot-${shoot.id}`}>
         <h3>{shoot.name}</h3>
+        <p><Link href={`/shoots/${shoot.id}/lesson`} data-testid={`link-lesson-${shoot.id}`}>Lesson</Link>
+          {shoot.lessonRender && <span role="status" data-testid={`text-lesson-render-${shoot.id}`}> · render {shoot.lessonRender.number} {shoot.lessonRender.state === 'claimed' ? 'rendering…' : 'queued…'}</span>}</p>
         {shoot.shotOn && <p>Shot on: {shoot.shotOn}</p>}
         {shoot.notes && <p>{shoot.notes}</p>}
         <p className="subtle">ID: {shoot.id}</p>

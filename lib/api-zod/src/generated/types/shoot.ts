@@ -4,6 +4,7 @@
  * Api
  * OpenAPI spec version: 0.1.0
  */
+import type { ShootLessonRender } from './shootLessonRender';
 import type { Source } from './source';
 
 export interface Shoot {
@@ -14,4 +15,9 @@ export interface Shoot {
   /** @nullable */
   notes?: string | null;
   sources: Source[];
+  /**
+     * The lesson's newest render job, while it is queued or running.
+     * @nullable
+     */
+  lessonRender?: ShootLessonRender;
 }
