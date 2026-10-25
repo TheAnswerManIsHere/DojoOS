@@ -153,6 +153,8 @@ function buildErrorMessage(response: Response, data: unknown): string {
 
   if (typeof data === "string") {
     const text = data.trim();
+    // A web page where an answer should be is the host's "this app is not running" page, not the app speaking.
+    if (/^<(!doctype|html)/i.test(text)) return `${prefix}: the app sent a web page instead of an answer — it is probably asleep or restarting`;
     return text ? `${prefix}: ${truncate(text)}` : prefix;
   }
 
