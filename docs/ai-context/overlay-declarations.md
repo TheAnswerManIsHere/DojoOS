@@ -7,7 +7,7 @@ The handbook's rules dereference six answers from this file. Both
 
 Beyond the universal entries (migrations, auth, payments):
 
-- **Auth and sessions** — the magic-link sign-in, sessions, the tier check.
+- **Auth and sessions** — the username-and-password sign-in, sessions, the tier check.
   Every route depends on it and nothing in DojoOS is public.
 - **Storage access** — the S3 client, presigned upload and download URLs.
   A mistake here makes Jared's private footage reachable.

@@ -111,12 +111,6 @@ export interface Ok {
   ok: boolean;
 }
 
-export interface LinkRequestResponse {
-  ok: boolean;
-  /** Development-only sign-in link; never returned in production. */
-  magicLink?: string;
-}
-
 export type AccountTier = typeof AccountTier[keyof typeof AccountTier];
 
 
@@ -131,12 +125,9 @@ export interface Account {
   tier: AccountTier;
 }
 
-export interface EmailInput {
-  email: string;
-}
-
-export interface TokenInput {
-  token: string;
+export interface LoginInput {
+  username: string;
+  password: string;
 }
 
 export type SourceRole = typeof SourceRole[keyof typeof SourceRole];

@@ -14,38 +14,31 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Account" }
-  /auth/request:
+  /auth/login:
     post:
-      operationId: requestLink
+      operationId: login
+      description: Signs in with a username (jared or david) and that person's password, set as a Replit secret.
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/EmailInput" }
-      responses:
-        "200":
-          description: Request accepted
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/LinkRequestResponse" }
-  /auth/verify:
-    post:
-      operationId: verifyLink
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/TokenInput" }
+            schema: { $ref: "#/components/schemas/LoginInput" }
       responses:
         "200":
           description: Signed in
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Account" }
+        "401":
+          description: Wrong username or password
+        "429":
+          description: Too many wrong passwords; wait and try again
+        "503":
+          description: No password is set for that person yet
   /auth/choose:
     post:
       operationId: chooseAccount
-      description: Development only (prototype phase). Signs in as Jared (the tester account) or David (the operator account), with no link and no password.
+      description: Development only (prototype phase). Signs in as Jared (the operator account) or David (the tester account), with no password.
       requestBody:
         required: true
         content:
@@ -415,10 +408,6 @@ components:
       type: object
       required: [ok]
       properties: { ok: { type: boolean } }
-    LinkRequestResponse:
-      type: object
-      required: [ok]
-      properties: { ok: { type: boolean }, magicLink: { type: string, description: "Development-only sign-in link; never returned in production." } }
     Account:
       type: object
       required: [id, email, tier]
@@ -426,14 +415,10 @@ components:
         id: { type: string }
         email: { type: string }
         tier: { type: string, enum: [operator, tester] }
-    EmailInput:
+    LoginInput:
       type: object
-      required: [email]
-      properties: { email: { type: string, format: email } }
-    TokenInput:
-      type: object
-      required: [token]
-      properties: { token: { type: string } }
+      required: [username, password]
+      properties: { username: { type: string }, password: { type: string } }
     Source:
       type: object
       required: [id, role, ingestState, hasProxy, lastError, retryable]

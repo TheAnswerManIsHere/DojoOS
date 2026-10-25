@@ -22,7 +22,7 @@
 - **Nix packages:** `ffmpeg` 7.1.1 (with `ffprobe`) and `libreoffice`
   24.8.7.2, declared in `.replit`.
 - **Secrets** (the Replit Secrets pane; never committed): `SESSION_SECRET`,
-  `OPERATOR_EMAIL`, `TESTER_EMAIL`, `APP_ORIGIN`, `MAIL_FROM`, `SMTP_URL`,
+  `OPERATOR_EMAIL`, `TESTER_EMAIL`, `JARED_PASSWORD`, `DAVID_PASSWORD`,
   `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`,
   `S3_SECRET_ACCESS_KEY`. The full list with defaults is in `README.md`.
 - **Disk:** the workspace volume is 256 GB; the development workspace's

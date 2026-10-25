@@ -36,16 +36,14 @@ export async function startServer(): Promise<RunningServer> {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     PORT: String(port), BASE_PATH: "/",
-    OPERATOR_EMAIL: operatorEmail, TESTER_EMAIL: testerEmail,
+    OPERATOR_EMAIL: operatorEmail, TESTER_EMAIL: testerEmail, JARED_PASSWORD: passwords.jared, DAVID_PASSWORD: passwords.david,
     SESSION_SECRET: "step0-journey-session-secret-not-for-any-real-deployment",
     // createStorage() only constructs a client at boot; nothing in these journeys reaches the bucket.
     S3_ENDPOINT: "http://127.0.0.1:9", S3_REGION: "local", S3_BUCKET: "journey", S3_ACCESS_KEY_ID: "journey", S3_SECRET_ACCESS_KEY: "journey",
     WORKER_NUDGE_PORT: String(await freePort()),
   };
-  delete env.NODE_ENV; // development: the magic link comes back in the response instead of going out by mail
-  delete env.SMTP_URL;
+  delete env.NODE_ENV; // development: the page also offers the no-password picker
   delete env.REPL_ID;
-  delete env.APP_ORIGIN; // the rendered link must point at the spawned server, never a deployment's origin
   const child = spawn(process.execPath, ["--import", "tsx", "server/index.ts"], { cwd: webRoot, env, stdio: ["ignore", "pipe", "pipe"] });
   let log = "";
   // The child is owned from the moment it is spawned: a startup failure, the 60 s timeout
@@ -84,12 +82,14 @@ export async function removeQuestion(db: Db, key: string) {
   await db.delete(questions).where(eq(questions.key, key));
 }
 
-/** Signs in over HTTP the way the sign-in page does in development, and returns the session cookie. */
+/** The journeys' passwords: set on the spawned server, never a real one. */
+export const passwords = { jared: "journey-password-jared-not-for-any-deployment", david: "journey-password-david-not-for-any-deployment" };
+/** Signs in over HTTP with a username and password, as the published sign-in page does, and returns the session cookie. */
 export async function signInOverHttp(origin: string, email: string): Promise<string> {
-  const post = (path: string, body: unknown) => fetch(`${origin}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  const { magicLink } = (await (await post("/app-api/auth/request", { email })).json()) as { magicLink?: string };
-  if (!magicLink) throw new Error("development sign-in returned no magic link");
-  const verified = await post("/app-api/auth/verify", { token: new URL(magicLink).searchParams.get("token") });
-  if (verified.status !== 200) throw new Error(`verification failed with ${verified.status}`);
-  return (verified.headers.get("set-cookie") ?? "").split(";")[0];
+  const username = email === operatorEmail ? "jared" : email === testerEmail ? "david" : null;
+  if (!username) throw new Error(`no person for ${email}`);
+  const response = await fetch(`${origin}/app-api/auth/login`, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username, password: passwords[username] }) });
+  if (response.status !== 200) throw new Error(`sign-in failed with ${response.status}`);
+  return (response.headers.get("set-cookie") ?? "").split(";")[0];
 }

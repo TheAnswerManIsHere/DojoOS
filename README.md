@@ -12,9 +12,8 @@ Node 20+ and pnpm are required. Install with `pnpm install`. The workspace alrea
 | `SESSION_SECRET` | web | 32+ character token signing key |
 | `OPERATOR_EMAIL` | web | Exact allowed operator address |
 | `TESTER_EMAIL` | web | Exact allowed tester address, different from operator |
-| `APP_ORIGIN` | web | Public origin for emailed links, e.g. the *published* HTTPS origin (no path) |
-| `MAIL_FROM` | web | Verified sender address |
-| `SMTP_URL` | web | Required in production; when unset in development, the sign-in page displays the link |
+| `JARED_PASSWORD` | web | Jared's password (username `jared`, the operator account); unset means he cannot sign in |
+| `DAVID_PASSWORD` | web | David's password (username `david`, the tester account); unset means he cannot sign in |
 | `S3_ENDPOINT` | both | S3-compatible HTTPS endpoint |
 | `S3_REGION` | both | S3 region |
 | `S3_BUCKET` | both | Private S3 bucket |
@@ -44,8 +43,8 @@ No sample shoots, media, questions or feedback are seeded. At web boot only the 
 
 ## Deployment
 
-The current topology is **one Reserved VM deployment** with one production command, `node scripts/run-production.mjs`. The supervisor starts the web server and worker as separate child processes in the same deployment, forwards shutdown signals to both, and exits non-zero if either process ends unexpectedly. The web server owns the public HTTP port; the worker accepts only localhost nudges. Both share the same deployment's database and S3 configuration. Keep `APP_ORIGIN` equal to the published HTTPS origin and provide all web and worker variables in production. Restrict deployment visibility as appropriate; the app itself requires a session for data routes and protected pages.
+The current topology is **one Reserved VM deployment** with one production command, `node scripts/run-production.mjs`. The supervisor starts the web server and worker as separate child processes in the same deployment, forwards shutdown signals to both, and exits non-zero if either process ends unexpectedly. The web server owns the public HTTP port; the worker accepts only localhost nudges. Both share the same deployment's database and S3 configuration. Provide all web and worker variables in production, the two passwords included. Restrict deployment visibility as appropriate; the app itself requires a session for data routes and protected pages.
 
 The web and worker packages retain independent development and start scripts so the worker can move to a separate Reserved VM in a second Repl later. Before making that split, arrange access to the **same production Postgres database** and private S3 bucket; a second Repl does not automatically inherit this project's managed database.
 
-The only unauthenticated API operations are the magic-link request and single-use verification needed to establish a session. All other product API operations require a cookie session. The sign-in page and its static assets must be reachable before authentication; media files are never public and are only accessible using expiring signed GET URLs.
+The only unauthenticated API operation is sign-in by username and password (ten wrong passwords in fifteen minutes lock that username and address out for the rest of the window; in development, the no-password picker too). All other product API operations require a cookie session. The sign-in page and its static assets must be reachable before authentication; media files are never public and are only accessible using expiring signed GET URLs.

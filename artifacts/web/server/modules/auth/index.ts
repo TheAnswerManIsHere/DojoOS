@@ -2,8 +2,7 @@ import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
-import { users, magicTokens, sessions } from "@workspace/shared";
-import nodemailer from "nodemailer";
+import { users, sessions } from "@workspace/shared";
 import type { Context } from "../../context";
 
 const cookieName = "dojo_session";
@@ -39,49 +38,52 @@ export async function seedAccounts(ctx: Context) {
   // Only configured accounts can sign in. Existing records are retained for audit, but disabled.
   await ctx.db.update(users).set({ deletedAt: new Date() }).where(sql`${users.email} not in (${operator}, ${tester}) and ${users.deletedAt} is null`);
 }
+/** The two people and their accounts (David, 2026-10-25: "Simple user name and password please. KISS."). A username
+ * names a person; the person's password is a secret set in Replit, never stored in the database or sent anywhere. Jared
+ * is the operator account and David the tester account (David, 2026-10-25). */
+export const people = { jared: { tier: "operator", secret: "JARED_PASSWORD" }, david: { tier: "tester", secret: "DAVID_PASSWORD" } } as const;
+type Person = keyof typeof people;
+
+/** Wrong passwords are throttled per username and per address: ten failures in fifteen minutes locks that one out for
+ * the rest of the window. Held in memory, so a restart clears it. */
+const windowMs = 15 * 60_000, maxFailures = 10;
+const failures = new Map<string, number[]>();
+const recent = (key: string) => (failures.get(key) ?? []).filter((at) => at > Date.now() - windowMs);
+const throttled = (...keys: string[]) => keys.some((key) => recent(key).length >= maxFailures);
+function fail(...keys: string[]) { for (const key of keys) failures.set(key, [...recent(key), Date.now()]); }
+/** Equal-time comparison of two strings of any length: both are hashed first, so the lengths never differ. */
+const same = (a: string, b: string) => timingSafeEqual(createHmac("sha256", "compare").update(a).digest(), createHmac("sha256", "compare").update(b).digest());
+
 export function authRoutes(ctx: Context) {
   const router = Router();
-  router.post("/request", async (req, res) => {
-    const email = String(req.body?.email ?? "").trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: "Valid email required" });
-    const [user] = await ctx.db.select().from(users).where(and(eq(users.email, email), isNull(users.deletedAt)));
-    if (user) {
-      const value = token();
-      await ctx.db.insert(magicTokens).values({ userId: user.id, tokenHash: hash(value), expiresAt: new Date(Date.now() + 15 * 60_000) });
-      if (process.env.NODE_ENV !== "production" && !process.env.SMTP_URL) {
-        const origin = process.env.APP_ORIGIN ?? `${req.protocol}://${req.get("host")}`;
-        return res.json({ ok: true, magicLink: new URL(`/sign-in?token=${encodeURIComponent(value)}`, origin).toString() });
-      }
-      if (!process.env.SMTP_URL || !process.env.MAIL_FROM || !process.env.APP_ORIGIN) throw new Error("SMTP_URL, MAIL_FROM and APP_ORIGIN are required to send sign-in links");
-      const transport = nodemailer.createTransport(process.env.SMTP_URL);
-      await transport.sendMail({
-        from: process.env.MAIL_FROM, to: user.email, subject: "Sign in to DojoOS",
-        text: `Use this single-use link within 15 minutes:\n${new URL(`/sign-in?token=${encodeURIComponent(value)}`, process.env.APP_ORIGIN).toString()}\n`,
-      });
+  router.post("/login", async (req, res) => {
+    const username = String(req.body?.username ?? "").trim().toLowerCase();
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const userKey = `user:${username}`, ipKey = `ip:${req.ip}`;
+    if (throttled(userKey, ipKey)) return res.status(429).json({ error: "Too many wrong passwords. Wait 15 minutes and try again." });
+    const person = Object.hasOwn(people, username) ? people[username as Person] : null;
+    const expected = person ? process.env[person.secret] : undefined;
+    if (person && !expected) return res.status(503).json({ error: `No password is set for ${username} yet (the ${person.secret} secret).` });
+    // A wrong username and a wrong password get the same answer, after the same work.
+    if (!same(password, expected ?? "\u0000no-account") || !person || !password) {
+      fail(userKey, ipKey);
+      return res.status(401).json({ error: "Wrong username or password." });
     }
-    return res.json({ ok: true });
-  });
-  router.post("/verify", async (req, res) => {
-    const raw = req.body?.token;
-    if (typeof raw !== "string" || !validToken(raw)) return res.status(400).json({ error: "Invalid or expired link" });
-    const [record] = await ctx.db.update(magicTokens).set({ usedAt: new Date() })
-      .where(and(eq(magicTokens.tokenHash, hash(raw)), isNull(magicTokens.usedAt), isNull(magicTokens.deletedAt), gt(magicTokens.expiresAt, new Date())))
-      .returning();
-    if (!record) return res.status(400).json({ error: "Invalid or expired link" });
-    const [user] = await ctx.db.select().from(users).where(and(eq(users.id, record.userId), isNull(users.deletedAt)));
+    const [user] = await ctx.db.select().from(users).where(and(eq(users.tier, person.tier), isNull(users.deletedAt)));
     if (!user) return res.status(403).json({ error: "Account unavailable" });
+    failures.delete(userKey);
     await startSession(ctx, res, user.id);
     return res.json({ id: user.id, email: user.email, tier: user.tier });
   });
-  // Prototype phase: no sign-in in development (David, 2026-10-24: "No signing in. Remove it. … it's fine to ask
-  // which user I am, David or Jared but no password"). The page asks who you are and lets you in as that account:
-  // Jared answers the rail (the tester account), David reads the answers (the operator account). A published
-  // (production) app keeps the emailed link until there is data worth a password, so this route does not exist there.
+  // Development only: no password, just who you are (David, 2026-10-24: "it's fine to ask which user I am, David or
+  // Jared but no password"). A published (production) app signs in by username and password, so this route does not
+  // exist there.
   router.post("/choose", async (req, res) => {
     if (process.env.NODE_ENV === "production") return res.status(404).json({ error: "Not found" });
-    const tier = ({ jared: "operator", david: "tester" } as const)[String(req.body?.who) as "jared" | "david"];
-    if (!tier) return res.status(400).json({ error: "Say who you are: jared or david" });
-    const [user] = await ctx.db.select().from(users).where(and(eq(users.tier, tier), isNull(users.deletedAt)));
+    const who = String(req.body?.who);
+    const person = Object.hasOwn(people, who) ? people[who as Person] : null;
+    if (!person) return res.status(400).json({ error: "Say who you are: jared or david" });
+    const [user] = await ctx.db.select().from(users).where(and(eq(users.tier, person.tier), isNull(users.deletedAt)));
     if (!user) return res.status(403).json({ error: "Account unavailable" });
     await startSession(ctx, res, user.id);
     return res.json({ id: user.id, email: user.email, tier: user.tier });
