@@ -196,21 +196,27 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
   const t = target();
 
   return <section className="logging-viewer" aria-label="Logging viewer">
-    <p className="subtle">PROTOTYPE · {log.shootName} · build {import.meta.env.VITE_BUILD_SHA ?? 'development'}</p>
-    <h1>Log: {log.shootName}</h1>
+    <div className="page-head">
+      <span className="prototype-tag" title={`Build ${import.meta.env.VITE_BUILD_SHA ?? 'development'}`}>Prototype</span>
+      <p className="eyebrow">Logging</p>
+      <h1>{log.shootName}</h1>
+    </div>
+    <div className="media-card">
     {videoUrl
-      ? <video ref={video} src={videoUrl} preload="auto" className="logging-video" data-testid="video-log"
+      ? <video ref={video} src={videoUrl} preload="auto" className="logging-video" data-testid="video-log" playsInline
           onError={() => { getPlayback(sourceId).then((p) => setVideoUrl(p.url), () => setMessage('The proxy could not be played.')); }} />
-      : <p role="status">Loading the proxy…</p>}
-    <p data-testid="text-playhead">{clock(playhead)} / {clock(durationMs)}{preview && <strong> · previewing the keep</strong>}</p>
+      : <p role="status" style={{ color: '#fff' }}>Loading the proxy…</p>}
+    <div className="media-bar"><span data-testid="text-playhead">{clock(playhead)} / {clock(durationMs)}{preview && <strong> · previewing the keep</strong>}</span>
+      <span>{bricks.length} brick{bricks.length === 1 ? '' : 's'}</span></div>
+    </div>
 
     <div className="logging-timeline" data-testid="timeline"
       onMouseMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHover(((e.clientX - r.left) / r.width) * durationMs); }}
       onMouseLeave={() => setHover(null)}
       onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); if (video.current) video.current.currentTime = (((e.clientX - r.left) / r.width) * durationMs) / 1000; }}>
-      {peaks ? <canvas ref={canvas} width={1000} height={60} className="logging-wave" /> : <p className="subtle logging-absent">{!log.hasPeaks ? 'No waveform for this source.' : peaksFailed ? 'The waveform could not be loaded.' : 'Loading the waveform…'}</p>}
+      {peaks ? <canvas ref={canvas} width={1000} height={64} className="logging-wave" /> : <p className="subtle logging-absent">{!log.hasPeaks ? 'No waveform for this source.' : peaksFailed ? 'The waveform could not be loaded.' : 'Loading the waveform…'}</p>}
       {bricks.map((b) => <div key={b.id} className={`logging-brick${b.outMs === null ? ' open' : ''}${b.id === t?.id ? ' target' : ''}`}
-        style={{ left: pct(b.inMs), width: pct((b.outMs ?? playhead) - b.inMs), top: `${4 + 10 * depthOf(b, bricks, durationMs)}px` }}
+        style={{ left: pct(b.inMs), width: pct((b.outMs ?? playhead) - b.inMs), top: `${8 + 10 * Math.min(2, depthOf(b, bricks, durationMs))}px` }}
         data-testid={`span-brick-${b.id}`} />)}
       <div className="logging-playhead" style={{ left: pct(playhead) }} />
       {tile !== null && layout && log.spriteUrl && <div className="logging-sprite" style={{
@@ -224,6 +230,12 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
       {words ? near.map((w, i) => <span key={`${w.start_ms}-${i}`} className={playhead >= w.start_ms && playhead < w.end_ms ? 'current' : ''}>{w.text} </span>)
         : 'No transcript for this source: I and O mark the raw playhead.'}
     </p>
+    <div className="keys" aria-label="Keys">
+      <span><kbd>Space</kbd>play / pause</span><span><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd>back · pause · faster</span>
+      <span><kbd>I</kbd><kbd>O</kbd>in · out (Shift: exact)</span><span><kbd>A</kbd>action</span><span><kbd>T</kbd>tags</span>
+      <span><kbd>←</kbd><kbd>→</kbd>nudge (Shift: 1 s)</span><span><kbd>Tab</kbd>select</span><span><kbd>Delete</kbd>remove</span>
+      <span><kbd>Esc</kbd>undo</span><span><kbd>P</kbd>preview the keep</span>
+    </div>
 
     {tagging && <form className="plain-form" onSubmit={(e) => {
       e.preventDefault();
@@ -235,9 +247,12 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
           onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setTagging(null); } }} data-testid="input-tags" />
       </label>
     </form>}
-    {message && <p role="status" data-testid="text-log-message">{message}</p>}
+    {message && <p role="status" className="status-line" data-testid="text-log-message">{message}</p>}
 
-    <table className="plain-table" aria-label="Bricks">
+    <div className="card" style={{ marginTop: 18 }}>
+    <h2>Bricks</h2>
+    {bricks.length === 0 && <p className="subtle">No bricks yet. Press I where a keep starts and O where it ends.</p>}
+    <div className="table-scroll"><table className="plain-table" aria-label="Bricks">
       <thead><tr><th>In</th><th>Out</th><th>Action</th><th>Tags</th></tr></thead>
       <tbody>{bricks.map((b) => <tr key={b.id} className={b.id === t?.id ? 'logging-row-target' : ''} onClick={() => setSelected(b.id)} data-testid={`row-brick-${b.id}`}>
         <td data-testid={`text-brick-in-${b.id}`}>{clock(b.inMs)}</td>
@@ -245,10 +260,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
         <td data-testid={`text-brick-action-${b.id}`}>{actionLabel(b)}</td>
         <td data-testid={`text-brick-tags-${b.id}`}>{b.tags.join(', ')}</td>
       </tr>)}</tbody>
-    </table>
-    <details className="subtle"><summary>Keys</summary>
-      <p>Space play/pause · J back 5 s · K pause · L faster · I in, O out (word-snapped; Shift for the raw playhead) · A action · T tags · ←/→ nudge
-        the nearer edge a frame (Shift: a second) · Tab / Shift+Tab select · Delete remove · Esc undo · P preview the keep.</p>
-    </details>
+    </table></div>
+    </div>
   </section>;
 }

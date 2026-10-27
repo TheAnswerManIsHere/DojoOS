@@ -59,7 +59,7 @@ test("a ready source plays its proxy through a signed URL; a source still proxyi
   const proxying = page.getByTestId(`row-source-${probingId}`);
   await proxying.waitFor();
   assert.equal(await proxying.getByRole("button", { name: "Play proxy" }).count(), 0);
-  assert.match(await proxying.textContent() ?? "", /proxying/);
+  assert.match(await proxying.textContent() ?? "", /proxying/i, "the row says it is still proxying");
 
   const ready = page.getByTestId(`row-source-${readyId}`);
   const playback = page.waitForResponse((r) => r.url().endsWith(`/app-api/sources/${readyId}/playback`));

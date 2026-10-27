@@ -78,8 +78,9 @@ export function UploadManager({ shootId, accountId }: { shootId: string; account
     } finally { setBusyId(null); }
   }
 
-  return <section className="plain-section">
-    <h3>Upload source</h3>
+  return <section>
+    <details className="fold">
+    <summary>Add a file to this shoot</summary>
     <form className="plain-form" onSubmit={async event => {
       event.preventDefault();
       const input = event.currentTarget.elements.namedItem('source-file') as HTMLInputElement;
@@ -100,7 +101,8 @@ export function UploadManager({ shootId, accountId }: { shootId: string; account
       <label htmlFor={`file-${shootId}`}>File<input id={`file-${shootId}`} name="source-file" type="file" accept="video/*,audio/*" required data-testid={`input-source-file-${shootId}`} /></label>
       <div><button type="submit" disabled={!!busyId || start.isPending} data-testid={`button-upload-source-${shootId}`}>Upload</button></div>
     </form>
-    {pending.length > 0 && <div className="plain-section"><h3>Pending uploads</h3>{pending.map(item =>
+    </details>
+    {pending.length > 0 && <div className="plain-section" style={{ marginTop: 14 }}><h3>Uploads in progress</h3>{pending.map(item =>
       <div className="plain-row" key={item.id} data-testid={`row-pending-upload-${item.id}`}>
         <p>{item.fileName} · {item.role} · {item.parts.length}/{Math.max(1, Math.ceil(item.size / CHUNK_SIZE))} parts</p>
         {busyId === item.id && <><progress className="upload-progress" max={100} value={progress[item.id] ?? Math.round((item.parts.length * CHUNK_SIZE / Math.max(1, item.size)) * 100)} data-testid={`progress-upload-${item.id}`} /><span> {progress[item.id] ?? Math.round((item.parts.length * CHUNK_SIZE / Math.max(1, item.size)) * 100)}%</span></>}

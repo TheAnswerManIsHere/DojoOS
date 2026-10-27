@@ -247,60 +247,70 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
   };
 
   return <section className="lesson-timeline" aria-label="Lesson timeline">
-    <p className="subtle">PROTOTYPE · {lesson.shootName} · build {import.meta.env.VITE_BUILD_SHA ?? 'development'}</p>
-    <h1>Lesson: {lesson.shootName}</h1>
-
-    <div className="lesson-preview" data-testid="preview" data-out-ms={Math.round(outMs)}>
-      {players.map((ref, k) => <video key={k} ref={ref} className="lesson-player" preload="auto" playsInline data-testid={`video-preview-${k}`}
-        onLoadedMetadata={(e) => { const v = e.currentTarget; if (v.dataset.pending) { v.currentTime = Number(v.dataset.pending) / 1000; delete v.dataset.pending; } }}
-        onError={(e) => { const id = e.currentTarget.dataset.sourceId; if (id) { e.currentTarget.dataset.url = ''; void loadUrl(id).catch(() => setMessage('A proxy could not be played.')); } }} />)}
-      {!edl.picture.length && <p className="lesson-empty">No bricks in the lesson. Add one from “Not in the lesson” with A.</p>}
+    <div className="page-head">
+      <span className="prototype-tag" title={`Build ${import.meta.env.VITE_BUILD_SHA ?? 'development'}`}>Prototype</span>
+      <p className="eyebrow">Lesson</p>
+      <h1>{lesson.shootName}</h1>
     </div>
-    <p data-testid="text-preview-clock">{clock(outMs)} / {clock(lesson.lengthMs)}{playingNow.length ? ` · brick ${playingNow.join(' → ')}` : ''}{playing && <strong> · playing</strong>}</p>
-    <input type="range" className="lesson-seek" aria-label="Preview position" min={0} max={lesson.lengthMs} step={1} value={Math.round(outMs)}
-      onChange={(e) => seek(Number(e.target.value))} data-testid="input-preview-seek" />
 
-    {message && <p role="status" data-testid="text-lesson-message">{message}</p>}
+    <div className="media-card">
+      <div className="lesson-preview" data-testid="preview" data-out-ms={Math.round(outMs)}>
+        {players.map((ref, k) => <video key={k} ref={ref} className="lesson-player" preload="auto" playsInline data-testid={`video-preview-${k}`}
+          onLoadedMetadata={(e) => { const v = e.currentTarget; if (v.dataset.pending) { v.currentTime = Number(v.dataset.pending) / 1000; delete v.dataset.pending; } }}
+          onError={(e) => { const id = e.currentTarget.dataset.sourceId; if (id) { e.currentTarget.dataset.url = ''; void loadUrl(id).catch(() => setMessage('A proxy could not be played.')); } }} />)}
+        {!edl.picture.length && <p className="lesson-empty">No bricks in the lesson. Add one from “Not in the lesson” with A.</p>}
+      </div>
+      <input type="range" className="lesson-seek" aria-label="Preview position" min={0} max={lesson.lengthMs} step={1} value={Math.round(outMs)}
+        onChange={(e) => seek(Number(e.target.value))} data-testid="input-preview-seek" />
+      <div className="media-bar">
+        <span data-testid="text-preview-clock">{clock(outMs)} / {clock(lesson.lengthMs)}{playingNow.length ? ` · brick ${playingNow.join(' → ')}` : ''}{playing && <strong> · playing</strong>}</span>
+        <button type="button" onClick={() => runAction('playPause', false)} className="button-primary" data-testid="button-play-preview">{playing ? 'Pause' : 'Play'}</button>
+      </div>
+    </div>
+
+    {message && <p role="status" className={`status-line${/doesn't fit|could not|not /i.test(message) ? ' error' : ''}`} data-testid="text-lesson-message">{message}</p>}
 
     <ol className="lesson-strip" aria-label="Lesson bricks" data-testid="strip">
       {entries.map((e, i) => <li key={e.id} className={`lesson-tile${e.id === selected ? ' selected' : ''}`} data-testid={`tile-${e.id}`}
-        onClick={() => { setSelected(e.id); if (!playing) seek(edl.picture[i]?.outStartMs ?? 0); }}>
+        onClick={() => { setSelected(e.id); if (!playing) seek(edl.picture[i]?.outStartMs ?? 0); }} title={e.tags.join(', ')}>
         <div className="lesson-thumb" style={spriteOf(e)} />
-        <div><strong>{i + 1}</strong> · <span data-testid={`text-tile-length-${e.id}`}>{clock(lengthOf(e))}</span>{e.tags.length > 0 && <> · {e.tags.join(', ')}</>}</div>
-        {i < entries.length - 1 && <div className="lesson-transition" data-testid={`text-transition-${e.id}`}>{e.transition === 'dissolve' ? `dissolve ${dissolveOut(edl.picture[i] ?? {}) / 1000 || 1} s` : 'cut'}</div>}
+        <div className="lesson-tile-title"><span>Brick {i + 1}</span><span data-testid={`text-tile-length-${e.id}`}>{clock(lengthOf(e))}</span></div>
+        <div className="lesson-tile-tags">{e.tags.length ? e.tags.join(', ') : <span className="subtle">No tags</span>}</div>
+        {i < entries.length - 1 && <span className={`pill lesson-transition${e.transition === 'dissolve' ? ' dissolve' : ''}`} data-testid={`text-transition-${e.id}`}>{e.transition === 'dissolve' ? `dissolve ${dissolveOut(edl.picture[i] ?? {}) / 1000 || 1} s` : 'cut'}</span>}
       </li>)}
     </ol>
-    <p>Lesson length <strong data-testid="text-lesson-length">{clock(lesson.lengthMs)}</strong> · {entries.length} brick{entries.length === 1 ? '' : 's'}</p>
+    <p className="lesson-facts"><span>Lesson length <strong data-testid="text-lesson-length">{clock(lesson.lengthMs)}</strong></span><span>{entries.length} brick{entries.length === 1 ? '' : 's'}</span></p>
+    <div className="keys" aria-label="Keys">
+      <span><kbd>←</kbd><kbd>→</kbd>select (Shift: move)</span><span><kbd>X</kbd>remove</span><span><kbd>A</kbd>add the picked brick</span>
+      <span><kbd>[</kbd><kbd>]</kbd>tighten in · out (Shift: 1 s)</span><span><kbd>,</kbd><kbd>.</kbd>extend in · out</span>
+      <span><kbd>D</kbd>cut or dissolve</span><span><kbd>Space</kbd>play</span><span><kbd>Esc</kbd>undo</span><span><kbd>R</kbd>render</span>
+    </div>
 
-    <section className="plain-section">
-      <h2>Not in the lesson</h2>
-      {lesson.available.length === 0 ? <p className="subtle">Every logged brick is in the lesson.</p> :
-        <ul className="lesson-available">{lesson.available.map((b) => <li key={b.id} className={b.id === pick ? 'selected' : ''} onClick={() => setPick(b.id)}
-          data-testid={`available-${b.id}`}>{clock(b.inMs)}–{clock(b.outMs)}{b.tags.length > 0 && ` · ${b.tags.join(', ')}`}</li>)}</ul>}
-    </section>
+    <div className="two-col">
+      <section className="card">
+        <h2>Not in the lesson</h2>
+        {lesson.available.length === 0 ? <p className="subtle">Every logged brick is in the lesson.</p> :
+          <ul className="lesson-available">{lesson.available.map((b) => <li key={b.id} className={b.id === pick ? 'selected' : ''} onClick={() => setPick(b.id)}
+            data-testid={`available-${b.id}`}>{clock(b.inMs)}–{clock(b.outMs)}{b.tags.length > 0 && ` · ${b.tags.join(', ')}`}</li>)}</ul>}
+      </section>
 
-    <section className="plain-section">
-      <h2>Renders</h2>
-      <p><button type="button" onClick={() => void render()} disabled={!entries.length} data-testid="button-render">Render (R)</button></p>
-      {renders.length === 0 ? <p className="subtle">Nothing rendered yet.</p> :
-        <table className="plain-table"><thead><tr><th>#</th><th>Requested</th><th>Length</th><th>State</th><th /></tr></thead>
-          <tbody>{renders.map((r) => <tr key={r.id} data-testid={`row-render-${r.number}`}>
-            <td>{r.number}</td><td>{new Date(r.createdAt).toLocaleString()}</td><td>{clock(r.lengthMs)}</td>
-            <td data-testid={`text-render-state-${r.number}`}>{r.state === 'claimed' ? 'rendering…' : r.state === 'queued' ? 'queued…' : r.state === 'failed' ? `failed: ${r.error ?? 'unknown error'}` : r.state}</td>
-            <td>{r.state === 'ready' && <>
-              <button type="button" onClick={async () => { try { setWatching({ number: r.number, url: (await getRenderFile(r.id)).url }); } catch (c) { setMessage(reason(c)); } }}
-                data-testid={`button-play-render-${r.number}`}>Play</button>{' '}
-              <button type="button" onClick={async () => { try { window.location.assign((await getRenderDownload(r.id)).url); } catch (c) { setMessage(reason(c)); } }}
-                data-testid={`button-download-render-${r.number}`}>Download</button></>}</td>
-          </tr>)}</tbody></table>}
-      {watching && <figure><video src={watching.url} controls autoPlay className="lesson-render-player" data-testid="video-render" />
-        <figcaption>Render {watching.number}</figcaption></figure>}
-    </section>
-
-    <details className="subtle"><summary>Keys</summary>
-      <p>←/→ select a brick (Shift: move it) · X remove from the lesson · A add the picked brick from “Not in the lesson” · [ tighten the in point,
-        ] tighten the out point, by a frame (Shift: a second) · , and . extend the in or out point back out · D cut or 1 s dissolve after the brick ·
-        Space play/pause from the selected brick · Esc undo · R render.</p>
-    </details>
+      <section className="card">
+        <div className="card-head"><h2>Renders</h2>
+          <button type="button" className="button-primary" onClick={() => void render()} disabled={!entries.length} data-testid="button-render">Render (R)</button></div>
+        {renders.length === 0 ? <p className="subtle">Nothing rendered yet. A render makes a full-quality file from the original footage.</p> :
+          <div className="table-scroll"><table className="plain-table"><thead><tr><th>#</th><th>Requested</th><th>Length</th><th>State</th><th /></tr></thead>
+            <tbody>{renders.map((r) => <tr key={r.id} data-testid={`row-render-${r.number}`}>
+              <td>{r.number}</td><td>{new Date(r.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td><td>{clock(r.lengthMs)}</td>
+              <td><span className={`pill ${r.state === 'ready' ? 'ready' : r.state === 'failed' ? 'failed' : 'busy'}`} data-testid={`text-render-state-${r.number}`}>{r.state === 'claimed' ? 'rendering…' : r.state === 'queued' ? 'queued…' : r.state === 'failed' ? `failed: ${r.error ?? 'unknown error'}` : r.state}</span></td>
+              <td className="source-actions">{r.state === 'ready' && <>
+                <button type="button" onClick={async () => { try { setWatching({ number: r.number, url: (await getRenderFile(r.id)).url }); } catch (c) { setMessage(reason(c)); } }}
+                  data-testid={`button-play-render-${r.number}`}>Play</button>
+                <button type="button" onClick={async () => { try { window.location.assign((await getRenderDownload(r.id)).url); } catch (c) { setMessage(reason(c)); } }}
+                  data-testid={`button-download-render-${r.number}`}>Download</button></>}</td>
+            </tr>)}</tbody></table></div>}
+        {watching && <figure style={{ margin: '14px 0 0' }}><video src={watching.url} controls autoPlay playsInline className="lesson-render-player" data-testid="video-render" />
+          <figcaption className="subtle">Render {watching.number}</figcaption></figure>}
+      </section>
+    </div>
   </section>;
 }
