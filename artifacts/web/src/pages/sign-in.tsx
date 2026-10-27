@@ -15,9 +15,10 @@ export function SignIn() {
   const signedIn = (account: Account) => { client.setQueryData(getGetSessionQueryKey(), account); navigate('/library', { replace: true }); };
 
   // Development only: no password, just who you are (David, 2026-10-24). A published app asks for a username and password.
-  if (import.meta.env.DEV) return <main className="app-shell">
-    <h1>DojoOS</h1>
-    <h2>Who are you?</h2>
+  if (import.meta.env.DEV) return <main className="sign-in">
+    <p className="eyebrow">Bodywork Dojo · OS</p>
+    <h1>Who are you?</h1>
+    <p className="subtle" style={{ marginBottom: 18 }}>The development app lets you straight in.</p>
     <div className="who-picker">
       <button type="button" disabled={choose.isPending} onClick={() => choose.mutate({ data: { who: 'jared' } }, { onSuccess: signedIn })} data-testid="button-i-am-jared">I'm Jared</button>
       <button type="button" disabled={choose.isPending} onClick={() => choose.mutate({ data: { who: 'david' } }, { onSuccess: signedIn })} data-testid="button-i-am-david">I'm David</button>
@@ -25,9 +26,10 @@ export function SignIn() {
     {choose.isError && <p className="error" role="alert">Could not let you in. {reason(choose.error)}</p>}
   </main>;
 
-  return <main className="app-shell">
-    <h1>DojoOS</h1>
-    <h2>Sign in</h2>
+  return <main className="sign-in">
+    <p className="eyebrow">Bodywork Dojo · OS</p>
+    <h1>Sign in</h1>
+    <div className="card" style={{ marginTop: 18 }}>
     <form className="plain-form" onSubmit={event => {
       event.preventDefault();
       login.mutate({ data: { username: username.trim(), password } }, { onSuccess: signedIn });
@@ -39,5 +41,6 @@ export function SignIn() {
       <div><button type="submit" disabled={login.isPending} data-testid="button-sign-in">{login.isPending ? 'Signing in…' : 'Sign in'}</button></div>
       {login.isError && <p className="error" role="alert" data-testid="text-sign-in-error">{reason(login.error)}</p>}
     </form>
+    </div>
   </main>;
 }
