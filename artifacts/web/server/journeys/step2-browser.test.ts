@@ -109,6 +109,8 @@ test("the walkthrough: nested bricks, snapping and the raw override, tags, an ac
   await until(liveBricks, (b) => b.length === 1);
   await seek(page, 2.1); await page.keyboard.press("Shift+I");
   await until(liveBricks, (b) => b.length === 2);
+  // T acts on the page's innermost open brick, so it waits for the page, not only the database, to hold the second one.
+  await page.locator('[data-testid^="row-brick-"]').nth(1).waitFor();
   await page.keyboard.press("t");
   await page.getByTestId("input-tags").fill("short");
   await page.getByTestId("input-tags").press("Enter");
