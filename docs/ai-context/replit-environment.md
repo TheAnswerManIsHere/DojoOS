@@ -12,11 +12,19 @@
   `node scripts/run-production.mjs`, which supervises web and worker and
   exits non-zero if either dies. Dedicated 2 vCPU / 8 GiB RAM, *"$50 per
   month ($0.0694/hour)"*, region North America (David's screenshot,
-  2026-10-29). Every boot logs several *"healthcheck failed
+  2026-10-29). The one startup those screenshots captured (deployment
+  `3ff15af5`, 2026-10-29 02:52 UTC) logged five *"healthcheck failed
   error=healthcheck / returned status 500"* lines before *"DojoOS web
-  listening"*, and the publish still promotes (same screenshots, deployment
-  `3ff15af5`): something answers `/` with an error in the seconds before the
-  web server is up, so a slower boot could fail a publish's health check.
+  listening on 22333"*, and the publish still promoted. The web process logs
+  that line only after it listens, so something other than the app answered
+  `/` in those seconds; whether it happens on every boot, and how slow a boot
+  would have to be to fail a publish's health check, were not measured. The
+  same startup logged the `pg` driver's warning that *"The SSL modes 'prefer',
+  'require', and 'verify-ca' are treated as aliases for 'verify-full'"* and
+  that *"In the next major version (pg-connection-string v3.0.0 and pg
+  v9.0.0), these modes will adopt standard libpq semantics, which have weaker
+  security guarantees"* — a dependency upgrade to read before taking, not a
+  fault today.
   Published at `https://dojo-os.replit.app`
   (`get_publish_status`, 2026-10-29: `"status":"success"`, deployment
   `0abb77c7-26ee-41e5-8c5a-ce85897e56b5`); an earlier line here said not yet
