@@ -19,7 +19,7 @@ const editorBindings = keys.bindings as Record<string, string>;
 export type EditableBrick = { inMs: number; outMs: number; note?: string | null; number?: number | null };
 
 export function BrickEditor({ brick, sourceId, words, fps, durationMs, peaks, message, setMessage, onMoveTo, onStep, onUndo, onClose }: {
-  brick: EditableBrick; sourceId: string; words: Word[] | null; fps: number | null; durationMs: number; peaks: Record<string, Peaks | null>;
+  brick: EditableBrick; sourceId: string; words: Array<Word & { text: string }> | null; fps: number | null; durationMs: number; peaks: Record<string, Peaks | null>;
   message: string; setMessage: (m: string) => void; onMoveTo: (edge: 'in' | 'out', toMs: number) => void;
   onStep: (edge: 'in' | 'out', direction: -1 | 1, byFrame: boolean) => void; onUndo: (redo: boolean) => void; onClose: () => void;
 }) {
