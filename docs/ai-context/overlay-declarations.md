@@ -39,9 +39,10 @@ is minimal today and is the pattern later job surfaces copy.
 
 ## Feature phases
 
-Regime: **`main`** — nothing is downstream of `main` (no learners, no
-published app), so prototype-phase features live on `main` and their PRs
-merge on green CI. The prototype environment is the Repl's development
+Regime: **`main`** — nothing is downstream of `main` (no learners; a merge
+reaches only the development workspace, and the published deployment changes
+only at David's publish), so prototype-phase features live on `main` and their
+PRs merge on green CI. The prototype environment is the Repl's development
 workspace, which tracks `main`.
 
 | Feature | Phase | Since | Regime | Prototype directory |

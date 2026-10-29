@@ -10,7 +10,12 @@
   and production schema changes are applied by Replit's publish flow.
 - **Deployment:** one Reserved VM (2 vCPU / 8 GB), production command
   `node scripts/run-production.mjs`, which supervises web and worker and
-  exits non-zero if either dies. Not yet published. The development
+  exits non-zero if either dies. Published at `https://dojo-os.replit.app`
+  (`get_publish_status`, 2026-10-29: `"status":"success"`, deployment
+  `0abb77c7-26ee-41e5-8c5a-ce85897e56b5`); an earlier line here said not yet
+  published. Being published changes nothing about who publishes: a
+  republish is still David's word only (`claude-core.md`, *Connectors →
+  Replit*). The development
   workspace's run command is the same supervisor with `--dev` (the web
   server's dev script), so the worker runs there too; until 2026-10-23 it
   ran the web server alone and queued ingest waited for a hand-started worker.
@@ -39,6 +44,17 @@
   never pushed to `main` directly (`claude-core.md`, *This environment's git
   constraints*; the record is
   `.agents/memory/replit-commits-reach-main-only-through-a-pr.md`).
+- **`[postMerge]`** (`scripts/post-merge.sh`, `pnpm install
+  --frozen-lockfile`) is run by the Agent after it merges one of its own
+  tasks — not after a workspace `git pull` and not at publish (Replit
+  Agent's account, 2026-10-29, unconfirmed by Replit's docs). So it does not
+  install dependencies after the close-out sync; that sync's request still
+  has to.
+- **How the platform works** — what a publish takes, the publish-time
+  production schema step, secrets, rollback, Agent modes, the connector's
+  60-second timeout — is the fleet's
+  `replit-platform.md` (beside this file once the handbook sync that ships it lands); this file carries only what is
+  true of this Repl.
 - **Replit Agent's own notes** are `replit.md`, which routes it here.
 - **Connector gotcha:** the Replit file-listing and file-reading tools do
   not show `*.sql` files; ask the Agent to run `git ls-files` instead.
