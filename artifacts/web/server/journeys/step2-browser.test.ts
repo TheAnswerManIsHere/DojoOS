@@ -143,13 +143,14 @@ test("the walkthrough: nested bricks, Tab between open ones, O closes the select
   await until(liveBricks, (b) => b.some((x) => x.inMs === 2000));
   await page.keyboard.press("Shift+Period");
   await until(liveBricks, (b) => b.some((x) => x.outMs === 2633));
-  await page.keyboard.press("Escape");
-  await page.getByTestId("brick-editor").waitFor({ state: "detached" });
-  // Esc undoes the frame; Shift+Esc redoes it; Esc undoes it again.
+  // In the editor Esc undoes the frame and Shift+Esc redoes it, from the logger's own history; D is done.
   await page.keyboard.press("Escape");
   await until(liveBricks, (b) => b.every((x) => x.outMs !== 2633));
   await page.keyboard.press("Shift+Escape");
   await until(liveBricks, (b) => b.some((x) => x.outMs === 2633));
+  await page.keyboard.press("d");
+  await page.getByTestId("brick-editor").waitFor({ state: "detached" });
+  // Back on the logger, Esc undoes the same frame again.
   await page.keyboard.press("Escape");
   saved = await until(liveBricks, (b) => b.every((x) => x.outMs !== 2633));
 
@@ -171,7 +172,7 @@ test("the walkthrough: nested bricks, Tab between open ones, O closes the select
   await page.getByTestId(`chip-short-${inner.id}`).and(page.locator('[aria-pressed="true"]')).waitFor();
   assert.equal(await page.getByTestId(`text-brick-note-${inner.id}`).textContent(), "psoas release");
   assert.equal(await page.getByTestId(`text-brick-action-${outer.id}`).textContent(), "punch in · lower third");
-  assert.equal(await page.getByTestId(`text-brick-out-${inner.id}`).textContent(), "0:02.60");
+  assert.equal(await page.getByTestId(`text-brick-out-${inner.id}`).textContent(), "0:02:18", "minutes:seconds:frames");
   // Done is not locked: an edit keeps it done; Mark as in progress takes it back.
   await page.getByTestId(`chip-lesson-${inner.id}`).click();
   await until(liveBricks, (b) => b.some((x) => x.tags.includes("lesson")));
@@ -247,7 +248,7 @@ test("the arrows step by word, a second through silence, Shift 5 s and Option a 
   await page.close();
 });
 
-test("the brick editor plays exactly the brick and loops it; its strip scrubs outside the brick without moving an edge; B and E; I sets the in point at the playhead", async () => {
+test("the brick editor plays exactly the brick and stops on its last frame; its strip scrubs outside the brick without moving an edge; B and E; I sets the in point at the playhead", async () => {
   const page = await viewer(sourceId);
   const [, inner] = await liveBricks(); // 2.0–2.6 s, from the walkthrough
   await page.getByTestId(`span-brick-${inner.id}`).dispatchEvent("pointerdown");
@@ -263,10 +264,30 @@ test("the brick editor plays exactly the brick and loops it; its strip scrubs ou
     while (performance.now() < end) { seen.push(v.currentTime); await new Promise((r) => setTimeout(r, 40)); }
     return seen;
   })()`);
-  assert.ok(times.every((t) => t >= 1.95 && t <= 2.7), `played only the brick (${Math.min(...times)}–${Math.max(...times)})`);
-  assert.ok(times.some((t, i) => i > 0 && t < times[i - 1] - 0.2), "looped back to the in point");
+  assert.ok(times.every((t) => t >= 1.95 && t <= 2.6), `played only the brick (${Math.min(...times)}–${Math.max(...times)})`);
+  await page.waitForFunction(`${EDITOR}.paused`);
+  assert.ok(Math.abs((await editorTime()) - 2.567) < 0.02, `stopped on the brick's last frame (${await editorTime()})`);
+  // Space from the last frame starts again at the in point.
+  await page.keyboard.press("Space");
+  await page.waitForFunction(`!${EDITOR}.paused && ${EDITOR}.currentTime < 2.3`);
   await page.keyboard.press("Space");
   await page.waitForFunction(`${EDITOR}.paused`);
+
+  // David, 2026-10-29: after the out point moved, playback ran past it. Move it 6 frames earlier and play again.
+  for (let i = 0; i < 6; i++) await page.keyboard.press("Shift+Comma");
+  const moved = (await until(liveBricks, (b) => b.some((x) => x.id === inner.id && Math.abs((x.outMs ?? 0) - 2400) <= 3))).find((x) => x.id === inner.id)!;
+  await page.getByTestId("text-editor-span").filter({ hasText: "0:02:12" }).waitFor();
+  await page.keyboard.press("b");
+  await page.keyboard.press("Space");
+  const after = await page.evaluate<number[]>(`(async () => {
+    const v = ${EDITOR}, seen = [], end = performance.now() + 1500;
+    while (performance.now() < end) { seen.push(v.currentTime); await new Promise((r) => setTimeout(r, 30)); }
+    return seen;
+  })()`);
+  assert.ok(Math.max(...after) <= moved.outMs! / 1000, `stopped at the moved out point, ${moved.outMs} ms (${Math.max(...after)})`);
+  await page.waitForFunction(`${EDITOR}.paused`);
+  await page.keyboard.press("Escape"); for (let i = 0; i < 5; i++) await page.keyboard.press("Escape");
+  await until(liveBricks, (b) => b.some((x) => x.id === inner.id && x.outMs === 2600));
 
   // ← goes before the brick, into the strip's lead-in, and no edge moves; E goes near the end; B back to the start.
   await page.keyboard.press("b");
@@ -282,16 +303,16 @@ test("the brick editor plays exactly the brick and loops it; its strip scrubs ou
   await page.keyboard.press("ArrowLeft");
   await page.keyboard.press("i");
   await until(liveBricks, (b) => b.some((x) => x.id === inner.id && x.inMs === 1500));
-  await page.getByTestId("text-editor-span").filter({ hasText: "0:01.50" }).waitFor();
-  await page.keyboard.press("Escape");
-  await page.getByTestId("brick-editor").waitFor({ state: "detached" });
+  await page.getByTestId("text-editor-span").filter({ hasText: "0:01:15" }).waitFor();
   await page.keyboard.press("Escape");
   await until(liveBricks, (b) => b.some((x) => x.id === inner.id && x.inMs === 2000));
+  await page.keyboard.press("d");
+  await page.getByTestId("brick-editor").waitFor({ state: "detached" });
   // Closed and opened again, the editor's player has a picture (David, 2026-10-29: it went black on reopening).
   await page.keyboard.press("p");
   await page.getByTestId("brick-editor").waitFor();
   await page.waitForFunction(`${EDITOR}?.readyState >= 2 && !${EDITOR}.error`);
-  await page.keyboard.press("Escape");
+  await page.keyboard.press("d");
   await page.close();
 });
 

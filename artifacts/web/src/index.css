@@ -608,7 +608,9 @@ kbd { font-family: 'Rubik', system-ui, sans-serif; font-size: .78rem; font-weigh
 .lesson-tile.drop-before { box-shadow: -5px 0 0 var(--gold); }
 .lesson-tile.drop-after { box-shadow: 5px 0 0 var(--gold); }
 .lesson-tile.dragging { opacity: .85; z-index: 5; box-shadow: var(--shadow-card); cursor: grabbing; }
-.lesson-transition { position: absolute; right: -4px; bottom: 8px; }
+.lesson-tile .lesson-tile-title span { white-space: nowrap; }
+.lesson-tile .lesson-transition { position: static; display: inline-block; margin-top: 6px; }
+.lesson-tile-next { display: flex; justify-content: flex-end; }
 
 .sign-in { max-width: 440px; margin: 10vh auto 0; text-align: center; }
 .sign-in .card { text-align: left; }

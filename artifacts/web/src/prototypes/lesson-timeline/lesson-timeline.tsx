@@ -30,7 +30,7 @@ const startGraceMs = 900;
 /** The incoming player of a cut or dissolve is started this far ahead, muted and hidden, so it is already running. */
 const prerollMs = 350;
 /** A tile's width: so many pixels a second, never narrower than the minimum (David, 2026-10-29). */
-const tilePxPerSecond = 9, tileMinPx = 112;
+const tilePxPerSecond = 9, tileMinPx = 140;
 const busyStates = new Set(['queued', 'claimed']);
 type Words = Array<Word & { text: string }>;
 
@@ -57,6 +57,7 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
   const shownRef = useRef(0);
   const busy = useRef(Promise.resolve());
   const tileRefs = useRef(new Map<string, HTMLLIElement>());
+  const previewRef = useRef<HTMLDivElement>(null);
   const dragged = useRef(false);
 
   const loadUrl = useCallback(async (sourceId: string) => {
@@ -156,6 +157,8 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
   /** The clock as the page shows it: the strips read clockRef every frame themselves, so the page is only redrawn when
    * the shown time has moved a tenth of a second — redrawing it every frame is what an iPad could not keep up with. */
   const show = useCallback((t: number, force = false) => {
+    // The exact clock goes on the preview every frame, for anything that reads it there; the page redraws less often.
+    previewRef.current?.setAttribute('data-out-ms', String(Math.round(t)));
     if (force || Math.abs(t - shownRef.current) >= 100) { shownRef.current = t; setOutMs(t); }
   }, []);
   const seek = useCallback((t: number) => {
@@ -188,6 +191,33 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [playing, edl, place]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Each dissolve that plays through counts the frames the screen actually showed, and a slow one is said with its
+  // rate (David, 2026-10-29: on the iPad it "falls to just a few frames per second") — so whether the live preview
+  // is enough, or a pre-rendered transition is needed, is read off the device rather than guessed.
+  useEffect(() => {
+    if (!playing || !edl) return;
+    const windows = edl.picture.flatMap((p, i, all) => (all[i + 1] && all[i + 1].outStartMs < p.outEndMs ? [{ from: all[i + 1].outStartMs, to: p.outEndMs, frames: 0, done: false }] : []));
+    if (!windows.length) return;
+    let live = true;
+    const vids = players.map((r) => r.current).filter((v): v is HTMLVideoElement => !!v && 'requestVideoFrameCallback' in v);
+    const count = (v: HTMLVideoElement) => v.requestVideoFrameCallback(() => {
+      if (!live) return;
+      const t = clockRef.current;
+      for (const w of windows) if (t >= w.from && t < w.to && Number(v.style.opacity) > 0.05) w.frames++;
+      count(v);
+    });
+    vids.forEach(count);
+    const timer = setInterval(() => {
+      for (const w of windows) if (!w.done && clockRef.current >= w.to && w.frames > 0) {
+        w.done = true;
+        // Two pictures show through a dissolve, each at the footage's rate; the rate is frames per picture per second.
+        const fps = Math.round(w.frames / 2 / ((w.to - w.from) / 1000));
+        if (fps < 20) setMessage(`That dissolve played at about ${fps} frames a second on this device.`);
+      }
+    }, 250);
+    return () => { live = false; clearInterval(timer); };
+  }, [playing, edl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A change to the lesson re-cues the players where the clock stands.
   useEffect(() => { if (!playing) place(clockRef.current, false); }, [edl, urls, place, playing]);
@@ -383,7 +413,8 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     </div>
 
     <div className="media-card">
-      <div className="lesson-preview" data-testid="preview" data-out-ms={Math.round(outMs)}>
+      <div className="lesson-preview" data-testid="preview"
+        ref={(el) => { previewRef.current = el; el?.setAttribute('data-out-ms', String(Math.round(clockRef.current))); }}>
         {players.map((ref, k) => <video key={k} ref={ref} className="lesson-player" preload="auto" playsInline data-testid={`video-preview-${k}`}
           onLoadedMetadata={(e) => { const v = e.currentTarget; if (v.dataset.pending) { v.currentTime = Number(v.dataset.pending) / 1000; delete v.dataset.pending; } }}
           onError={(e) => { const id = e.currentTarget.dataset.sourceId; if (id) { e.currentTarget.dataset.url = ''; void loadUrl(id).catch(() => setMessage('A proxy could not be played.')); } }} />)}
@@ -439,8 +470,8 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
           <div className="lesson-thumb" style={spriteOf(e)} title="Drag to move" />
           <div className="lesson-tile-title"><span data-testid={`text-tile-name-${e.id}`}>{brickName(e)}</span><span data-testid={`text-tile-length-${e.id}`}>{clock(lengthOf(e))}</span></div>
           <div className="lesson-tile-tags">{e.tags.length ? e.tags.join(', ') : <span className="subtle">No labels</span>}</div>
-          {i < entries.length - 1 && <span className={`pill lesson-transition${e.transition === 'dissolve' ? ' dissolve' : ''}`} data-testid={`text-transition-${e.id}`}>
-            {e.transition === 'dissolve' ? `dissolve ${dissolveOut(edl.picture[i] ?? {}) / 1000 || 1} s →` : 'cut →'}</span>}
+          {i < entries.length - 1 && <div className="lesson-tile-next"><span className={`pill lesson-transition${e.transition === 'dissolve' ? ' dissolve' : ''}`} data-testid={`text-transition-${e.id}`}>
+            {e.transition === 'dissolve' ? `dissolve ${dissolveOut(edl.picture[i] ?? {}) / 1000 || 1} s →` : 'cut →'}</span></div>}
         </li>;
       })}
     </ol>

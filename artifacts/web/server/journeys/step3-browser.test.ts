@@ -84,6 +84,7 @@ after(async () => {
         await db.delete(cuts).where(inArray(cuts.id, lessonCuts));
       }
       await db.delete(feedback).where(eq(feedback.page, `/shoots/${shootId}/lesson`));
+      await db.delete(cutEvents).where(inArray(cutEvents.sourceId, Object.values(ids).filter(Boolean)));
       await db.delete(bricks).where(inArray(bricks.sourceId, Object.values(ids).filter(Boolean)));
       await db.delete(transcripts).where(inArray(transcripts.sourceId, Object.values(ids).filter(Boolean)));
       await db.delete(sources).where(inArray(sources.id, Object.values(ids).filter(Boolean)));
@@ -137,7 +138,7 @@ test("the lesson starts with every closed brick in D1's order; a move and a diss
   const page = await lessonPage();
   assert.deepEqual(await order(), [{ brick: "b1", transition: "cut" }, { brick: "b3", transition: "cut" }, { brick: "b2", transition: "cut" }],
     "file A's bricks first by in point, then file B's; the open brick is left out");
-  await page.getByTestId("text-lesson-length").filter({ hasText: "0:09.0" }).waitFor();
+  await page.getByTestId("text-lesson-length").filter({ hasText: "0:09:00" }).waitFor();
   // The arrows are the player's, as on every player: → steps to the lesson's next word (one a second here), Option a frame.
   await page.keyboard.press("ArrowRight");
   await page.getByTestId("preview").and(page.locator('[data-out-ms="1000"]')).waitFor();
@@ -153,24 +154,44 @@ test("the lesson starts with every closed brick in D1's order; a move and a diss
   await page.keyboard.press("d");
   await until(order, (o) => o[0].transition === "dissolve");
   assert.deepEqual((await order()).map((o) => o.brick), ["b1", "b2", "b3"]);
-  await page.getByTestId("text-lesson-length").filter({ hasText: "0:08.0" }).waitFor();
-  // A trim and its undo, both from the keyboard; the brick itself is never touched. , moves the out point to the
-  // previous word's end: a second earlier, with this footage's one word a second.
+  await page.getByTestId("text-lesson-length").filter({ hasText: "0:08:00" }).waitFor();
+  // Bricks keep their numbers whatever the order: b2 is Brick 2 though it now plays second.
+  const tileName = async (brick: string) => {
+    const entry = (await db.select().from(cutBricks).where(and(eq(cutBricks.cutId, (await lessonCut()).id), eq(cutBricks.brickId, `${shootId}${brick}`))))[0];
+    return page.getByTestId(`text-tile-name-${entry.id}`).textContent();
+  };
+  assert.deepEqual([await tileName("b1"), await tileName("b2"), await tileName("b3")], ["Brick 1", "Brick 2", "Brick 3"]);
+  // P opens the selected brick in the brick editor, the logger's own: , moves its out point to the previous word's end,
+  // a second earlier with this footage's one word a second, and the lesson is a second shorter. Esc undoes it; D closes.
+  await page.keyboard.press("p");
+  await page.getByTestId("brick-editor").waitFor();
   await page.keyboard.press("Comma");
-  await page.getByTestId("text-lesson-length").filter({ hasText: "0:07.0" }).waitFor();
+  await page.getByTestId("text-lesson-length").filter({ hasText: "0:07:00" }).waitFor();
+  assert.deepEqual((await db.select().from(bricks).where(eq(bricks.id, `${shootId}b1`))).map((b) => [b.inMs, b.outMs]), [[0, 2000]], "the brick itself moved");
   await page.keyboard.press("Escape");
-  await page.getByTestId("text-lesson-length").filter({ hasText: "0:08.0" }).waitFor();
+  await page.getByTestId("text-lesson-length").filter({ hasText: "0:08:00" }).waitFor();
+  await page.keyboard.press("d");
+  await page.getByTestId("brick-editor").waitFor({ state: "detached" });
   const [b1] = await db.select().from(bricks).where(eq(bricks.id, `${shootId}b1`));
   assert.deepEqual([b1.inMs, b1.outMs], [0, 3000]);
   const events = await db.select().from(cutEvents).where(eq(cutEvents.cutId, (await lessonCut()).id));
-  assert.equal(events.length, 4, "move, transition, trim and the undo's trim: one cut-owned event each");
+  assert.equal(events.length, 2, "move and transition: one cut-owned event each; the brick's edits are its file's");
   assert.ok(events.every((e) => e.sourceId === null));
-  // A dissolve that cannot fit is refused with its reason, and nothing changes: trimming b1 under its 1 s dissolve.
-  for (let i = 0; i < 3; i++) await page.keyboard.press("BracketRight");
-  await page.getByTestId("text-lesson-message").filter({ hasText: "doesn't fit" }).waitFor();
-  await page.getByTestId("text-lesson-length").filter({ hasText: "0:06.0" }).waitFor(); // the two trims that fit, and not the third
-  await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
-  await page.getByTestId("text-lesson-length").filter({ hasText: "0:08.0" }).waitFor();
+
+  // A tile dragged with the mouse moves its brick: Brick 3 dragged before Brick 1 plays first. Esc undoes the move.
+  const tileOf = async (brick: string) => {
+    const entry = (await db.select().from(cutBricks).where(and(eq(cutBricks.cutId, (await lessonCut()).id), eq(cutBricks.brickId, `${shootId}${brick}`))))[0];
+    return page.getByTestId(`tile-${entry.id}`);
+  };
+  await (await tileOf("b3")).scrollIntoViewIfNeeded();
+  const from = (await (await tileOf("b3")).boundingBox())!, to = (await (await tileOf("b1")).boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + 4, to.y + to.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await until(order, (o) => o[0].brick === "b3");
+  await page.keyboard.press("Escape");
+  await until(order, (o) => o.map((x) => x.brick).join() === "b1,b2,b3");
   await page.close();
 });
 
@@ -203,6 +224,8 @@ test("the preview plays through the dissolve and the cut showing and sounding wh
   await page.getByTestId("input-preview-seek").fill("1500");
   await settled(page);
   await page.locator("body").press("Space");
+  const startedAt = await players(page);
+  assert.ok(startedAt.outMs < 2000, `Space played from the playhead at 1.5 s (${startedAt.outMs})`);
   const samples: Array<Awaited<ReturnType<typeof players>>> = [];
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
@@ -243,7 +266,7 @@ test("Render freezes the lesson: an edit made while the render waits does not ch
   await page.keyboard.press("Tab");
   await page.keyboard.press("d");
   await until(order, (o) => o[1].transition === "dissolve");
-  await page.getByTestId("text-lesson-length").filter({ hasText: "0:07.0" }).waitFor();
+  await page.getByTestId("text-lesson-length").filter({ hasText: "0:07:00" }).waitFor();
   await page.close();
 
   // The worker's render, run here on the same row, with storage on local files.

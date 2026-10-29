@@ -70,7 +70,7 @@ export function Strip({ fromMs, toMs, segments, peaks, words, playhead, onSeek, 
     const g = c.getContext('2d')!;
     const w = c.width, h = c.height;
     g.clearRect(0, 0, w, h);
-    g.fillStyle = 'currentColor';
+    g.fillStyle = getComputedStyle(c).color || '#9aa6b2';
     for (let x = 0; x < w; x++) {
       const t = fromMs + (x / w) * span;
       const seg = segments.find((s) => t >= s.startMs && t < s.endMs);
