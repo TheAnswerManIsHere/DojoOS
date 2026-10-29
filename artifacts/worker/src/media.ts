@@ -61,12 +61,26 @@ export async function probe(file: string, signal: AbortSignal): Promise<Probed> 
 /** Fits the picture inside proxyMaxEdge × proxyMaxEdge (never upscaling), keyframe every second for seeking, moov first for
  * range playback. The audio keeps the source's channel layout: forcing stereo upmixes a mono lav track at -3 dB, and the
  * waveform made from the proxy would read quieter than the camera recorded. */
-export async function makeProxy(input: string, output: string, signal: AbortSignal, streams: { hasVideo: boolean; hasAudio: boolean }): Promise<StepCost> {
+export async function makeProxy(input: string, output: string, signal: AbortSignal, streams: { hasVideo: boolean; hasAudio: boolean },
+  progress?: { durationMs: number | null; report: (fraction: number) => void }): Promise<StepCost> {
   const fit = `scale=w='min(iw,${proxyMaxEdge})':h='min(ih,${proxyMaxEdge})':force_original_aspect_ratio=decrease:force_divisible_by=2`;
   const video = streams.hasVideo ? ["-map", "0:v:0", "-vf", fit, "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
     "-pix_fmt", "yuv420p", "-force_key_frames", "expr:gte(t,n_forced*1)"] : ["-vn"];
   const audio = streams.hasAudio ? ["-map", "0:a:0", "-c:a", "aac", "-b:a", "128k"] : ["-an"];
-  return cost(await ffmpeg(["-i", input, ...video, ...audio, "-movflags", "+faststart", "-f", "mp4", output], signal), output);
+  // ffmpeg's -progress lines on stdout say how far through the source the encode is; the fraction is that over the length.
+  const total = progress?.durationMs ?? 0;
+  let buffered = "";
+  const onStdout = progress && total > 0 ? (chunk: Buffer) => {
+    buffered += chunk.toString();
+    const lines = buffered.split("\n");
+    buffered = lines.pop() ?? "";
+    for (const line of lines) {
+      const at = /^out_time_us=(\d+)/.exec(line.trim());
+      if (at) progress.report(Math.min(1, Number(at[1]) / 1000 / total));
+    }
+  } : undefined;
+  const watch = onStdout ? ["-progress", "pipe:1", "-nostats"] : [];
+  return cost(await ffmpeg(["-i", input, ...video, ...audio, ...watch, "-movflags", "+faststart", "-f", "mp4", output], signal, onStdout), output);
 }
 
 /** One JPEG grid of tiles laid out by spriteLayout, read from the proxy's keyframes only: the proxy has one a second and

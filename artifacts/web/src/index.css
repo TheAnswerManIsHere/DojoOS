@@ -360,6 +360,39 @@ button:focus-visible, .button:focus-visible, a:focus-visible { outline: 2px soli
 .source-extra:empty { display: none; }
 .source-extra video { width: 100%; max-width: 560px; border-radius: 12px; background: #000; }
 
+/* Uploading: one place to choose a file, and a row per unfinished upload. */
+.uploader { display: grid; gap: 12px; margin-top: 6px; }
+.upload-row { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 8px; background: var(--canvas); }
+.upload-row-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; overflow-wrap: anywhere; }
+.upload-stopped { color: var(--ink-heading); }
+.progress-track { height: 10px; border-radius: 999px; background: #e1e7ee; overflow: hidden; }
+.progress-track.small { height: 6px; margin: 4px 0 2px; max-width: 320px; }
+.progress-fill { height: 100%; background: var(--gold); border-radius: 999px; transition: width .4s ease; }
+.drop-zone { display: grid; gap: 4px; justify-items: center; text-align: center; padding: 22px 16px; border: 2px dashed rgba(172, 140, 64, .6);
+  border-radius: 14px; background: var(--paper); cursor: pointer; font-weight: 400; }
+.drop-zone:hover, .drop-zone.dragging { background: var(--gold-tint); border-color: var(--gold); }
+.drop-zone.disabled { opacity: .6; cursor: progress; }
+.drop-zone-title { font-family: 'Rubik', system-ui, sans-serif; font-weight: 500; color: var(--ink-heading); font-size: 1.02rem; }
+button.button-quiet, .button-quiet { border-color: var(--line); color: var(--ink-soft); font-weight: 600; }
+button.button-quiet:hover:not(:disabled) { border-color: var(--wine); color: var(--wine); background: #fbf1f2; }
+
+/* The steps between an upload and logging. */
+.tracker { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 0; }
+.tracker-step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; padding: 6px 0; position: relative; }
+.tracker-step:not(:last-child)::after { content: ''; position: absolute; left: 13px; top: 32px; bottom: -6px; width: 2px; background: var(--line); }
+.tracker-dot { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: .8rem; font-weight: 700;
+  background: #e8edf3; color: var(--ink-soft); border: 2px solid transparent; }
+.tracker-step.done .tracker-dot { background: var(--ok); color: #fff; }
+.tracker-step.done:not(:last-child)::after { background: var(--ok); }
+.tracker-step.active .tracker-dot { background: var(--paper); border-color: var(--gold); color: var(--gold-dark); animation: pulse 1.6s ease-in-out infinite; }
+.tracker-step.failed .tracker-dot { background: var(--wine); color: #fff; }
+.tracker-title { font-weight: 600; color: var(--ink-heading); }
+.tracker-step.waiting .tracker-title { color: var(--ink-soft); font-weight: 400; }
+.tracker-detail { font-size: .86rem; color: var(--ink-soft); overflow-wrap: anywhere; }
+.tracker-step.failed .tracker-detail { color: var(--wine); }
+.tracker-done { color: var(--ok); font-weight: 600; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(172, 140, 64, .18); } }
+
 /* The questions: a column beside the page on a wide screen, a drawer behind a button on an iPad or phone. */
 .question-rail { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 18px 18px 6px; align-self: start;
   position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
@@ -525,6 +558,16 @@ kbd { font-family: 'Rubik', system-ui, sans-serif; font-size: .78rem; font-weigh
 .logging-words { min-height: 3.2em; margin: 12px 0; padding: 10px 14px; background: var(--paper); border-radius: 12px; border: 1px solid var(--line); line-height: 1.8; }
 .logging-words .current { background: var(--gold-tint); box-shadow: 0 0 0 2px var(--gold-tint); border-radius: 4px; color: var(--ink-heading); font-weight: 600; }
 .logging-row-target td { font-weight: 700; color: var(--ink-heading); background: var(--gold-tint); }
+.logging-timeline { touch-action: none; user-select: none; }
+.logging-brick { height: 10px; cursor: pointer; }
+.logging-words .outside { opacity: .4; }
+.plain-table tbody tr { cursor: pointer; }
+.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: .78rem; padding: 3px 10px; border-radius: 999px; text-transform: capitalize; background: var(--paper); }
+.chip.on { background: var(--gold); border-color: var(--gold); color: #fff; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(15, 23, 32, .55); display: grid; place-items: center; padding: 16px; overflow-y: auto; }
+.modal { width: min(880px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; }
+.editor-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
 .sign-in { max-width: 440px; margin: 10vh auto 0; text-align: center; }
 .sign-in .card { text-align: left; }

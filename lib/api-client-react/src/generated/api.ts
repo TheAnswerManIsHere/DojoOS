@@ -534,6 +534,284 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCreateShootMutationOptions(options));
     }
 
+export const getListArchivedShootsUrl = () => {
+
+
+
+
+  return `/app-api/shoots/archived`
+}
+
+export const listArchivedShoots = async ( options?: Parameters<typeof customFetch>[1]): Promise<Shoot[]> => {
+
+  return customFetch<Shoot[]>(getListArchivedShootsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListArchivedShootsQueryKey = () => {
+    return [
+    `/app-api/shoots/archived`
+    ] as const;
+    }
+
+
+export const getListArchivedShootsQueryOptions = <TData = Awaited<ReturnType<typeof listArchivedShoots>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listArchivedShoots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListArchivedShootsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listArchivedShoots>>> = ({ signal }) => listArchivedShoots({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listArchivedShoots>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListArchivedShootsQueryResult = NonNullable<Awaited<ReturnType<typeof listArchivedShoots>>>
+export type ListArchivedShootsQueryError = ErrorType<unknown>
+
+
+
+export function useListArchivedShoots<TData = Awaited<ReturnType<typeof listArchivedShoots>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listArchivedShoots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListArchivedShootsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getArchiveShootUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/shoots/${id}/archive`
+}
+
+export const archiveShoot = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Ok> => {
+
+  return customFetch<Ok>(getArchiveShootUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getArchiveShootMutationKey = () => ['archiveShoot'] as const;
+
+export const getArchiveShootMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveShoot>>, TError,ArchiveShootMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof archiveShoot>>, TError,ArchiveShootMutationVariables, TContext> => {
+
+const mutationKey = getArchiveShootMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof archiveShoot>>, ArchiveShootMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  archiveShoot(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArchiveShootMutationResult = NonNullable<Awaited<ReturnType<typeof archiveShoot>>>
+
+    export type ArchiveShootMutationError = ErrorType<unknown>
+    export type ArchiveShootMutationVariables = {id: string}
+
+    export const useArchiveShoot = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveShoot>>, TError,ArchiveShootMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof archiveShoot>>,
+        TError,
+        ArchiveShootMutationVariables,
+        TContext
+      > => {
+      return useMutation(getArchiveShootMutationOptions(options));
+    }
+
+export const getRestoreShootUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/shoots/${id}/restore`
+}
+
+export const restoreShoot = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Ok> => {
+
+  return customFetch<Ok>(getRestoreShootUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreShootMutationKey = () => ['restoreShoot'] as const;
+
+export const getRestoreShootMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreShoot>>, TError,RestoreShootMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreShoot>>, TError,RestoreShootMutationVariables, TContext> => {
+
+const mutationKey = getRestoreShootMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreShoot>>, RestoreShootMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  restoreShoot(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreShootMutationResult = NonNullable<Awaited<ReturnType<typeof restoreShoot>>>
+
+    export type RestoreShootMutationError = ErrorType<unknown>
+    export type RestoreShootMutationVariables = {id: string}
+
+    export const useRestoreShoot = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreShoot>>, TError,RestoreShootMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreShoot>>,
+        TError,
+        RestoreShootMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRestoreShootMutationOptions(options));
+    }
+
+export const getRemoveSourceUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/sources/${id}/remove`
+}
+
+/**
+ * Removes one file from its shoot; an unfinished upload is cancelled in storage.
+ */
+export const removeSource = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Ok> => {
+
+  return customFetch<Ok>(getRemoveSourceUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveSourceMutationKey = () => ['removeSource'] as const;
+
+export const getRemoveSourceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeSource>>, TError,RemoveSourceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeSource>>, TError,RemoveSourceMutationVariables, TContext> => {
+
+const mutationKey = getRemoveSourceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeSource>>, RemoveSourceMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  removeSource(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveSourceMutationResult = NonNullable<Awaited<ReturnType<typeof removeSource>>>
+
+    export type RemoveSourceMutationError = ErrorType<void>
+    export type RemoveSourceMutationVariables = {id: string}
+
+    export const useRemoveSource = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeSource>>, TError,RemoveSourceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeSource>>,
+        TError,
+        RemoveSourceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveSourceMutationOptions(options));
+    }
+
 export const getStartUploadUrl = () => {
 
 

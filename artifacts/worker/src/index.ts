@@ -32,7 +32,16 @@ const runner = new DrainRunner(queue, concurrency, jobLeaseMs(), async (job, sig
     return transcribe(db, storage, transcriber, sourceId, signal);
   }
   if (job.kind !== "source.probe") throw new Error(`Unknown job kind: ${job.kind}`);
-  const result = await ingest(db, storage, sourceId, signal);
+  // Progress goes on the claimed job's result while it runs (completion overwrites it), at most every few seconds, so
+  // the library's step tracker can show it; a write that fails is skipped, never fatal.
+  let lastWrite = 0, lastStage = "";
+  const result = await ingest(db, storage, sourceId, signal, (progress) => {
+    const now = Date.now();
+    if (progress.stage === lastStage && now - lastWrite < 3000) return;
+    lastWrite = now; lastStage = progress.stage;
+    void db.update(jobs).set({ result: { progress } }).where(and(eq(jobs.id, job.id), eq(jobs.state, "claimed")))
+      .catch((error) => console.error("Progress write failed", job.id, error));
+  });
   // Transcription follows ingest as its own job, so its failure never repeats the original's download.
   if (transcriber) await queue.enqueue("source.transcribe", { sourceId });
   return result;

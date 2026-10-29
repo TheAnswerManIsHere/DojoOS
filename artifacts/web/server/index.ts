@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { connectDb, createQueue, createStorage } from "@workspace/shared";
-import { authRoutes, requireSession, seedAccounts, sessionRoutes } from "./modules/auth";
+import { authRoutes, requirePage, requireSession, seedAccounts, sessionRoutes } from "./modules/auth";
 import { libraryRoutes } from "./modules/library";
 import { ingestRoutes } from "./modules/ingest";
 import { feedbackRoutes, featureOfPage, syncPrototypeQuestions } from "./modules/feedback";
@@ -45,7 +45,7 @@ app.use("/app-api/auth", authRoutes(ctx)); // Sign-in itself is the one unauthen
 app.use("/app-api", requireSession(ctx));
 app.use("/app-api", sessionRoutes(ctx), libraryRoutes(ctx), ingestRoutes(ctx), feedbackRoutes(ctx), loggingRoutes(ctx), cutRoutes(ctx));
 app.use("/app-api", (_req, res) => res.status(404).json({ error: "Not found" }));
-const gatePage = requireSession(ctx);
+const gatePage = requirePage(ctx);
 // The home page answers 200 to anyone, signed in or not: the deployment's health check calls it with no session, and a
 // 401 there fails the publish. The page itself is the app shell, which sends a visitor to the library or to sign-in.
 app.get("/", (_req, _res, next) => next());

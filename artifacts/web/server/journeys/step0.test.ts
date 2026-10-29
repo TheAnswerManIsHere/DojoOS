@@ -52,9 +52,15 @@ test("signed-out requests are refused: the gate holds before any page is served"
   const home = await get("/");
   assert.equal(home.status, 200);
   assert.match(home.headers.get("content-type") ?? "", /text\/html/);
-  assert.equal((await get("/library")).status, 401);
-  assert.equal((await get("/feedback")).status, 401);
+  // A page without a sign-in goes to the sign-in page, carrying where it was (David, 2026-10-28: a reload after the
+  // session ran out showed the bare error). The data routes still refuse outright.
+  for (const page of ["/library", "/feedback", "/shoots/x/lesson"]) {
+    const response = await get(page);
+    assert.equal(response.status, 302, page);
+    assert.equal(response.headers.get("location"), `/sign-in?next=${encodeURIComponent(page)}`);
+  }
   assert.equal((await get("/app-api/session")).status, 401);
+  assert.equal((await get("/app-api/shoots")).status, 401);
 });
 
 test("a wrong password and an unknown username get the same refusal, and no session", async () => {

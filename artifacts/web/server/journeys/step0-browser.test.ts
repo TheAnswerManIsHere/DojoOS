@@ -107,3 +107,21 @@ test("two answers in one sitting; a send that fails says so beside its question,
     await removeQuestion(db, secondKey);
   }
 });
+
+test("a session that ends goes to sign-in, not an error, and signing in returns to the page it was on", async () => {
+  const page = await openPage();
+  await signInFromPage(page, testerEmail);
+  // From the feedback page, which does not refresh itself (the library does, while a file is in ingest).
+  await page.getByTestId("link-feedback").click();
+  await page.waitForURL(`${server.origin}/feedback`);
+  await page.context().clearCookies();
+  // Mid-page: the next request the page makes is refused, and the page goes to sign-in, remembering where it was.
+  await page.getByTestId("link-library").click();
+  await page.waitForURL(`${server.origin}/sign-in?next=%2Flibrary`);
+  // A reload of a page while signed out does the same, from the server.
+  await page.goto(`${server.origin}/library?shoot=x`);
+  await page.waitForURL(`${server.origin}/sign-in?next=%2Flibrary%3Fshoot%3Dx`);
+  await page.getByTestId("button-i-am-david").click();
+  await page.waitForURL(`${server.origin}/library?shoot=x`);
+  await page.close();
+});

@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
 import { getGetSessionQueryKey, getListQuestionsQueryKey, useGetSession, useListQuestions, useLogout } from '@workspace/api-client-react';
 import { QuestionRail } from '@/components/question-rail';
@@ -9,7 +9,19 @@ import { SignIn } from '@/pages/sign-in';
 import { LoggingViewer } from '@/prototypes/logging-viewer/logging-viewer';
 import { LessonTimeline } from '@/prototypes/lesson-timeline/lesson-timeline';
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } });
+/** A sign-in that runs out while a page is open: the next request to fail for it goes to the sign-in page, which brings
+ * you back here afterwards (David, 2026-10-28). The session check itself is left to Routes. */
+function toSignInOn401(error: unknown, key?: readonly unknown[]) {
+  if ((error as { status?: number })?.status !== 401) return;
+  if (key && JSON.stringify(key) === JSON.stringify(getGetSessionQueryKey())) return;
+  if (window.location.pathname === '/sign-in') return;
+  window.location.assign(`/sign-in?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+}
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
+  queryCache: new QueryCache({ onError: (error, query) => toSignInOn401(error, query.queryKey) }),
+  mutationCache: new MutationCache({ onError: (error) => toSignInOn401(error) }),
+});
 
 function Redirect({ to }: { to: string }) {
   const [, navigate] = useLocation();
@@ -74,7 +86,7 @@ function Routes() {
     return <main className="app-main"><h1>DojoOS</h1><p className="error" role="alert">Could not check your session. {session.error.message}</p><button type="button" onClick={() => session.refetch()} data-testid="button-retry-session">Retry</button></main>;
   }
   if (!session.data) {
-    if (!isAuthPath) return <Redirect to="/sign-in" />;
+    if (!isAuthPath) return <Redirect to={`/sign-in?next=${encodeURIComponent(location)}`} />;
     return <SignIn />;
   }
   if (isAuthPath && !hasToken) return <Redirect to="/library" />;

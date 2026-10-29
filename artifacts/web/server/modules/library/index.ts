@@ -1,9 +1,15 @@
 import { Router } from "express";
 import { and, eq, isNull, isNotNull, desc, inArray, sql } from "drizzle-orm";
-import { jobs, revisions, shoots, sources, transcripts } from "@workspace/shared";
+import { jobs, revisions, shoots, sources, transcripts, uploads } from "@workspace/shared";
 import type { Context } from "../../context";
 
-type IngestJob = Pick<typeof jobs.$inferSelect, "state" | "error">;
+type IngestJob = Pick<typeof jobs.$inferSelect, "state" | "error"> & Partial<Pick<typeof jobs.$inferSelect, "result" | "claimedAt">>;
+/** The running ingest's stage and fraction, as the worker reports them on the claimed job (worker index, ingest). */
+function progressOf(job?: IngestJob) {
+  const p = job?.state === "claimed" ? (job.result as { progress?: { stage?: unknown; fraction?: unknown } } | null)?.progress : undefined;
+  if (!p || !["download", "proxy", "derivatives"].includes(String(p.stage))) return null;
+  return { stage: String(p.stage), fraction: typeof p.fraction === "number" ? Math.max(0, Math.min(1, p.fraction)) : null };
+}
 /** A source can be processed again when ingest failed, or when it was marked ready before ingest made a proxy (step 0),
  * and no ingest job for it is queued or running (architecture.md §2: "the operator retries from the page"). */
 function publicSource(row: typeof sources.$inferSelect, latestJob?: IngestJob, transcriptWords: number | null = null, transcribeJob?: IngestJob) {
@@ -15,16 +21,20 @@ function publicSource(row: typeof sources.$inferSelect, latestJob?: IngestJob, t
     lastError: row.ingestState === "failed" ? latestJob?.error ?? null : null,
     retryable: unfinished && !busy,
     transcriptWords,
+    ingestProgress: progressOf(latestJob),
     transcriptionState: transcribeJob?.state ?? null,
+    transcriptionStartedAt: transcribeJob?.state === "claimed" && transcribeJob.claimedAt ? transcribeJob.claimedAt.toISOString() : null,
     transcriptionError: transcribeJob?.state === "failed" ? transcribeJob.error ?? null : null,
   };
 }
 export function libraryRoutes(ctx: Context) {
   const router = Router();
-  router.get("/shoots", async (_req, res) => {
-    const rows = await ctx.db.select().from(shoots).where(isNull(shoots.deletedAt)).orderBy(desc(shoots.createdAt));
+  router.get(["/shoots", "/shoots/archived"], async (req, res) => {
+    // /shoots/archived lists the archived shoots instead, so they can be brought back.
+    const archived = req.path.endsWith("/archived");
+    const rows = await ctx.db.select().from(shoots).where(archived ? isNotNull(shoots.deletedAt) : isNull(shoots.deletedAt)).orderBy(desc(shoots.createdAt));
     const media = await ctx.db.select().from(sources).where(isNull(sources.deletedAt));
-    const allJobs = await ctx.db.select({ kind: jobs.kind, state: jobs.state, error: jobs.error, payload: jobs.payload }).from(jobs)
+    const allJobs = await ctx.db.select({ kind: jobs.kind, state: jobs.state, error: jobs.error, payload: jobs.payload, result: jobs.result, claimedAt: jobs.claimedAt }).from(jobs)
       .where(and(inArray(jobs.kind, ["source.probe", "source.transcribe"]), isNull(jobs.deletedAt))).orderBy(desc(jobs.createdAt));
     const latest = new Map<string, IngestJob>();
     const latestTranscribe = new Map<string, IngestJob>();
@@ -56,6 +66,32 @@ export function libraryRoutes(ctx: Context) {
     if (notes != null && (typeof notes !== "string" || notes.length > 10000)) return res.status(400).json({ error: "Invalid notes" });
     const [row] = await ctx.db.insert(shoots).values({ name: name.trim(), shotOn: shotOn || null, notes: notes || null }).returning();
     return res.status(201).json({ id: row.id, name: row.name, shotOn: row.shotOn, notes: row.notes, sources: [] });
+  });
+  // Archive and restore: a shoot leaves the library, or comes back. Nothing is erased: its files stay in storage.
+  router.post("/shoots/:id/archive", async (req, res) => {
+    const [row] = await ctx.db.update(shoots).set({ deletedAt: new Date() }).where(and(eq(shoots.id, req.params.id as string), isNull(shoots.deletedAt))).returning({ id: shoots.id });
+    return row ? res.json({ ok: true }) : res.status(404).json({ error: "No such shoot in the library" });
+  });
+  router.post("/shoots/:id/restore", async (req, res) => {
+    const [row] = await ctx.db.update(shoots).set({ deletedAt: null }).where(and(eq(shoots.id, req.params.id as string), isNotNull(shoots.deletedAt))).returning({ id: shoots.id });
+    return row ? res.json({ ok: true }) : res.status(404).json({ error: "No such archived shoot" });
+  });
+  // Remove one file from its shoot: an unfinished upload is cancelled in storage; a processed file is hidden, its
+  // original kept. A file still being processed is refused, so the worker is never left writing to a removed file.
+  router.post("/sources/:id/remove", async (req, res) => {
+    const id = req.params.id as string;
+    const [source] = await ctx.db.select().from(sources).where(and(eq(sources.id, id), isNull(sources.deletedAt)));
+    if (!source) return res.status(404).json({ error: "No such file" });
+    const [busy] = await ctx.db.select({ id: jobs.id }).from(jobs).where(and(sql`${jobs.payload}->>'sourceId' = ${id}`,
+      inArray(jobs.state, ["queued", "claimed"]), isNull(jobs.deletedAt)));
+    if (busy) return res.status(409).json({ error: "This file is still being processed. Remove it once it has finished." });
+    const [open] = await ctx.db.select().from(uploads).where(and(eq(uploads.sourceId, id), isNull(uploads.completedAt), isNull(uploads.deletedAt)));
+    if (open) {
+      try { await ctx.storage.abort(source.originalKey, open.uploadId); } catch (error) { console.error("Abort of an unfinished upload failed; removing anyway", id, error); }
+      await ctx.db.update(uploads).set({ deletedAt: new Date() }).where(eq(uploads.id, open.id));
+    }
+    await ctx.db.update(sources).set({ deletedAt: new Date() }).where(eq(sources.id, id));
+    return res.json({ ok: true });
   });
   // Transcribe (again): a source with a proxy and no transcription queued or running gets one, so a changed vocabulary
   // list or a failed run can be redone from the library. The queue's enqueue wakes the worker.

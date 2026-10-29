@@ -43,6 +43,8 @@ export * from './shootInput';
 export * from './shootLessonRender';
 export * from './signedUrl';
 export * from './source';
+export * from './sourceIngestProgress';
+export * from './sourceIngestProgressStage';
 export * from './sourceLog';
 export * from './sourceLogSpriteLayout';
 export * from './sourceLogWordsItem';

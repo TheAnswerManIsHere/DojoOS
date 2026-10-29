@@ -12,12 +12,13 @@ type BrickRow = typeof bricks.$inferSelect;
 export function toLogBrick(row: BrickRow): LogBrick {
   const a = row.attributes ?? {};
   return { id: row.id, inMs: row.inMs, outMs: row.outMs, openSeq: typeof a.openSeq === "number" ? a.openSeq : null,
-    action: a.action === "punch_in" ? "punch_in" : "keep", preset: typeof a.preset === "string" ? a.preset : null, tags: row.tags };
+    action: a.action === "punch_in" ? "punch_in" : "keep", preset: typeof a.preset === "string" ? a.preset : null, tags: row.tags,
+    note: typeof a.note === "string" ? a.note : null };
 }
 
 function rowValues(brick: LogBrick) {
   return { inMs: brick.inMs, outMs: brick.outMs, tags: brick.tags,
-    attributes: { action: brick.action satisfies Action, preset: brick.preset, openSeq: brick.openSeq } };
+    attributes: { action: brick.action satisfies Action, preset: brick.preset, openSeq: brick.openSeq, note: brick.note ?? null } };
 }
 
 async function readySource(ctx: Context, id: string) {
