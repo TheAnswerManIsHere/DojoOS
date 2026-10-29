@@ -12,7 +12,8 @@
     "./contracts": "./src/contracts.ts",
     "./edl": "./src/edl.ts",
     "./commands": "./src/commands.ts",
-    "./lesson": "./src/lesson.ts"
+    "./lesson": "./src/lesson.ts",
+    "./navigation": "./src/navigation.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

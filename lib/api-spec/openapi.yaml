@@ -132,6 +132,32 @@ paths:
               schema: { $ref: "#/components/schemas/Ok" }
         "409":
           description: Still being processed
+  /sources/{id}/log/done:
+    post:
+      operationId: markLogDone
+      description: Says a file's log is done; refused while a brick is still open.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Done
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LogStatusResult" }
+        "409":
+          description: A brick is still open
+  /sources/{id}/log/reopen:
+    post:
+      operationId: markLogInProgress
+      description: Takes a file's log back to in progress.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: In progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LogStatusResult" }
   /uploads:
     post:
       operationId: startUpload
@@ -407,10 +433,14 @@ components:
         note: { type: ["string", "null"], description: "What the brick is, in Jared's words." }
     SourceLog:
       type: object
-      required: [sourceId, shootName, durationMs, fps, bricks, words, spriteUrl, spriteLayout, hasPeaks]
+      required: [sourceId, shootId, shootName, role, durationMs, fps, bricks, words, spriteUrl, spriteLayout, hasPeaks, logStatus, next]
       properties:
         sourceId: { type: string }
+        shootId: { type: string }
         shootName: { type: string }
+        role: { type: string }
+        logStatus: { $ref: "#/components/schemas/LogStatus" }
+        next: { $ref: "#/components/schemas/NextToLog" }
         durationMs: { type: integer }
         fps: { type: ["number", "null"] }
         bricks: { type: array, items: { $ref: "#/components/schemas/LogBrick" } }
@@ -433,6 +463,20 @@ components:
             tileWidth: { type: integer }
             tileHeight: { type: integer }
         hasPeaks: { type: boolean }
+    LogStatus:
+      type: string
+      enum: [not_started, in_progress, done]
+    NextToLog:
+      type: ["object", "null"]
+      description: The shoot's next file still to log; null when every logged file is done.
+      required: [id, role]
+      properties: { id: { type: string }, role: { type: string } }
+    LogStatusResult:
+      type: object
+      required: [logStatus, next]
+      properties:
+        logStatus: { $ref: "#/components/schemas/LogStatus" }
+        next: { $ref: "#/components/schemas/NextToLog" }
     CommandInput:
       type: object
       required: [command]
@@ -469,9 +513,11 @@ components:
       properties: { username: { type: string }, password: { type: string } }
     Source:
       type: object
-      required: [id, role, ingestState, hasProxy, lastError, retryable]
+      required: [id, role, ingestState, hasProxy, lastError, retryable, logStatus, brickCount]
       properties:
         id: { type: string }
+        logStatus: { $ref: "#/components/schemas/LogStatus" }
+        brickCount: { type: integer }
         role: { type: string, enum: [camera_a, camera_b, audio] }
         ingestState: { type: string }
         durationMs: { type: ["integer", "null"] }
@@ -529,10 +575,17 @@ components:
         tags: { type: array, items: { type: string } }
     LessonSource:
       type: object
-      required: [id, role, fps, hasProxy, spriteUrl, spriteLayout]
+      required: [id, role, fps, hasProxy, spriteUrl, spriteLayout, words]
       properties:
         id: { type: string }
         role: { type: string }
+        words:
+          type: ["array", "null"]
+          description: The source's newest transcript, for word-by-word navigation of the preview.
+          items:
+            type: object
+            required: [text, start_ms, end_ms]
+            properties: { text: { type: string }, start_ms: { type: integer }, end_ms: { type: integer } }
         fps: { type: ["number", "null"] }
         hasProxy: { type: boolean }
         spriteUrl: { type: ["string", "null"] }

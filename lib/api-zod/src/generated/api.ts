@@ -55,6 +55,8 @@ export const ListShootsResponseItem = zod.object({
   "notes": zod.string().nullish(),
   "sources": zod.array(zod.object({
   "id": zod.string(),
+  "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
+  "brickCount": zod.number().int(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
   "ingestState": zod.string(),
   "durationMs": zod.number().int().nullish(),
@@ -97,6 +99,8 @@ export const CreateShootResponse = zod.object({
   "notes": zod.string().nullish(),
   "sources": zod.array(zod.object({
   "id": zod.string(),
+  "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
+  "brickCount": zod.number().int(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
   "ingestState": zod.string(),
   "durationMs": zod.number().int().nullish(),
@@ -129,6 +133,8 @@ export const ListArchivedShootsResponseItem = zod.object({
   "notes": zod.string().nullish(),
   "sources": zod.array(zod.object({
   "id": zod.string(),
+  "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
+  "brickCount": zod.number().int(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
   "ingestState": zod.string(),
   "durationMs": zod.number().int().nullish(),
@@ -185,6 +191,38 @@ export const RemoveSourceResponse = zod.object({
 })
 
 
+/**
+ * Says a file's log is done; refused while a brick is still open.
+ */
+export const MarkLogDoneParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const MarkLogDoneResponse = zod.object({
+  "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
+  "next": zod.object({
+  "id": zod.string(),
+  "role": zod.string()
+}).nullable().describe('The shoot\'s next file still to log; null when every logged file is done.')
+})
+
+
+/**
+ * Takes a file's log back to in progress.
+ */
+export const MarkLogInProgressParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const MarkLogInProgressResponse = zod.object({
+  "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
+  "next": zod.object({
+  "id": zod.string(),
+  "role": zod.string()
+}).nullable().describe('The shoot\'s next file still to log; null when every logged file is done.')
+})
+
+
 export const StartUploadBody = zod.object({
   "shootId": zod.string(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
@@ -230,6 +268,8 @@ export const CompleteUploadBody = zod.object({
 
 export const CompleteUploadResponse = zod.object({
   "id": zod.string(),
+  "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
+  "brickCount": zod.number().int(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
   "ingestState": zod.string(),
   "durationMs": zod.number().int().nullish(),
@@ -256,6 +296,8 @@ export const RetryIngestParams = zod.object({
 
 export const RetryIngestResponse = zod.object({
   "id": zod.string(),
+  "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
+  "brickCount": zod.number().int(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
   "ingestState": zod.string(),
   "durationMs": zod.number().int().nullish(),
@@ -282,6 +324,8 @@ export const TranscribeSourceParams = zod.object({
 
 export const TranscribeSourceResponse = zod.object({
   "id": zod.string(),
+  "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
+  "brickCount": zod.number().int(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
   "ingestState": zod.string(),
   "durationMs": zod.number().int().nullish(),
@@ -336,7 +380,14 @@ export const GetSourceLogParams = zod.object({
 
 export const GetSourceLogResponse = zod.object({
   "sourceId": zod.string(),
+  "shootId": zod.string(),
   "shootName": zod.string(),
+  "role": zod.string(),
+  "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
+  "next": zod.object({
+  "id": zod.string(),
+  "role": zod.string()
+}).nullable().describe('The shoot\'s next file still to log; null when every logged file is done.'),
   "durationMs": zod.number().int(),
   "fps": zod.number().nullable(),
   "bricks": zod.array(zod.object({
@@ -442,6 +493,11 @@ export const GetLessonResponse = zod.object({
   "sources": zod.array(zod.object({
   "id": zod.string(),
   "role": zod.string(),
+  "words": zod.array(zod.object({
+  "text": zod.string(),
+  "start_ms": zod.number().int(),
+  "end_ms": zod.number().int()
+})).nullable().describe('The source\'s newest transcript, for word-by-word navigation of the preview.'),
   "fps": zod.number().nullable(),
   "hasProxy": zod.boolean(),
   "spriteUrl": zod.string().nullable(),
@@ -505,6 +561,11 @@ export const ApplyLessonCommandResponse = zod.object({
   "sources": zod.array(zod.object({
   "id": zod.string(),
   "role": zod.string(),
+  "words": zod.array(zod.object({
+  "text": zod.string(),
+  "start_ms": zod.number().int(),
+  "end_ms": zod.number().int()
+})).nullable().describe('The source\'s newest transcript, for word-by-word navigation of the preview.'),
   "fps": zod.number().nullable(),
   "hasProxy": zod.boolean(),
   "spriteUrl": zod.string().nullable(),

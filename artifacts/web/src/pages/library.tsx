@@ -17,6 +17,14 @@ const length = (ms: number) => { const s = Math.round(ms / 1000); const h = Math
   return `${h ? `${h}:${String(m).padStart(2, '0')}` : m}:${String(s % 60).padStart(2, '0')}`; };
 const shotOnLabel = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 
+const logLabel: Record<Source['logStatus'], string> = { not_started: 'Not started', in_progress: 'Logging in progress', done: 'Logged' };
+/** How far a shoot's logging has got: of the files that can be logged, how many are done. */
+function logSummary(sources: Source[]) {
+  const loggable = sources.filter((s) => s.ingestState === 'ready' && s.hasProxy && s.transcriptWords != null);
+  if (!loggable.length) return null;
+  const done = loggable.filter((s) => s.logStatus === 'done').length;
+  return done === loggable.length ? `Logging: all ${done} file${done === 1 ? '' : 's'} done` : `Logging: ${done} of ${loggable.length} file${loggable.length === 1 ? '' : 's'} done`;
+}
 const clockOf = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 type Step = { title: string; detail?: string; state: 'done' | 'active' | 'waiting' | 'failed'; fraction?: number | null };
 
@@ -71,8 +79,8 @@ function SourceRow({ source, onChanged }: { source: Source; onChanged: () => voi
   const playable = source.ingestState === 'ready' && source.hasProxy;
   const transcribed = source.transcriptWords != null;
   const transcribing = source.transcriptionState === 'queued' || source.transcriptionState === 'claimed';
+  // Logging needs the transcript: word steps and snapping depend on it (David, 2026-10-29).
   const loggable = playable && transcribed;
-  const [unsnapped, setUnsnapped] = useState(false);
   const [error, setError] = useState('');
   const remove = async () => {
     if (!window.confirm('Remove this file from the shoot? Its bricks leave the lesson too.')) return;
@@ -84,7 +92,8 @@ function SourceRow({ source, onChanged }: { source: Source; onChanged: () => voi
       {facts && <div className="source-facts">{facts}</div>}
     </div>
     <div className="source-actions">
-      {(loggable || unsnapped) && playable && <Link href={`/sources/${source.id}/log`} className="button button-primary" data-testid={`link-log-${source.id}`}>{loggable ? 'Log' : 'Log without word snapping'}</Link>}
+      {loggable && <span className={`pill log-status ${source.logStatus}`} data-testid={`text-log-status-${source.id}`}>{logLabel[source.logStatus]}</span>}
+      {loggable && <Link href={`/sources/${source.id}/log`} className="button button-primary" data-testid={`link-log-${source.id}`}>{source.logStatus === 'done' ? 'Open log' : source.logStatus === 'in_progress' ? 'Continue logging' : 'Log'}</Link>}
       {!transcribing && source.ingestState !== 'probing' && source.ingestState !== 'proxying' &&
         <button type="button" onClick={() => void remove()} className="button-quiet" data-testid={`button-remove-source-${source.id}`}>Remove</button>}
     </div>
@@ -92,9 +101,7 @@ function SourceRow({ source, onChanged }: { source: Source; onChanged: () => voi
       {!loggable && <Tracker source={source} />}
       {loggable && <div className="tracker-done" data-testid={`text-ready-${source.id}`}>✓ Ready to log · {source.transcriptWords} words transcribed</div>}
       {playable && <div><ProxyPlayer sourceId={source.id} /></div>}
-      {playable && <div className="source-actions" style={{ justifyContent: 'flex-start' }}><TranscriptView source={source} />
-        {source.transcriptionState === 'failed' && !transcribed && !unsnapped &&
-          <button type="button" className="button-quiet" onClick={() => setUnsnapped(true)} data-testid={`button-log-unsnapped-${source.id}`}>Log without word snapping…</button>}</div>}
+      {playable && <div className="source-actions" style={{ justifyContent: 'flex-start' }}><TranscriptView source={source} /></div>}
       {error && <p className="error" role="alert">{error}</p>}
     </div>
   </div>;
@@ -127,6 +134,7 @@ export function Library({ accountId }: { accountId: string }) {
         <div>
           <h2>{shoot.name}</h2>
           <p className="shoot-meta">{[shoot.shotOn && `Shot ${shotOnLabel(shoot.shotOn)}`, `${shoot.sources.length} file${shoot.sources.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}</p>
+          {logSummary(shoot.sources) && <p className="shoot-log-summary" data-testid={`text-log-summary-${shoot.id}`}><strong>{logSummary(shoot.sources)}</strong></p>}
           {shoot.notes && <p>{shoot.notes}</p>}
         </div>
         <div className="source-actions">

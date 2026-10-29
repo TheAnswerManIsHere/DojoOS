@@ -8,3 +8,4 @@ export * from "./commands";
 export * from "./lesson";
 export * from "./media";
 export * from "./transcription";
+export * from "./navigation";

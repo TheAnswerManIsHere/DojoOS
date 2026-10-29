@@ -27,7 +27,9 @@ export const sources = pgTable("sources", {
   originalKey: text("original_key").notNull(), proxyKey: text("proxy_key"), spriteKey: text("sprite_key"), peaksKey: text("peaks_key"),
   originRevision: text("origin_revision").references((): AnyPgColumn => revisions.id),
   probe: jsonb("probe"), ingestState: ingestEnum("ingest_state").notNull().default("uploading"),
-  durationMs: integer("duration_ms"), width: integer("width"), height: integer("height"), fps: real("fps"), ...audit,
+  durationMs: integer("duration_ms"), width: integer("width"), height: integer("height"), fps: real("fps"),
+  // When the operator said this file's log is done (David, 2026-10-29); null while it is not started or in progress.
+  logDoneAt: timestamp("log_done_at", { withTimezone: true }), ...audit,
 });
 export const transcripts = pgTable("transcripts", {
   id: id(), sourceId: text("source_id").notNull().references(() => sources.id), provider: text("provider").notNull(),

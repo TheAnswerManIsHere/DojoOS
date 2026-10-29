@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { and, eq, isNull, isNotNull, desc, inArray, sql } from "drizzle-orm";
-import { jobs, revisions, shoots, sources, transcripts, uploads } from "@workspace/shared";
+import { bricks, jobs, revisions, shoots, sources, transcripts, uploads } from "@workspace/shared";
+import { logStatusOf } from "../logging";
 import type { Context } from "../../context";
 
 type IngestJob = Pick<typeof jobs.$inferSelect, "state" | "error"> & Partial<Pick<typeof jobs.$inferSelect, "result" | "claimedAt">>;
@@ -12,7 +13,7 @@ function progressOf(job?: IngestJob) {
 }
 /** A source can be processed again when ingest failed, or when it was marked ready before ingest made a proxy (step 0),
  * and no ingest job for it is queued or running (architecture.md §2: "the operator retries from the page"). */
-function publicSource(row: typeof sources.$inferSelect, latestJob?: IngestJob, transcriptWords: number | null = null, transcribeJob?: IngestJob) {
+function publicSource(row: typeof sources.$inferSelect, latestJob?: IngestJob, transcriptWords: number | null = null, transcribeJob?: IngestJob, brickCount = 0) {
   const busy = latestJob?.state === "queued" || latestJob?.state === "claimed";
   const unfinished = row.ingestState === "failed" || (row.ingestState === "ready" && !row.proxyKey);
   return {
@@ -25,6 +26,7 @@ function publicSource(row: typeof sources.$inferSelect, latestJob?: IngestJob, t
     transcriptionState: transcribeJob?.state ?? null,
     transcriptionStartedAt: transcribeJob?.state === "claimed" && transcribeJob.claimedAt ? transcribeJob.claimedAt.toISOString() : null,
     transcriptionError: transcribeJob?.state === "failed" ? transcribeJob.error ?? null : null,
+    logStatus: logStatusOf(row.logDoneAt, brickCount), brickCount,
   };
 }
 export function libraryRoutes(ctx: Context) {
@@ -48,6 +50,8 @@ export function libraryRoutes(ctx: Context) {
       words: sql<number>`jsonb_array_length(${transcripts.words})` }).from(transcripts).where(isNull(transcripts.deletedAt))
       .orderBy(transcripts.sourceId, desc(transcripts.createdAt));
     const wordCounts = new Map(counts.map((c) => [c.sourceId, Number(c.words)]));
+    const brickRows = await ctx.db.select({ sourceId: bricks.sourceId, n: sql<number>`count(*)` }).from(bricks).where(isNull(bricks.deletedAt)).groupBy(bricks.sourceId);
+    const brickCounts = new Map(brickRows.map((b) => [b.sourceId, Number(b.n)]));
     // A lesson render queued or running, per shoot, so the library shows it while it runs (async-ui-status.md).
     const rendering = await ctx.db.select({ shootId: sql<string>`${jobs.payload}->>'shootId'`, state: jobs.state, number: revisions.number })
       .from(jobs).innerJoin(revisions, sql`${revisions.id} = ${jobs.payload}->>'revisionId'`)
@@ -55,7 +59,7 @@ export function libraryRoutes(ctx: Context) {
     const renderOf = new Map<string, { number: number; state: string }>();
     for (const r of rendering) if (!renderOf.has(r.shootId)) renderOf.set(r.shootId, { number: r.number, state: r.state });
     res.json(rows.map((row) => ({ id: row.id, name: row.name, shotOn: row.shotOn, notes: row.notes, lessonRender: renderOf.get(row.id) ?? null,
-      sources: media.filter((s) => s.shootId === row.id).map((s) => publicSource(s, latest.get(s.id), wordCounts.get(s.id) ?? null, latestTranscribe.get(s.id))) })));
+      sources: media.filter((s) => s.shootId === row.id).map((s) => publicSource(s, latest.get(s.id), wordCounts.get(s.id) ?? null, latestTranscribe.get(s.id), brickCounts.get(s.id) ?? 0)) })));
   });
   router.post("/shoots", async (req, res) => {
     const name = req.body?.name;
