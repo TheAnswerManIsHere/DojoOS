@@ -28,6 +28,7 @@ import type {
   Lesson,
   LessonCommandResult,
   ListQuestionsParams,
+  LogStatusResult,
   LoginInput,
   Ok,
   PartInput,
@@ -810,6 +811,148 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getRemoveSourceMutationOptions(options));
+    }
+
+export const getMarkLogDoneUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/sources/${id}/log/done`
+}
+
+/**
+ * Says a file's log is done; refused while a brick is still open.
+ */
+export const markLogDone = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<LogStatusResult> => {
+
+  return customFetch<LogStatusResult>(getMarkLogDoneUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkLogDoneMutationKey = () => ['markLogDone'] as const;
+
+export const getMarkLogDoneMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markLogDone>>, TError,MarkLogDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markLogDone>>, TError,MarkLogDoneMutationVariables, TContext> => {
+
+const mutationKey = getMarkLogDoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markLogDone>>, MarkLogDoneMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  markLogDone(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkLogDoneMutationResult = NonNullable<Awaited<ReturnType<typeof markLogDone>>>
+
+    export type MarkLogDoneMutationError = ErrorType<void>
+    export type MarkLogDoneMutationVariables = {id: string}
+
+    export const useMarkLogDone = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markLogDone>>, TError,MarkLogDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markLogDone>>,
+        TError,
+        MarkLogDoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkLogDoneMutationOptions(options));
+    }
+
+export const getMarkLogInProgressUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/sources/${id}/log/reopen`
+}
+
+/**
+ * Takes a file's log back to in progress.
+ */
+export const markLogInProgress = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<LogStatusResult> => {
+
+  return customFetch<LogStatusResult>(getMarkLogInProgressUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkLogInProgressMutationKey = () => ['markLogInProgress'] as const;
+
+export const getMarkLogInProgressMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markLogInProgress>>, TError,MarkLogInProgressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markLogInProgress>>, TError,MarkLogInProgressMutationVariables, TContext> => {
+
+const mutationKey = getMarkLogInProgressMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markLogInProgress>>, MarkLogInProgressMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  markLogInProgress(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkLogInProgressMutationResult = NonNullable<Awaited<ReturnType<typeof markLogInProgress>>>
+
+    export type MarkLogInProgressMutationError = ErrorType<unknown>
+    export type MarkLogInProgressMutationVariables = {id: string}
+
+    export const useMarkLogInProgress = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markLogInProgress>>, TError,MarkLogInProgressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markLogInProgress>>,
+        TError,
+        MarkLogInProgressMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkLogInProgressMutationOptions(options));
     }
 
 export const getStartUploadUrl = () => {

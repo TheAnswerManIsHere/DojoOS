@@ -1,19 +1,19 @@
 {
-  "note": "PROTOTYPE — the lesson timeline's key bindings, as data (architecture.md §5): change a key here, not in code. Shift is read by the action itself: Shift+←/→ moves the selected brick, and with [ ] , . trims by a second instead of a frame. [ and ] tighten the in and out points; , and . extend them back out.",
+  "note": "PROTOTYPE — the lesson timeline's own key bindings, as data (architecture.md §5): change a key here, not in code. The player keys — Space, ← →, J K L — are every player's and live in @workspace/shared/navigation (David, 2026-10-29). Tab and Shift+Tab select a brick; - and = move it earlier or later in the lesson. [ ] move the selected brick's in point earlier or later and , . its out point, by word, a frame with Shift — the same edge keys as the brick editor.",
   "bindings": {
-    "ArrowLeft": "selectPrevious",
-    "ArrowRight": "selectNext",
+    "Tab": "selectNext",
+    "Minus": "moveEarlier",
+    "Equal": "moveLater",
     "KeyX": "remove",
     "Delete": "remove",
     "Backspace": "remove",
     "KeyA": "add",
-    "BracketLeft": "trimIn",
-    "BracketRight": "trimOut",
+    "BracketLeft": "inEarlier",
+    "BracketRight": "inLater",
+    "Comma": "outEarlier",
+    "Period": "outLater",
     "KeyD": "toggleTransition",
-    "Space": "playPause",
     "Escape": "undo",
-    "KeyR": "render",
-    "Comma": "extendIn",
-    "Period": "extendOut"
+    "KeyR": "render"
   }
 }

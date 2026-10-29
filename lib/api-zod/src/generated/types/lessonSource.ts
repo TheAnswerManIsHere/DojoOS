@@ -5,10 +5,16 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LessonSourceSpriteLayout } from './lessonSourceSpriteLayout';
+import type { LessonSourceWordsItem } from './lessonSourceWordsItem';
 
 export interface LessonSource {
   id: string;
   role: string;
+  /**
+     * The source's newest transcript, for word-by-word navigation of the preview.
+     * @nullable
+     */
+  words: LessonSourceWordsItem[] | null;
   /** @nullable */
   fps: number | null;
   hasProxy: boolean;

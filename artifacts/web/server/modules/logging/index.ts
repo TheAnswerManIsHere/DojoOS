@@ -9,6 +9,12 @@ import type { Context } from "../../context";
 
 type BrickRow = typeof bricks.$inferSelect;
 
+/** A file's logging status (David, 2026-10-29): not started with no bricks, in progress with some, done once the
+ * operator says so — and done stays done through later edits until the operator marks it in progress again. */
+export function logStatusOf(logDoneAt: Date | null, brickCount: number): "not_started" | "in_progress" | "done" {
+  return logDoneAt ? "done" : brickCount > 0 ? "in_progress" : "not_started";
+}
+
 export function toLogBrick(row: BrickRow): LogBrick {
   const a = row.attributes ?? {};
   return { id: row.id, inMs: row.inMs, outMs: row.outMs, openSeq: typeof a.openSeq === "number" ? a.openSeq : null,
@@ -27,6 +33,17 @@ async function readySource(ctx: Context, id: string) {
   return row;
 }
 
+/** The next file of the same shoot still to log — playable, transcribed, and not done — in the order the library lists
+ * them; null when every such file is done, so the page offers the lesson instead. */
+async function nextToLog(ctx: Context, source: typeof sources.$inferSelect) {
+  const rows = await ctx.db.select({ id: sources.id, role: sources.role }).from(sources)
+    .where(and(eq(sources.shootId, source.shootId), isNull(sources.deletedAt), eq(sources.ingestState, "ready"), isNull(sources.logDoneAt),
+      sql`${sources.id} <> ${source.id}`, sql`${sources.proxyKey} is not null`,
+      sql`exists (select 1 from ${transcripts} where ${transcripts.sourceId} = ${sources.id} and ${transcripts.deletedAt} is null)`))
+    .orderBy(sources.createdAt, sources.id).limit(1);
+  return rows[0] ?? null;
+}
+
 export function loggingRoutes(ctx: Context) {
   const router = Router();
 
@@ -40,10 +57,29 @@ export function loggingRoutes(ctx: Context) {
       .where(and(eq(transcripts.sourceId, source.id), isNull(transcripts.deletedAt))).orderBy(desc(transcripts.createdAt)).limit(1);
     const layout = source.spriteKey && source.width && source.height ? spriteLayout(durationMs, source.width, source.height) : null;
     return res.json({
-      sourceId: source.id, shootName: found.shootName, durationMs, fps: source.fps,
+      sourceId: source.id, shootId: source.shootId, shootName: found.shootName, durationMs, fps: source.fps, role: source.role,
+      logStatus: logStatusOf(source.logDoneAt, rows.length), next: await nextToLog(ctx, source),
       bricks: rows.map(toLogBrick), words: transcript?.words?.length ? transcript.words : null,
       spriteUrl: layout ? await ctx.storage.playback(source.spriteKey!) : null, spriteLayout: layout, hasPeaks: !!source.peaksKey,
     });
+  });
+
+  // Done and in progress: the operator's word on a file's log. Done waits until no brick is left open, and says which are.
+  router.post("/sources/:id/log/done", async (req, res) => {
+    const found = await readySource(ctx, req.params.id as string);
+    if (!found) return res.status(404).json({ error: "Source not ready to log" });
+    const rows = await ctx.db.select().from(bricks).where(and(eq(bricks.sourceId, found.source.id), isNull(bricks.deletedAt))).orderBy(bricks.inMs);
+    const open = rows.filter((b) => b.outMs === null);
+    if (open.length) return res.status(409).json({ error: `${open.length} brick${open.length === 1 ? " is" : "s are"} still open`, openInMs: open.map((b) => b.inMs) });
+    const [row] = await ctx.db.update(sources).set({ logDoneAt: found.source.logDoneAt ?? new Date() }).where(eq(sources.id, found.source.id)).returning();
+    return res.json({ logStatus: logStatusOf(row.logDoneAt, rows.length), next: await nextToLog(ctx, row) });
+  });
+  router.post("/sources/:id/log/reopen", async (req, res) => {
+    const found = await readySource(ctx, req.params.id as string);
+    if (!found) return res.status(404).json({ error: "Source not ready to log" });
+    const [row] = await ctx.db.update(sources).set({ logDoneAt: null }).where(eq(sources.id, found.source.id)).returning();
+    const [{ n }] = await ctx.db.select({ n: sql<number>`count(*)` }).from(bricks).where(and(eq(bricks.sourceId, row.id), isNull(bricks.deletedAt)));
+    return res.json({ logStatus: logStatusOf(row.logDoneAt, Number(n)), next: await nextToLog(ctx, row) });
   });
 
   router.get("/sources/:id/peaks", async (req, res) => {

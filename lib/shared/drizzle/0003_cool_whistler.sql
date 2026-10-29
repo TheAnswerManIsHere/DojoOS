@@ -1,0 +1,1 @@
+ALTER TABLE "sources" ADD COLUMN "log_done_at" timestamp with time zone;

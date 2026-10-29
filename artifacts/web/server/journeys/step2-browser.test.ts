@@ -103,10 +103,12 @@ async function until<T>(read: () => Promise<T>, ok: (value: T) => boolean): Prom
   throw new Error("timed out waiting for the saved state");
 }
 
-test("the walkthrough: nested bricks, Tab between open ones, O closes the selected one, a note, a label, E, the brick editor, undo and redo, through a reload", async () => {
+test("the walkthrough: nested bricks, Tab between open ones, O closes the selected one, a note, a label, A, the brick editor, undo and redo, done, through a reload", async () => {
   const page = await viewer(sourceId);
+  await page.getByTestId("text-log-status").filter({ hasText: "Not started" }).waitFor();
   await seek(page, 1.1); await page.keyboard.press("i");
   await until(liveBricks, (b) => b.length === 1);
+  await page.getByTestId("text-log-status").filter({ hasText: "In progress" }).waitFor();
   await seek(page, 2.1); await page.keyboard.press("Shift+I");
   await until(liveBricks, (b) => b.length === 2);
   // N acts on the selected brick — the one just opened — so it waits for the page, not only the database, to hold it.
@@ -119,23 +121,25 @@ test("the walkthrough: nested bricks, Tab between open ones, O closes the select
   await page.getByTestId(`chip-short-${inner.id}`).click();
   await until(liveBricks, (b) => b.some((x) => x.tags.includes("short")));
 
-  // Both bricks are open. Tab selects the outer one, and O closes it — not the innermost.
+  // Both bricks are open. Tab selects the outer one without moving the playhead, and O closes it — not the innermost.
+  await seek(page, 5.5);
   await page.keyboard.press("Tab");
-  await seek(page, 5.5); await page.keyboard.press("o");
+  assert.ok(Math.abs((await page.evaluate<number>(`${VIDEO}.currentTime`)) - 5.5) < 0.01, "Tab left the playhead where it was");
+  await page.keyboard.press("o");
   let saved = await until(liveBricks, (b) => b.some((x) => x.outMs !== null));
   assert.deepEqual(saved.map((b) => [b.id, b.outMs]), [[outer.id, 5600], [inner.id, null]], "O closed the selected outer brick; the inner one is still open");
   await page.keyboard.press("Tab");
   await seek(page, 2.55); await page.keyboard.press("o");
   await until(liveBricks, (b) => b.every((x) => x.outMs !== null));
   await page.keyboard.press("Tab");
-  await page.keyboard.press("e");
+  await page.keyboard.press("a");
   await until(liveBricks, (b) => b.some((x) => (x.attributes as { action?: string }).action === "punch_in"));
 
-  // P opens the inner brick on its own: A moves its in point to the previous word start, Shift+. its out point a frame later.
+  // P opens the inner brick on its own: [ moves its in point to the previous word start, Shift+. its out point a frame later.
   await page.keyboard.press("Tab");
   await page.keyboard.press("p");
   await page.getByTestId("brick-editor").waitFor();
-  await page.keyboard.press("a");
+  await page.keyboard.press("BracketLeft");
   await until(liveBricks, (b) => b.some((x) => x.inMs === 2000));
   await page.keyboard.press("Shift+Period");
   await until(liveBricks, (b) => b.some((x) => x.outMs === 2633));
@@ -150,30 +154,48 @@ test("the walkthrough: nested bricks, Tab between open ones, O closes the select
   saved = await until(liveBricks, (b) => b.every((x) => x.outMs !== 2633));
 
   assert.deepEqual(saved.map((b) => [b.inMs, b.outMs]), [[1000, 5600], [2000, 2600]]);
-  assert.deepEqual(saved.map((b) => (b.attributes as { action: string }).action), ["punch_in", "keep"], "E set the outer brick's action");
+  assert.deepEqual(saved.map((b) => (b.attributes as { action: string }).action), ["punch_in", "keep"], "A set the outer brick's action");
   assert.deepEqual(saved[1].tags, ["short"]);
   const events = await db.select().from(cutEvents).where(eq(cutEvents.sourceId, sourceId));
   assert.equal(events.length, 12, "open, open, note, label, close, close, action, two edge moves, undo, redo, undo: one source-owned event each");
   assert.ok(events.every((e) => e.cutId === null), "no cut is involved");
+
+  // Done: the page says so and offers the next step — here the lesson, since the shoot's other file has no transcript.
+  await page.getByTestId("button-log-done").click();
+  await page.getByTestId("text-log-status").filter({ hasText: "Done" }).waitFor();
+  await page.getByTestId("link-open-lesson").waitFor();
+  const [{ logDoneAt }] = await db.select({ logDoneAt: sources.logDoneAt }).from(sources).where(eq(sources.id, sourceId));
+  assert.ok(logDoneAt, "done is saved");
 
   await page.reload();
   await page.getByTestId(`chip-short-${inner.id}`).and(page.locator('[aria-pressed="true"]')).waitFor();
   assert.equal(await page.getByTestId(`text-brick-note-${inner.id}`).textContent(), "psoas release");
   assert.equal(await page.getByTestId(`text-brick-action-${outer.id}`).textContent(), "punch in · lower third");
   assert.equal(await page.getByTestId(`text-brick-out-${inner.id}`).textContent(), "0:02.60");
+  // Done is not locked: an edit keeps it done; Mark as in progress takes it back.
+  await page.getByTestId(`chip-lesson-${inner.id}`).click();
+  await until(liveBricks, (b) => b.some((x) => x.tags.includes("lesson")));
+  await page.getByTestId("text-log-status").filter({ hasText: "Done" }).waitFor();
+  await page.getByTestId("button-log-in-progress").click();
+  await page.getByTestId("text-log-status").filter({ hasText: "In progress" }).waitFor();
+  await page.getByTestId(`chip-lesson-${inner.id}`).click();
+  await until(liveBricks, (b) => !b.some((x) => x.tags.includes("lesson")));
   await page.close();
 });
 
-test("the arrows scrub, a drag on the timeline scrubs, J/K/L set the speed and Space still plays after J, an open brick survives a reload, Delete asks first, and the editor loops its brick", async () => {
+test("the arrows step by word, a second through silence, Shift 5 s and Option a frame; a drag scrubs; J/K/L and Space after J; a tap goes to a brick; Done waits for open bricks; Delete asks first", async () => {
   const page = await viewer(sourceId);
   const time = () => page.evaluate<number>(`${VIDEO}.currentTime`);
+  const near = async (want: number, why: string) => { const t = await time(); assert.ok(Math.abs(t - want) < 0.02, `${why} (${t})`); };
+  // Words start at 1.0, 1.5, 2.0 and 5.0 s.
   await seek(page, 3);
-  await page.keyboard.press("ArrowRight");
-  assert.ok(Math.abs((await time()) - 3.333) < 0.02, `→ moved ten frames (${await time()})`);
-  await page.keyboard.press("Shift+ArrowLeft");
-  assert.ok((await time()) < 0.01, "Shift+← moved back five seconds, stopping at the start");
-  await page.keyboard.press("Shift+ArrowRight");
-  assert.ok(Math.abs((await time()) - 5) < 0.02, "Shift+→ moved five seconds");
+  await page.keyboard.press("ArrowRight"); await near(5, "→ to the next word, 2 s away");
+  await page.keyboard.press("ArrowLeft"); await near(2, "← to the previous word");
+  await page.keyboard.press("ArrowLeft"); await near(1.5, "← again");
+  await page.keyboard.press("Alt+ArrowRight"); await near(1.533, "Option+→ one frame");
+  await page.keyboard.press("Shift+ArrowRight"); await near(6.533, "Shift+→ five seconds");
+  await page.keyboard.press("ArrowRight"); await near(7.533, "no word ahead: one second");
+  await page.keyboard.press("Shift+ArrowLeft"); await near(2.533, "Shift+← five seconds");
 
   // Drag from a quarter of the way along the timeline to three quarters: the playhead follows the pointer.
   await page.getByTestId("timeline").scrollIntoViewIfNeeded();
@@ -197,6 +219,11 @@ test("the arrows scrub, a drag on the timeline scrubs, J/K/L set the speed and S
   await page.keyboard.press("k");
   assert.equal(await page.evaluate<number>(`${VIDEO}.playbackRate`), 1, "K: back to 1×");
 
+  // A tap on a brick selects it and takes the playhead to its in point.
+  const [, inner] = await liveBricks();
+  await page.getByTestId(`span-brick-${inner.id}`).dispatchEvent("pointerdown");
+  await near(2, "tapping the brick went to its in point");
+
   await seek(page, 6.5); await page.keyboard.press("i");
   const open = await until(liveBricks, (b) => b.some((x) => x.outMs === null));
   const openId = open.find((x) => x.outMs === null)!.id;
@@ -204,6 +231,10 @@ test("the arrows scrub, a drag on the timeline scrubs, J/K/L set the speed and S
   await page.getByTestId("video-log").waitFor();
   await page.waitForFunction(`${VIDEO}?.readyState >= 1`);
   assert.equal(await page.getByTestId(`text-brick-out-${openId}`).textContent(), "open");
+  // Done waits until no brick is open, and says which are.
+  await page.getByTestId("button-log-done").click();
+  await page.getByTestId("text-open-bricks").filter({ hasText: "1 brick is still open" }).waitFor();
+  assert.equal((await db.select().from(sources).where(eq(sources.id, sourceId)))[0].logDoneAt, null);
 
   // Delete asks first: dismissing keeps the brick, accepting removes it.
   page.once("dialog", (dialog) => void dialog.dismiss());
@@ -213,21 +244,77 @@ test("the arrows scrub, a drag on the timeline scrubs, J/K/L set the speed and S
   page.once("dialog", (dialog) => void dialog.accept());
   await page.keyboard.press("Delete");
   await until(liveBricks, (b) => !b.some((x) => x.id === openId));
+  await page.close();
+});
 
-  // P on the inner brick (2.0–2.6 s, from the walkthrough) plays it on a loop, never past its out point.
-  await page.getByTestId(`span-brick-${open.find((x) => x.inMs === 2000)!.id}`).dispatchEvent("pointerdown");
+test("the brick editor plays exactly the brick and loops it; its strip scrubs outside the brick without moving an edge; B and E; I sets the in point at the playhead", async () => {
+  const page = await viewer(sourceId);
+  const [, inner] = await liveBricks(); // 2.0–2.6 s, from the walkthrough
+  await page.getByTestId(`span-brick-${inner.id}`).dispatchEvent("pointerdown");
   await page.keyboard.press("p");
   await page.getByTestId("brick-editor").waitFor();
-  await page.waitForFunction('document.querySelector("[data-testid=video-editor]")?.readyState >= 2');
+  const EDITOR = 'document.querySelector("[data-testid=video-editor]")';
+  await page.waitForFunction(`${EDITOR}?.readyState >= 2`);
+  const editorTime = () => page.evaluate<number>(`${EDITOR}.currentTime`);
+  assert.ok(Math.abs((await editorTime()) - 2) < 0.05, "opened at the in point");
+  await page.keyboard.press("Space");
   const times = await page.evaluate<number[]>(`(async () => {
-    const v = document.querySelector("[data-testid=video-editor]"), seen = [], end = performance.now() + 2000;
+    const v = ${EDITOR}, seen = [], end = performance.now() + 2000;
     while (performance.now() < end) { seen.push(v.currentTime); await new Promise((r) => setTimeout(r, 40)); }
     return seen;
   })()`);
-  assert.ok(times.every((t) => t >= 1.95 && t <= 2.7), `stayed inside the brick (${Math.min(...times)}–${Math.max(...times)})`);
+  assert.ok(times.every((t) => t >= 1.95 && t <= 2.7), `played only the brick (${Math.min(...times)}–${Math.max(...times)})`);
   assert.ok(times.some((t, i) => i > 0 && t < times[i - 1] - 0.2), "looped back to the in point");
-  await page.getByTestId("button-close-editor").click();
+  await page.keyboard.press("Space");
+  await page.waitForFunction(`${EDITOR}.paused`);
+
+  // ← goes before the brick, into the strip's lead-in, and no edge moves; E goes near the end; B back to the start.
+  await page.keyboard.press("b");
+  await page.keyboard.press("ArrowLeft");
+  assert.ok(Math.abs((await editorTime()) - 1.5) < 0.05, `← went to the word before the brick (${await editorTime()})`);
+  await page.getByTestId("text-editor-time").filter({ hasText: "before the brick" }).waitFor();
+  assert.equal((await liveBricks()).find((b) => b.id === inner.id)!.inMs, 2000, "scrubbing moved no edge");
+  await page.keyboard.press("e");
+  assert.ok(Math.abs((await editorTime()) - 2) < 0.05, "E: 2 s before the out point, but never before the in point");
+  await page.keyboard.press("b");
+  assert.ok(Math.abs((await editorTime()) - 2) < 0.05, "B: the in point");
+  // From 1.5 s, I makes the playhead the new in point; the next pass starts there. Esc closes; Esc undoes it.
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("i");
+  await until(liveBricks, (b) => b.some((x) => x.id === inner.id && x.inMs === 1500));
+  await page.getByTestId("text-editor-span").filter({ hasText: "0:01.50" }).waitFor();
+  await page.keyboard.press("Escape");
   await page.getByTestId("brick-editor").waitFor({ state: "detached" });
+  await page.keyboard.press("Escape");
+  await until(liveBricks, (b) => b.some((x) => x.id === inner.id && x.inMs === 2000));
+  // Closed and opened again, the editor's player has a picture (David, 2026-10-29: it went black on reopening).
+  await page.keyboard.press("p");
+  await page.getByTestId("brick-editor").waitFor();
+  await page.waitForFunction(`${EDITOR}?.readyState >= 2 && !${EDITOR}.error`);
+  await page.keyboard.press("Escape");
+  await page.close();
+});
+
+test("a player whose link has stopped working fetches a fresh one and comes back at the same place", async () => {
+  const page = await viewer(sourceId);
+  await seek(page, 3.2);
+  let signed = 0;
+  page.on("request", (r) => { if (r.url().includes(`/sources/${sourceId}/playback`)) signed++; });
+  // The link expires: the bucket refuses it, as it does five minutes after it was signed.
+  await page.route("http://127.0.0.1:9/expired/**", (route) => route.fulfill({ status: 403, body: "" }));
+  await page.evaluate(`(() => { const v = ${VIDEO}; v.src = "http://127.0.0.1:9/expired/proxy.mp4"; v.load(); })()`);
+  await page.waitForFunction(`${VIDEO}.src.includes(".mp4") && !${VIDEO}.src.includes("expired") && ${VIDEO}.readyState >= 1`);
+  assert.ok(signed >= 1, "a fresh link was asked for");
+  await page.waitForFunction(`Math.abs(${VIDEO}.currentTime - 3.2) < 0.05`);
+  await page.keyboard.press("Space");
+  await page.waitForFunction(`!${VIDEO}.paused`);
+  // Report a key problem sends the last key presses and the player's state with the feedback.
+  await page.getByTestId("button-report-keys").click();
+  await page.getByTestId("text-key-report").filter({ hasText: "Sent" }).waitFor();
+  const [report] = await db.select().from(feedback).where(and(eq(feedback.page, `/sources/${sourceId}/log`), eq(feedback.questionKey, "logging-viewer.keys")));
+  const state = report.state as { keyLog: Array<{ code: string; outcome: string }>; video: { readyState: number } };
+  assert.ok(state.keyLog.some((k) => k.code === "Space" && k.outcome === "playPause") && state.keyLog.some((k) => k.code === "recover"), JSON.stringify(state.keyLog));
+  assert.ok(state.video.readyState >= 1);
   await page.close();
 });
 
@@ -246,7 +333,7 @@ test("a source with no transcript marks the raw playhead, and the page carries t
   await box.fill("1–1.5×");
   await rail.getByRole("button", { name: "Submit answer" }).first().click();
   await rail.getByText("Answer submitted.").waitFor();
-  const [answer] = await db.select().from(feedback).where(eq(feedback.page, `/sources/${sourceId}/log`));
+  const [answer] = await db.select().from(feedback).where(and(eq(feedback.page, `/sources/${sourceId}/log`), eq(feedback.questionKey, "logging-viewer.speed")));
   assert.equal(answer.questionKey, "logging-viewer.speed");
   await rail.close();
 });

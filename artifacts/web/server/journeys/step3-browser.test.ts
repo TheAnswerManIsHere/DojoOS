@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { activeAt, bricks, cutBricks, cutEvents, cuts, derivedKeys, feedback, jobs, revisions, shoots, sources, type ResolvedEDL } from "@workspace/shared";
+import { activeAt, bricks, cutBricks, cutEvents, cuts, derivedKeys, feedback, jobs, revisions, shoots, sources, transcripts, type ResolvedEDL } from "@workspace/shared";
 import { requireTestDatabase, startServer, operatorEmail, type RunningServer } from "./harness";
 import { openPage, signInFromPage } from "./browser";
 
@@ -55,6 +55,9 @@ before(async () => {
       durationMs: 10_000, width: 320, height: 180, fps: 30, createdAt: new Date(Date.now() - 60_000 + n * 1000) }).returning();
     ids[which] = row.id;
     await db.update(sources).set({ proxyKey: derivedKeys(row.id).proxy }).where(eq(sources.id, row.id));
+    // One word a second, so a word step on the lesson page's edge keys is a one-second trim.
+    await db.insert(transcripts).values({ sourceId: row.id, provider: "elevenlabs", version: "scribe_v2",
+      words: Array.from({ length: 9 }, (_, k) => ({ text: `w${k}`, start_ms: k * 1000, end_ms: k * 1000 + 1000 })) });
   }
   // Logged out of order on purpose: file A's two bricks come first in D1's order, file B's after them.
   await db.insert(bricks).values([
@@ -82,6 +85,7 @@ after(async () => {
       }
       await db.delete(feedback).where(eq(feedback.page, `/shoots/${shootId}/lesson`));
       await db.delete(bricks).where(inArray(bricks.sourceId, Object.values(ids).filter(Boolean)));
+      await db.delete(transcripts).where(inArray(transcripts.sourceId, Object.values(ids).filter(Boolean)));
       await db.delete(sources).where(inArray(sources.id, Object.values(ids).filter(Boolean)));
       await db.delete(shoots).where(eq(shoots.id, shootId));
     }
@@ -134,16 +138,25 @@ test("the lesson starts with every closed brick in D1's order; a move and a diss
   assert.deepEqual(await order(), [{ brick: "b1", transition: "cut" }, { brick: "b3", transition: "cut" }, { brick: "b2", transition: "cut" }],
     "file A's bricks first by in point, then file B's; the open brick is left out");
   await page.getByTestId("text-lesson-length").filter({ hasText: "0:09.0" }).waitFor();
-  await page.keyboard.press("ArrowRight"); await page.keyboard.press("ArrowRight");
+  // The arrows are the player's, as on every player: → steps to the lesson's next word (one a second here), Option a frame.
+  await page.keyboard.press("ArrowRight");
+  await page.getByTestId("preview").and(page.locator('[data-out-ms="1000"]')).waitFor();
+  await page.keyboard.press("Alt+ArrowRight");
+  await page.getByTestId("preview").and(page.locator('[data-out-ms="1033"]')).waitFor();
   await page.keyboard.press("Shift+ArrowLeft");
+  await page.getByTestId("preview").and(page.locator('[data-out-ms="0"]')).waitFor();
+  // Tab selects (the arrows are the player's, as on every player); - moves the selected brick earlier.
+  await page.keyboard.press("Tab"); await page.keyboard.press("Tab");
+  await page.keyboard.press("Minus");
   await until(order, (o) => o[1].brick === "b2");
-  await page.keyboard.press("ArrowLeft"); await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("Shift+Tab"); // the moved brick stays selected; Shift+Tab goes to the first
   await page.keyboard.press("d");
   await until(order, (o) => o[0].transition === "dissolve");
   assert.deepEqual((await order()).map((o) => o.brick), ["b1", "b2", "b3"]);
   await page.getByTestId("text-lesson-length").filter({ hasText: "0:08.0" }).waitFor();
-  // A trim and its undo, both from the keyboard; the brick itself is never touched.
-  await page.keyboard.press("Shift+BracketRight");
+  // A trim and its undo, both from the keyboard; the brick itself is never touched. , moves the out point to the
+  // previous word's end: a second earlier, with this footage's one word a second.
+  await page.keyboard.press("Comma");
   await page.getByTestId("text-lesson-length").filter({ hasText: "0:07.0" }).waitFor();
   await page.keyboard.press("Escape");
   await page.getByTestId("text-lesson-length").filter({ hasText: "0:08.0" }).waitFor();
@@ -153,7 +166,7 @@ test("the lesson starts with every closed brick in D1's order; a move and a diss
   assert.equal(events.length, 4, "move, transition, trim and the undo's trim: one cut-owned event each");
   assert.ok(events.every((e) => e.sourceId === null));
   // A dissolve that cannot fit is refused with its reason, and nothing changes: trimming b1 under its 1 s dissolve.
-  for (let i = 0; i < 3; i++) await page.keyboard.press("Shift+BracketLeft");
+  for (let i = 0; i < 3; i++) await page.keyboard.press("BracketRight");
   await page.getByTestId("text-lesson-message").filter({ hasText: "doesn't fit" }).waitFor();
   await page.getByTestId("text-lesson-length").filter({ hasText: "0:06.0" }).waitFor(); // the two trims that fit, and not the third
   await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
@@ -187,7 +200,6 @@ test("the preview plays through the dissolve and the cut showing and sounding wh
   await page.getByTestId("input-preview-seek").fill("1500");
   await settled(page);
   await page.getByTestId("strip").click({ position: { x: 1, y: 1 } }).catch(() => {});
-  await page.keyboard.press("ArrowLeft"); await page.keyboard.press("ArrowLeft");
   await page.getByTestId("input-preview-seek").fill("1500");
   await settled(page);
   await page.locator("body").press("Space");
@@ -228,7 +240,7 @@ test("Render freezes the lesson: an edit made while the render waits does not ch
   const [job] = await db.select().from(jobs).where(sql`${jobs.payload}->>'revisionId' = ${revision.id}`);
   assert.equal(job.kind, "cut.render");
   // While it waits, b2's transition becomes a dissolve: the lesson is now 7 s and dissolves into b3 at 5–6 s.
-  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("Tab");
   await page.keyboard.press("d");
   await until(order, (o) => o[1].transition === "dissolve");
   await page.getByTestId("text-lesson-length").filter({ hasText: "0:07.0" }).waitFor();

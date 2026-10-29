@@ -5,12 +5,18 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LogBrick } from './logBrick';
+import type { LogStatus } from './logStatus';
+import type { NextToLog } from './nextToLog';
 import type { SourceLogSpriteLayout } from './sourceLogSpriteLayout';
 import type { SourceLogWordsItem } from './sourceLogWordsItem';
 
 export interface SourceLog {
   sourceId: string;
+  shootId: string;
   shootName: string;
+  role: string;
+  logStatus: LogStatus;
+  next: NextToLog | null;
   durationMs: number;
   /** @nullable */
   fps: number | null;

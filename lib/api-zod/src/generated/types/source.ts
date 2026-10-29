@@ -4,11 +4,14 @@
  * Api
  * OpenAPI spec version: 0.1.0
  */
+import type { LogStatus } from './logStatus';
 import type { SourceIngestProgress } from './sourceIngestProgress';
 import type { SourceRole } from './sourceRole';
 
 export interface Source {
   id: string;
+  logStatus: LogStatus;
+  brickCount: number;
   role: SourceRole;
   ingestState: string;
   /** @nullable */

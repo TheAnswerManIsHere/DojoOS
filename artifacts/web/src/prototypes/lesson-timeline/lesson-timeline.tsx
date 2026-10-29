@@ -8,6 +8,8 @@ import { applyLessonCommand, getLesson, getPlayback, getRenderDownload, getRende
   type LessonRender } from '@workspace/api-client-react';
 import { activeAt, dissolveOut, type ResolvedEDL } from '@workspace/shared/edl';
 import type { LessonCommand } from '@workspace/shared/lesson';
+import { stepToWord } from '@workspace/shared/commands';
+import { modifierOf, navigationTarget, nextSpeed, playerKeys, type Word } from '@workspace/shared/navigation';
 import keymap from './keymap.json';
 
 const clock = (ms: number) => {
@@ -32,6 +34,8 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
   const [outMs, setOutMs] = useState(0);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [watching, setWatching] = useState<{ number: number; url: string } | null>(null);
+  const [speed, setSpeed] = useState(1);
+  const speedRef = useRef(1);
   const players = [useRef<HTMLVideoElement>(null), useRef<HTMLVideoElement>(null)];
   const clockRef = useRef(0);
   const busy = useRef(Promise.resolve());
@@ -63,6 +67,16 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
   const entries = useMemo(() => lesson?.entries ?? [], [lesson]);
   const index = entries.findIndex((e) => e.id === selected);
   const fpsOf = useCallback((sourceId: string) => lesson?.sources.find((s) => s.id === sourceId)?.fps || 30, [lesson]);
+  const wordsOf = useCallback((sourceId: string) => (lesson?.sources.find((s) => s.id === sourceId)?.words ?? null) as Word[] | null, [lesson]);
+  /** The lesson's own transcript, in output time: each segment's words where the segment plays them, so ← / → step
+   * through the lesson word by word, as on every player (@workspace/shared/navigation). */
+  const lessonWords = useMemo(() => {
+    if (!edl) return null;
+    const out: Word[] = [];
+    for (const seg of edl.picture) for (const w of wordsOf(seg.sourceId) ?? [])
+      if (w.start_ms >= seg.inMs && w.start_ms < seg.outMs) out.push({ start_ms: seg.outStartMs + (w.start_ms - seg.inMs), end_ms: seg.outStartMs + (w.end_ms - seg.inMs) });
+    return out.sort((a, b) => a.start_ms - b.start_ms);
+  }, [edl, wordsOf]);
 
   /** Puts both players where the output clock says: each active segment on its player at its source time, its share
    * of picture and sound set; the idle player cued at the next segment it will play, so a cut needs no seek. */
@@ -82,6 +96,7 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
       } else if (v.readyState >= 1 && Math.abs(v.currentTime * 1000 - wantMs) > driftMs) v.currentTime = wantMs / 1000;
       else if (v.readyState < 1) v.dataset.pending = String(wantMs);
       v.dataset.sourceId = seg.sourceId;
+      if (v.playbackRate !== speedRef.current) v.playbackRate = speedRef.current;
       v.dataset.segment = String(edl.picture.indexOf(seg));
       // The later of two overlapping segments sits on top and fades in; the one beneath stays opaque while it plays.
       const later = here && active.length === 2 && here.index === Math.max(...active.map((a) => a.index));
@@ -124,6 +139,22 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     return () => cancelAnimationFrame(frame);
   }, [playing, edl, place]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Shown again after the iPad froze or unloaded the page, a player that can no longer play gets a fresh link (the
+  // links last five minutes), and the players are re-cued where the clock stands — as every player does (player/proxy-video).
+  useEffect(() => {
+    const check = () => {
+      if (document.visibilityState !== 'visible') return;
+      for (const ref of players) {
+        const v = ref.current, id = v?.dataset.sourceId;
+        if (v && id && (v.error || v.readyState < 1)) { v.dataset.url = ''; void loadUrl(id).catch(() => setMessage('A proxy could not be loaded.')); }
+      }
+      for (const s of lesson?.sources ?? []) if (s.hasProxy) void loadUrl(s.id).catch(() => {});
+    };
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('pageshow', check);
+    return () => { document.removeEventListener('visibilitychange', check); window.removeEventListener('pageshow', check); };
+  }, [lesson, loadUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // A change to the lesson re-cues the players where the clock stands.
   useEffect(() => { if (!playing) place(clockRef.current, false); }, [edl, urls, place, playing]);
 
@@ -157,25 +188,38 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     } catch (cause) { setMessage(reason(cause)); }
   }, [lesson, shootId]);
 
-  const runAction = useCallback((action: string, shift: boolean) => {
+  const runAction = useCallback((action: string, event: { shiftKey: boolean; altKey: boolean }) => {
     if (!lesson || !edl) return;
+    const shift = event.shiftKey;
     const entry = entries[index];
     const frame = entry ? Math.round(1000 / fpsOf(entry.sourceId)) : 33;
-    const step = shift ? 1000 : frame;
     switch (action) {
-      case 'selectPrevious': case 'selectNext': {
+      case 'back': case 'forward': {
+        const to = navigationTarget(lessonWords, clockRef.current, action === 'forward' ? 1 : -1, modifierOf(event), frame, lesson.lengthMs);
+        if (playing) { clockRef.current = to; setOutMs(to); place(to, true); } else seek(to);
+        return;
+      }
+      case 'slower': case 'normal': case 'faster': {
+        const to = nextSpeed(speed, action);
+        setSpeed(to); speedRef.current = to;
+        players.forEach((ref) => { if (ref.current) ref.current.playbackRate = to; });
+        setMessage(`Speed ${to}×`);
+        return;
+      }
+      case 'selectNext': {
+        // Tab and Shift+Tab pick a brick, as on the logging page; the arrows belong to the player.
         if (!entries.length) return;
-        const forward = action === 'selectNext';
-        if (shift) {
-          if (!entry) return;
-          const to = index + (forward ? 1 : -1);
-          if (to < 0 || to >= entries.length) { setMessage(forward ? 'Already the last brick.' : 'Already the first brick.'); return; }
-          send({ type: 'move', id: entry.id, to });
-          return;
-        }
-        const next = index < 0 ? 0 : Math.max(0, Math.min(entries.length - 1, index + (forward ? 1 : -1)));
+        const next = index < 0 ? 0 : (index + (shift ? -1 : 1) + entries.length) % entries.length;
         setSelected(entries[next].id);
         if (!playing) seek(edl.picture[next]?.outStartMs ?? 0);
+        return;
+      }
+      case 'moveEarlier': case 'moveLater': {
+        if (!entry) { setMessage('No brick selected.'); return; }
+        const forward = action === 'moveLater';
+        const to = index + (forward ? 1 : -1);
+        if (to < 0 || to >= entries.length) { setMessage(forward ? 'Already the last brick.' : 'Already the first brick.'); return; }
+        send({ type: 'move', id: entry.id, to });
         return;
       }
       case 'remove': if (entry) send({ type: 'remove', id: entry.id }); else setMessage('No brick selected.'); return;
@@ -185,12 +229,15 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
         send({ type: 'add', entry: { brickId: brick.id }, position: index < 0 ? entries.length : index + 1 });
         return;
       }
-      case 'trimIn': case 'extendIn': case 'trimOut': case 'extendOut': {
+      case 'inEarlier': case 'inLater': case 'outEarlier': case 'outLater': {
+        // The edge keys every player with edges shares: [ ] the in point, , . the out point, by word (Shift: a frame).
         if (!entry) { setMessage('No brick selected.'); return; }
-        const edge = action.endsWith('In') ? 'in' : 'out';
-        const tighten = action.startsWith('trim');
-        // Tightening moves the in point later and the out point earlier; extending moves them back out.
-        const deltaMs = (edge === 'in') === tighten ? step : -step;
+        const edge = action.startsWith('in') ? 'in' : 'out';
+        const direction = action.endsWith('Later') ? 1 : -1;
+        const from = edge === 'in' ? entry.brickInMs + entry.trimInMs : entry.brickOutMs + entry.trimOutMs;
+        const word = shift ? null : stepToWord(wordsOf(entry.sourceId), from, edge, direction);
+        const deltaMs = Math.round((word ?? from + direction * frame) - from);
+        if (deltaMs === 0) return;
         send({ type: 'trim', id: entry.id, edge, deltaMs });
         return;
       }
@@ -218,16 +265,16 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
       }
       case 'render': void render(); return;
     }
-  }, [lesson, edl, entries, index, pick, playing, undo, send, seek, place, render, fpsOf]);
+  }, [lesson, edl, entries, index, pick, playing, undo, send, seek, place, render, fpsOf, wordsOf, lessonWords, speed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const el = event.target as HTMLElement | null;
       if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(el.tagName) && (el as HTMLInputElement).type !== 'range')) return;
-      const action = (keymap.bindings as Record<string, string>)[event.code];
-      if (!action || event.metaKey || event.ctrlKey || event.altKey) return;
+      const action = (keymap.bindings as Record<string, string>)[event.code] ?? playerKeys[event.code];
+      if (!action || event.metaKey || event.ctrlKey || (event.altKey && action !== 'back' && action !== 'forward')) return;
       event.preventDefault();
-      runAction(action, event.shiftKey);
+      runAction(action, event);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -264,7 +311,7 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
         onChange={(e) => seek(Number(e.target.value))} data-testid="input-preview-seek" />
       <div className="media-bar">
         <span data-testid="text-preview-clock">{clock(outMs)} / {clock(lesson.lengthMs)}{playingNow.length ? ` · brick ${playingNow.join(' → ')}` : ''}{playing && <strong> · playing</strong>}</span>
-        <button type="button" onClick={() => runAction('playPause', false)} className="button-primary" data-testid="button-play-preview">{playing ? 'Pause' : 'Play'}</button>
+        <button type="button" onClick={() => runAction('playPause', { shiftKey: false, altKey: false })} className="button-primary" data-testid="button-play-preview">{playing ? 'Pause' : 'Play'}</button>
       </div>
     </div>
 
@@ -281,9 +328,10 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     </ol>
     <p className="lesson-facts"><span>Lesson length <strong data-testid="text-lesson-length">{clock(lesson.lengthMs)}</strong></span><span>{entries.length} brick{entries.length === 1 ? '' : 's'}</span></p>
     <div className="keys" aria-label="Keys">
-      <span><kbd>←</kbd><kbd>→</kbd>select (Shift: move)</span><span><kbd>X</kbd>remove</span><span><kbd>A</kbd>add the picked brick</span>
-      <span><kbd>[</kbd><kbd>]</kbd>tighten in · out (Shift: 1 s)</span><span><kbd>,</kbd><kbd>.</kbd>extend in · out</span>
-      <span><kbd>D</kbd>cut or dissolve</span><span><kbd>Space</kbd>play</span><span><kbd>Esc</kbd>undo</span><span><kbd>R</kbd>render</span>
+      <span><kbd>Space</kbd>play / pause</span><span><kbd>←</kbd><kbd>→</kbd>word (Shift: 5 s · Option: frame)</span><span><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd>slower · 1× · faster</span>
+      <span><kbd>Tab</kbd>select</span><span><kbd>-</kbd><kbd>=</kbd>move earlier · later</span><span><kbd>X</kbd>remove</span><span><kbd>A</kbd>add the picked brick</span>
+      <span><kbd>[</kbd><kbd>]</kbd>in point earlier · later</span><span><kbd>,</kbd><kbd>.</kbd>out point earlier · later</span><span>by word (<kbd>Shift</kbd>: frame)</span>
+      <span><kbd>D</kbd>cut or dissolve</span><span><kbd>Esc</kbd>undo</span><span><kbd>R</kbd>render</span>
     </div>
 
     <div className="two-col">

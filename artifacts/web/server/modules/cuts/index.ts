@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { Router } from "express";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { applyLessonCommand, bricks, CommandError, cutBricks, cutEvents, cuts, initialOrder, isLessonCommand, jobs, newId,
-  resolveCut, revisions, shoots, sources, spriteLayout, edlLengthMs, type LessonBrick, type LessonEntry, type LessonState,
+  resolveCut, revisions, shoots, sources, spriteLayout, edlLengthMs, transcripts, type LessonBrick, type LessonEntry, type LessonState,
   type Transition } from "@workspace/shared";
 import type { Context } from "../../context";
 
@@ -72,8 +72,11 @@ async function lessonView(ctx: Context, cut: typeof cuts.$inferSelect, shootName
     .orderBy(asc(sources.createdAt), asc(sources.id));
   const media = await Promise.all(files.map(async (s) => {
     const layout = s.spriteKey && s.width && s.height && s.durationMs ? spriteLayout(s.durationMs, s.width, s.height) : null;
+    const [transcript] = await ctx.db.select({ words: transcripts.words }).from(transcripts)
+      .where(and(eq(transcripts.sourceId, s.id), isNull(transcripts.deletedAt))).orderBy(desc(transcripts.createdAt)).limit(1);
     return { id: s.id, role: s.role, fps: s.fps, hasProxy: !!s.proxyKey,
-      spriteUrl: layout ? await ctx.storage.playback(s.spriteKey!) : null, spriteLayout: layout };
+      spriteUrl: layout ? await ctx.storage.playback(s.spriteKey!) : null, spriteLayout: layout,
+      words: transcript?.words?.length ? transcript.words : null };
   }));
   const revs = await ctx.db.select().from(revisions).where(and(eq(revisions.cutId, cut.id), isNull(revisions.deletedAt))).orderBy(desc(revisions.number));
   const renderJobs = revs.length ? await ctx.db.select({ state: jobs.state, error: jobs.error, payload: jobs.payload, result: jobs.result }).from(jobs)

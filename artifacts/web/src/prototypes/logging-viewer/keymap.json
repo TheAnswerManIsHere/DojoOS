@@ -1,15 +1,9 @@
 {
-  "note": "PROTOTYPE — the logging viewer's key bindings, as data (architecture.md §5): change a key here, not in code. Shift is read by the action itself: Shift+←/→ scrubs 5 s instead of 10 frames, Shift+I/O marks the raw playhead, Shift+Tab selects the previous brick, Shift+Esc redoes. In the brick editor (P), Shift moves an edge one frame instead of one word. Revised from David's feedback, 2026-10-28.",
+  "note": "PROTOTYPE — the logging viewer's own key bindings, as data (architecture.md §5): change a key here, not in code. The player keys — Space, ← →, J K L — are every player's and live in @workspace/shared/navigation, so they cannot drift between players. Shift is read by the action itself: Shift+I/O marks the exact playhead, Shift+Tab selects the previous brick, Shift+Esc redoes. In the brick editor (P), I/O set an edge at the playhead, [ ] step the in point and , . the out point by word, a frame with Shift. Revised from David's feedback, 2026-10-29.",
   "bindings": {
-    "Space": "playPause",
-    "ArrowLeft": "scrubBack",
-    "ArrowRight": "scrubForward",
-    "KeyJ": "slower",
-    "KeyK": "normal",
-    "KeyL": "faster",
     "KeyI": "markIn",
     "KeyO": "markOut",
-    "KeyE": "cycleAction",
+    "KeyA": "cycleAction",
     "KeyN": "note",
     "KeyT": "note",
     "Tab": "selectNext",
@@ -19,11 +13,14 @@
     "KeyP": "edit"
   },
   "editor": {
-    "KeyA": "inEarlier",
-    "KeyD": "inLater",
+    "KeyB": "toStart",
+    "KeyE": "toEnd",
+    "KeyI": "setIn",
+    "KeyO": "setOut",
+    "BracketLeft": "inEarlier",
+    "BracketRight": "inLater",
     "Comma": "outEarlier",
     "Period": "outLater",
-    "Space": "playPause",
     "Escape": "close"
   }
 }

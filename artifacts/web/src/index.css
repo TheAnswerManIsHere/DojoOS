@@ -568,6 +568,22 @@ kbd { font-family: 'Rubik', system-ui, sans-serif; font-size: .78rem; font-weigh
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(15, 23, 32, .55); display: grid; place-items: center; padding: 16px; overflow-y: auto; }
 .modal { width: min(880px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; }
 .editor-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.log-status-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pill.log-status.not_started { background: #eef1f4; color: #5b6573; }
+.pill.log-status.in_progress { background: var(--gold-tint); color: var(--gold-dark); }
+.pill.log-status.done { background: #e3f1e6; color: #2f6b3d; }
+.next-step { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; padding: 12px 16px;
+  border-radius: 12px; background: #e3f1e6; color: #2f6b3d; font-weight: 600; }
+.keys-paused { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.report-keys { margin: 6px 0 0; font-size: .85rem; }
+/* The brick editor's strip: the brick as a band, a few seconds either side. */
+.editor-strip { position: relative; height: 46px; margin: 12px 0 4px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  cursor: pointer; touch-action: none; user-select: none; overflow: hidden; }
+.editor-band { position: absolute; top: 0; bottom: 0; background: var(--gold-tint); border-left: 3px solid var(--gold); border-right: 3px solid var(--gold); pointer-events: none; }
+.editor-tick { position: absolute; top: 18px; width: 1px; height: 10px; background: #9aa6b2; pointer-events: none; }
+.editor-strip-label { position: absolute; bottom: 2px; font-size: .7rem; color: #8a94a0; pointer-events: none; }
+.editor-strip-label.start { left: 6px; } .editor-strip-label.end { right: 6px; }
+.shoot-log-summary { font-size: .85rem; }
 
 .sign-in { max-width: 440px; margin: 10vh auto 0; text-align: center; }
 .sign-in .card { text-align: left; }

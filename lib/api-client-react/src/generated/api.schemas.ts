@@ -69,9 +69,31 @@ export type SourceLogSpriteLayout = {
   tileHeight: number;
 } | null;
 
+export type LogStatus = typeof LogStatus[keyof typeof LogStatus];
+
+
+export const LogStatus = {
+  not_started: 'not_started',
+  in_progress: 'in_progress',
+  done: 'done',
+} as const;
+
+/**
+ * The shoot's next file still to log; null when every logged file is done.
+ * @nullable
+ */
+export type NextToLog = {
+  id: string;
+  role: string;
+} | null;
+
 export interface SourceLog {
   sourceId: string;
+  shootId: string;
   shootName: string;
+  role: string;
+  logStatus: LogStatus;
+  next: NextToLog | null;
   durationMs: number;
   /** @nullable */
   fps: number | null;
@@ -86,6 +108,11 @@ export interface SourceLog {
   /** @nullable */
   spriteLayout: SourceLogSpriteLayout;
   hasPeaks: boolean;
+}
+
+export interface LogStatusResult {
+  logStatus: LogStatus;
+  next: NextToLog | null;
 }
 
 /**
@@ -165,6 +192,8 @@ export type SourceIngestProgress = {
 
 export interface Source {
   id: string;
+  logStatus: LogStatus;
+  brickCount: number;
   role: SourceRole;
   ingestState: string;
   /** @nullable */
@@ -259,6 +288,12 @@ export interface LessonEntry {
   tags: string[];
 }
 
+export type LessonSourceWordsItem = {
+  text: string;
+  start_ms: number;
+  end_ms: number;
+};
+
 /**
  * @nullable
  */
@@ -274,6 +309,11 @@ export type LessonSourceSpriteLayout = {
 export interface LessonSource {
   id: string;
   role: string;
+  /**
+     * The source's newest transcript, for word-by-word navigation of the preview.
+     * @nullable
+     */
+  words: LessonSourceWordsItem[] | null;
   /** @nullable */
   fps: number | null;
   hasProxy: boolean;

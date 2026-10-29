@@ -4,7 +4,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { jobs, shoots, sources, uploads } from "@workspace/shared";
+import { bricks, jobs, shoots, sources, uploads } from "@workspace/shared";
 import { operatorEmail, requireTestDatabase, signInOverHttp, startServer, type RunningServer } from "./harness";
 
 const { db, pool } = requireTestDatabase();
@@ -38,6 +38,7 @@ after(async () => {
     const all = Object.values(ids);
     await db.delete(jobs).where(and(inArray(jobs.kind, ["source.probe", "source.transcribe"]), sql`${jobs.payload}->>'sourceId' in (${sql.join(all.map((id) => sql`${id}`), sql`, `)})`));
     await db.delete(uploads).where(inArray(uploads.sourceId, all));
+    await db.delete(bricks).where(inArray(bricks.sourceId, all));
     await db.delete(sources).where(inArray(sources.id, all));
     await db.delete(shoots).where(eq(shoots.id, shootId));
     await pool.end();
@@ -62,6 +63,16 @@ test("a file still being processed is refused; an unfinished upload is removed a
   assert.ok(upload.deletedAt, "the upload is closed");
   assert.ok(!ours(await get("/shoots"))!.sources.some((s) => s.id === ids.stalled), "and the file is gone from the library");
   assert.equal((await post(`/sources/${ids.stalled}/remove`)).status, 404, "removing twice finds nothing");
+});
+
+test("each file reports its logging status: not started with no bricks, in progress with some, done when said", async () => {
+  type Logged = { id: string; logStatus: string; brickCount: number };
+  const status = async (id: string) => (ours(await get("/shoots"))!.sources as unknown as Logged[]).find((s) => s.id === id)!;
+  assert.deepEqual(await status(ids.transcribing), { ...(await status(ids.transcribing)), logStatus: "not_started", brickCount: 0 });
+  await db.insert(bricks).values({ sourceId: ids.transcribing, inMs: 0, outMs: 1000 });
+  assert.equal((await status(ids.transcribing)).logStatus, "in_progress");
+  await db.update(sources).set({ logDoneAt: new Date() }).where(eq(sources.id, ids.transcribing));
+  assert.equal((await status(ids.transcribing)).logStatus, "done");
 });
 
 test("archiving takes a shoot out of the library and into the archived list; restoring brings it back", async () => {
