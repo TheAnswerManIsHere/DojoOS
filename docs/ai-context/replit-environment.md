@@ -53,7 +53,7 @@
 - **How the platform works** — what a publish takes, the publish-time
   production schema step, secrets, rollback, Agent modes, the connector's
   60-second timeout — is the fleet's
-  [`replit-platform.md`](replit-platform.md); this file carries only what is
+  `replit-platform.md` (beside this file once the handbook sync that ships it lands); this file carries only what is
   true of this Repl.
 - **Replit Agent's own notes** are `replit.md`, which routes it here.
 - **Connector gotcha:** the Replit file-listing and file-reading tools do
