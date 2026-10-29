@@ -15,9 +15,9 @@ export function logStatusOf(logDoneAt: Date | null, brickCount: number): "not_st
   return logDoneAt ? "done" : brickCount > 0 ? "in_progress" : "not_started";
 }
 
-export function toLogBrick(row: BrickRow): LogBrick {
+export function toLogBrick(row: BrickRow): LogBrick & { number: number | null } {
   const a = row.attributes ?? {};
-  return { id: row.id, inMs: row.inMs, outMs: row.outMs, openSeq: typeof a.openSeq === "number" ? a.openSeq : null,
+  return { id: row.id, number: row.number ?? null, inMs: row.inMs, outMs: row.outMs, openSeq: typeof a.openSeq === "number" ? a.openSeq : null,
     action: a.action === "punch_in" ? "punch_in" : "keep", preset: typeof a.preset === "string" ? a.preset : null, tags: row.tags,
     note: typeof a.note === "string" ? a.note : null };
 }
@@ -31,6 +31,17 @@ async function readySource(ctx: Context, id: string) {
   const [row] = await ctx.db.select({ source: sources, shootName: shoots.name }).from(sources).innerJoin(shoots, eq(sources.shootId, shoots.id))
     .where(and(eq(sources.id, id), isNull(sources.deletedAt), eq(sources.ingestState, "ready")));
   return row;
+}
+
+/** Gives every brick of a shoot that has no number the next ones, in the order they were marked. A brick is numbered
+ * when it is inserted; this catches the bricks a database without the 0004 migration's numbering step still holds. */
+export async function numberBricks(db: Context["db"] | Parameters<Parameters<Context["db"]["transaction"]>[0]>[0], shootId: string) {
+  await db.execute(sql`
+    update ${bricks} as b set number = n.next from (
+      select b2.id, (select coalesce(max(b3.number), 0) from ${bricks} b3 join ${sources} s3 on s3.id = b3.source_id where s3.shoot_id = ${shootId})
+        + row_number() over (order by b2.created_at, b2.id) as next
+      from ${bricks} b2 join ${sources} s2 on s2.id = b2.source_id where s2.shoot_id = ${shootId} and b2.number is null
+    ) as n where n.id = b.id`);
 }
 
 /** The next file of the same shoot still to log — playable, transcribed, and not done — in the order the library lists
@@ -52,6 +63,7 @@ export function loggingRoutes(ctx: Context) {
     if (!found?.source.proxyKey || !found.source.durationMs) return res.status(404).json({ error: "Source not ready to log" });
     const { source } = found;
     const durationMs = found.source.durationMs;
+    await numberBricks(ctx.db, source.shootId);
     const rows = await ctx.db.select().from(bricks).where(and(eq(bricks.sourceId, source.id), isNull(bricks.deletedAt))).orderBy(bricks.inMs);
     const [transcript] = await ctx.db.select({ words: transcripts.words }).from(transcripts)
       .where(and(eq(transcripts.sourceId, source.id), isNull(transcripts.deletedAt))).orderBy(desc(transcripts.createdAt)).limit(1);
@@ -115,7 +127,12 @@ export function loggingRoutes(ctx: Context) {
             // A restored brick reuses its soft-deleted row; a new one is inserted.
             const restored = await tx.update(bricks).set({ ...rowValues(brick), deletedAt: null })
               .where(and(eq(bricks.id, brick.id), eq(bricks.sourceId, id))).returning({ id: bricks.id });
-            if (!restored.length) await tx.insert(bricks).values({ id: brick.id, sourceId: id, ...rowValues(brick) });
+            if (!restored.length) {
+              // A new brick takes the shoot's next number, which it keeps (David, 2026-10-29).
+              const [{ next }] = await tx.select({ next: sql<number>`coalesce(max(${bricks.number}), 0) + 1` }).from(bricks)
+                .innerJoin(sources, eq(sources.id, bricks.sourceId)).where(eq(sources.shootId, source.shootId));
+              await tx.insert(bricks).values({ id: brick.id, sourceId: id, ...rowValues(brick), number: Number(next) });
+            }
           } else if (JSON.stringify(old) !== JSON.stringify(brick)) {
             await tx.update(bricks).set(rowValues(brick)).where(eq(bricks.id, brick.id));
           }
@@ -125,7 +142,8 @@ export function loggingRoutes(ctx: Context) {
         const [{ next }] = await tx.select({ next: sql<number>`coalesce(max(${cutEvents.sequence}), 0) + 1` }).from(cutEvents)
           .where(eq(cutEvents.sourceId, id));
         await tx.insert(cutEvents).values({ sourceId: id, sequence: Number(next), command, actor: req.account!.id });
-        return { bricks: [...state.bricks].sort((a, b) => a.inMs - b.inMs), inverse };
+        const numbers = new Map((await tx.select({ id: bricks.id, number: bricks.number }).from(bricks).where(eq(bricks.sourceId, id))).map((r) => [r.id, r.number]));
+        return { bricks: [...state.bricks].sort((a, b) => a.inMs - b.inMs).map((b) => ({ ...b, number: numbers.get(b.id) ?? null })), inverse };
       });
       if (!result) return res.status(404).json({ error: "Source not ready to log" });
       return res.json(result);

@@ -9,6 +9,9 @@ import type { LessonSourceWordsItem } from './lessonSourceWordsItem';
 
 export interface LessonSource {
   id: string;
+  hasPeaks: boolean;
+  /** @nullable */
+  durationMs: number | null;
   role: string;
   /**
      * The source's newest transcript, for word-by-word navigation of the preview.

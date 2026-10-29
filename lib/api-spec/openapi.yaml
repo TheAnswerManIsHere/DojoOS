@@ -421,9 +421,10 @@ components:
       properties: { who: { type: string, enum: [jared, david] } }
     LogBrick:
       type: object
-      required: [id, inMs, outMs, openSeq, action, preset, tags, note]
+      required: [id, number, inMs, outMs, openSeq, action, preset, tags, note]
       properties:
         id: { type: string }
+        number: { type: ["integer", "null"], description: "The brick's permanent number within its shoot." }
         inMs: { type: integer }
         outMs: { type: ["integer", "null"], description: "Null while the brick is open." }
         openSeq: { type: ["integer", "null"], description: "Order among open bricks; O closes the highest." }
@@ -553,18 +554,20 @@ components:
             properties: { text: { type: string }, start_ms: { type: integer }, end_ms: { type: integer } }
     LessonBrick:
       type: object
-      required: [id, sourceId, inMs, outMs, tags]
+      required: [id, sourceId, inMs, outMs, tags, number]
       properties:
         id: { type: string }
+        number: { type: ["integer", "null"], description: "The brick's permanent number within its shoot." }
         sourceId: { type: string }
         inMs: { type: integer }
         outMs: { type: integer }
         tags: { type: array, items: { type: string } }
     LessonEntry:
       type: object
-      required: [id, brickId, sourceId, brickInMs, brickOutMs, trimInMs, trimOutMs, transition, tags]
+      required: [id, brickId, brickNumber, sourceId, brickInMs, brickOutMs, trimInMs, trimOutMs, transition, tags]
       properties:
         id: { type: string }
+        brickNumber: { type: ["integer", "null"], description: "The brick's permanent number within its shoot." }
         brickId: { type: string }
         sourceId: { type: string }
         brickInMs: { type: integer }
@@ -575,9 +578,11 @@ components:
         tags: { type: array, items: { type: string } }
     LessonSource:
       type: object
-      required: [id, role, fps, hasProxy, spriteUrl, spriteLayout, words]
+      required: [id, role, fps, hasProxy, hasPeaks, durationMs, spriteUrl, spriteLayout, words]
       properties:
         id: { type: string }
+        hasPeaks: { type: boolean }
+        durationMs: { type: ["integer", "null"] }
         role: { type: string }
         words:
           type: ["array", "null"]

@@ -26,6 +26,11 @@ export const LogBrickAction = {
 
 export interface LogBrick {
   id: string;
+  /**
+     * The brick's permanent number within its shoot.
+     * @nullable
+     */
+  number: number | null;
   inMs: number;
   /**
      * Null while the brick is open.
@@ -256,6 +261,11 @@ export interface Transcript {
 
 export interface LessonBrick {
   id: string;
+  /**
+     * The brick's permanent number within its shoot.
+     * @nullable
+     */
+  number: number | null;
   sourceId: string;
   inMs: number;
   outMs: number;
@@ -275,6 +285,11 @@ export const LessonEntryTransition = {
 
 export interface LessonEntry {
   id: string;
+  /**
+     * The brick's permanent number within its shoot.
+     * @nullable
+     */
+  brickNumber: number | null;
   brickId: string;
   sourceId: string;
   brickInMs: number;
@@ -308,6 +323,9 @@ export type LessonSourceSpriteLayout = {
 
 export interface LessonSource {
   id: string;
+  hasPeaks: boolean;
+  /** @nullable */
+  durationMs: number | null;
   role: string;
   /**
      * The source's newest transcript, for word-by-word navigation of the preview.

@@ -1,26 +1,38 @@
-// PROTOTYPE — the lesson timeline, first version (PLAN_LESSON_TIMELINE.md): turn a shoot's logged bricks into a lesson
-// from the keyboard — order, trim, cut or dissolve — preview it, and render it. Every edit is a command sent to the
-// server, which applies it with applyLessonCommand and answers with the lesson and the command that reverses it; Esc
-// sends that inverse back. The preview plays the same ResolvedEDL the render reads: two players, alternating, so a cut
-// lands on a player already cued and a dissolve fades one player over the other in picture and sound together.
+// PROTOTYPE — the lesson timeline, second version (David's feedback, 2026-10-29): turn a shoot's logged bricks into a
+// lesson — order by keyboard or by dragging, cut or dissolve, open a brick to fix its edges — preview it, and render
+// it. Every lesson edit is a command sent to the server, which applies it with applyLessonCommand and answers with the
+// lesson and the command that reverses it; Esc sends that inverse back. The preview plays the same ResolvedEDL the
+// render reads: two players, alternating, so a cut lands on a player already cued and a dissolve fades one player over
+// the other in picture and sound together. Two strips follow the playhead: the whole lesson, and the brick now playing.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { applyLessonCommand, getLesson, getPlayback, getRenderDownload, getRenderFile, renderLesson, type Lesson, type LessonEntry,
-  type LessonRender } from '@workspace/api-client-react';
+import { applyLessonCommand, applySourceCommand, getLesson, getPlayback, getRenderDownload, getRenderFile, renderLesson, type Lesson,
+  type LessonEntry, type LessonRender } from '@workspace/api-client-react';
 import { activeAt, dissolveOut, type ResolvedEDL } from '@workspace/shared/edl';
 import type { LessonCommand } from '@workspace/shared/lesson';
-import { stepToWord } from '@workspace/shared/commands';
-import { modifierOf, navigationTarget, nextSpeed, playerKeys, type Word } from '@workspace/shared/navigation';
+import { stepToWord, type Command } from '@workspace/shared/commands';
+import { modifierOf, navigationTarget, nextSpeed, playerKeys, timecode, type Word } from '@workspace/shared/navigation';
+import { BrickEditor } from '../../player/brick-editor';
+import { Strip, usePeaks, type StripBand, type StripSegment } from '../../player/strip';
 import keymap from './keymap.json';
 
-const clock = (ms: number) => {
-  const s = Math.max(0, ms) / 1000;
-  return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
-};
+/** The lesson's own frame rate: the render's (renderDefaults on the server). */
+const lessonFps = 30;
+const clock = (ms: number) => timecode(ms, lessonFps);
 const reason = (cause: unknown) => (cause as { data?: { error?: string } })?.data?.error ?? (cause instanceof Error ? cause.message : 'That did not apply.');
 const lengthOf = (e: LessonEntry) => (e.brickOutMs + e.trimOutMs) - (e.brickInMs + e.trimInMs);
-/** How far a player may drift from the output clock before it is re-cued. */
+const brickName = (e: { brickNumber?: number | null; number?: number | null }) => `Brick ${e.brickNumber ?? e.number ?? '?'}`;
+/** How far a player may drift from the output clock before it is re-cued: tight while paused, loose while playing,
+ * where re-seeking a player that is only starting is what stalled the dissolve on the iPad (David, 2026-10-29). */
 const driftMs = 150;
+const playingDriftMs = 450;
+/** A player just started is left alone this long before it is judged to have drifted. */
+const startGraceMs = 900;
+/** The incoming player of a cut or dissolve is started this far ahead, muted and hidden, so it is already running. */
+const prerollMs = 350;
+/** A tile's width: so many pixels a second, never narrower than the minimum (David, 2026-10-29). */
+const tilePxPerSecond = 9, tileMinPx = 112;
 const busyStates = new Set(['queued', 'claimed']);
+type Words = Array<Word & { text: string }>;
 
 export function LessonTimeline({ shootId }: { shootId: string }) {
   const [lesson, setLesson] = useState<Lesson>();
@@ -35,15 +47,23 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [watching, setWatching] = useState<{ number: number; url: string } | null>(null);
   const [speed, setSpeed] = useState(1);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [brickUndo, setBrickUndo] = useState<Array<{ sourceId: string; command: Command }>>([]);
+  const [brickRedo, setBrickRedo] = useState<Array<{ sourceId: string; command: Command }>>([]);
+  const [drag, setDrag] = useState<{ id: string; x: number; startX: number; to: number } | null>(null);
   const speedRef = useRef(1);
   const players = [useRef<HTMLVideoElement>(null), useRef<HTMLVideoElement>(null)];
   const clockRef = useRef(0);
+  const shownRef = useRef(0);
   const busy = useRef(Promise.resolve());
+  const tileRefs = useRef(new Map<string, HTMLLIElement>());
+  const dragged = useRef(false);
 
   const loadUrl = useCallback(async (sourceId: string) => {
     const { url } = await getPlayback(sourceId);
     setUrls((u) => ({ ...u, [sourceId]: url }));
   }, []);
+  const reload = useCallback(async () => { const l = await getLesson(shootId); setLesson(l); setRenders(l.renders); return l; }, [shootId]);
 
   useEffect(() => {
     let live = true;
@@ -66,23 +86,35 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
   const edl = lesson?.resolved as ResolvedEDL | undefined;
   const entries = useMemo(() => lesson?.entries ?? [], [lesson]);
   const index = entries.findIndex((e) => e.id === selected);
-  const fpsOf = useCallback((sourceId: string) => lesson?.sources.find((s) => s.id === sourceId)?.fps || 30, [lesson]);
-  const wordsOf = useCallback((sourceId: string) => (lesson?.sources.find((s) => s.id === sourceId)?.words ?? null) as Word[] | null, [lesson]);
+  const sourceOf = useCallback((sourceId: string) => lesson?.sources.find((s) => s.id === sourceId), [lesson]);
+  const fpsOf = useCallback((sourceId: string) => sourceOf(sourceId)?.fps || 30, [sourceOf]);
+  const wordsOf = useCallback((sourceId: string) => (sourceOf(sourceId)?.words ?? null) as Words | null, [sourceOf]);
+  const peaks = usePeaks(lesson?.sources.map((s) => ({ id: s.id, hasPeaks: s.hasPeaks })) ?? []);
+  const wordsBySource = useMemo(() => Object.fromEntries((lesson?.sources ?? []).map((s) => [s.id, (s.words ?? null) as Word[] | null])), [lesson]);
   /** The lesson's own transcript, in output time: each segment's words where the segment plays them, so ← / → step
-   * through the lesson word by word, as on every player (@workspace/shared/navigation). */
+   * through the lesson word by word, as on every player (@workspace/shared/navigation), and the words show as it plays. */
   const lessonWords = useMemo(() => {
     if (!edl) return null;
-    const out: Word[] = [];
+    const out: Words = [];
     for (const seg of edl.picture) for (const w of wordsOf(seg.sourceId) ?? [])
-      if (w.start_ms >= seg.inMs && w.start_ms < seg.outMs) out.push({ start_ms: seg.outStartMs + (w.start_ms - seg.inMs), end_ms: seg.outStartMs + (w.end_ms - seg.inMs) });
+      if (w.start_ms >= seg.inMs && w.start_ms < seg.outMs) out.push({ text: w.text, start_ms: seg.outStartMs + (w.start_ms - seg.inMs), end_ms: seg.outStartMs + (w.end_ms - seg.inMs) });
     return out.sort((a, b) => a.start_ms - b.start_ms);
   }, [edl, wordsOf]);
+  /** The strip's pieces: each segment of the lesson, showing its own source. */
+  const segments: StripSegment[] = useMemo(() => edl?.picture.map((p) => ({ startMs: p.outStartMs, endMs: p.outEndMs, sourceId: p.sourceId, sourceInMs: p.inMs })) ?? [], [edl]);
+  /** Where two segments overlap, a dissolve: shaded and labelled on both strips. */
+  const dissolves: StripBand[] = useMemo(() => (edl?.picture ?? []).flatMap((p, i, all) => {
+    const next = all[i + 1];
+    return next && next.outStartMs < p.outEndMs ? [{ fromMs: next.outStartMs, toMs: p.outEndMs, className: 'dissolve', label: 'dissolve', testid: `band-dissolve-${i}` }] : [];
+  }), [edl]);
 
   /** Puts both players where the output clock says: each active segment on its player at its source time, its share
-   * of picture and sound set; the idle player cued at the next segment it will play, so a cut needs no seek. */
+   * of picture and sound set; the idle player cued at the next segment it will play — and, just before that segment
+   * starts, already running, muted and hidden, so the join needs no seek and no start-up. */
   const place = useCallback((t: number, play: boolean) => {
     if (!edl) return;
     const active = activeAt(edl, t);
+    const now = performance.now();
     players.forEach((ref, k) => {
       const v = ref.current;
       if (!v) return;
@@ -90,35 +122,48 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
       const seg = here ? edl.picture[here.index] : edl.picture.find((p, i) => i % 2 === k && p.outStartMs > t);
       const url = seg && urls[seg.sourceId];
       if (!seg || !url) { v.pause(); v.style.opacity = '0'; v.volume = 0; return; }
-      const wantMs = here ? here.sourceMs : seg.inMs;
+      const preroll = !here && play && seg.outStartMs - t <= prerollMs;
+      const wantMs = here ? here.sourceMs : preroll ? seg.inMs - (seg.outStartMs - t) : seg.inMs;
+      const since = Number(v.dataset.since || 0);
+      const running = play && !v.paused;
+      const tolerance = running ? playingDriftMs : driftMs;
       if (v.dataset.url !== url) {
-        v.dataset.url = url; v.dataset.pending = String(wantMs); v.src = url;
-      } else if (v.readyState >= 1 && Math.abs(v.currentTime * 1000 - wantMs) > driftMs) v.currentTime = wantMs / 1000;
-      else if (v.readyState < 1) v.dataset.pending = String(wantMs);
+        v.dataset.url = url; v.dataset.pending = String(Math.max(0, wantMs)); v.src = url;
+      } else if (v.readyState >= 1 && !v.seeking && Math.abs(v.currentTime * 1000 - wantMs) > tolerance && !(running && now - since < startGraceMs)) {
+        v.currentTime = Math.max(0, wantMs) / 1000;
+      } else if (v.readyState < 1) v.dataset.pending = String(Math.max(0, wantMs));
       v.dataset.sourceId = seg.sourceId;
-      if (v.playbackRate !== speedRef.current) v.playbackRate = speedRef.current;
       v.dataset.segment = String(edl.picture.indexOf(seg));
+      if (v.playbackRate !== speedRef.current) v.playbackRate = speedRef.current;
       // The later of two overlapping segments sits on top and fades in; the one beneath stays opaque while it plays.
       const later = here && active.length === 2 && here.index === Math.max(...active.map((a) => a.index));
       v.style.zIndex = later ? '2' : '1';
       v.style.opacity = here ? String(later ? here.weight : 1) : '0';
       v.volume = here ? Math.min(1, Math.max(0, here.weight)) : 0;
-      if (here && play && v.paused) void v.play().catch((cause: Error) => {
-        // Never silent (David, 2026-10-29): a refused play is said, and the player is given a fresh link.
-        if (cause?.name === 'AbortError') return;
-        setMessage(cause?.name === 'NotAllowedError' ? 'Safari would not start playback without a tap. Tap Play once, then Space works.' : 'A player would not start; fetching a fresh link.');
-        if (seg) { v.dataset.url = ''; void loadUrl(seg.sourceId).catch(() => setMessage('A proxy could not be loaded.')); }
-      });
-      if (!here || !play) v.pause();
+      if ((here || preroll) && play && v.paused) {
+        v.dataset.since = String(now);
+        void v.play().catch((cause: Error) => {
+          // Never silent (David, 2026-10-29): a refused play is said, and the player is given a fresh link.
+          if (cause?.name === 'AbortError') return;
+          setMessage(cause?.name === 'NotAllowedError' ? 'Safari would not start playback without a tap. Tap Play once, then Space works.' : 'A player would not start; fetching a fresh link.');
+          v.dataset.url = ''; void loadUrl(seg.sourceId).catch(() => setMessage('A proxy could not be loaded.'));
+        });
+      }
+      if ((!here && !preroll) || !play) v.pause();
     });
   }, [edl, urls]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** The clock as the page shows it: the strips read clockRef every frame themselves, so the page is only redrawn when
+   * the shown time has moved a tenth of a second — redrawing it every frame is what an iPad could not keep up with. */
+  const show = useCallback((t: number, force = false) => {
+    if (force || Math.abs(t - shownRef.current) >= 100) { shownRef.current = t; setOutMs(t); }
+  }, []);
   const seek = useCallback((t: number) => {
     const total = lesson?.lengthMs ?? 0;
     clockRef.current = Math.max(0, Math.min(total, t));
-    setOutMs(clockRef.current);
+    show(clockRef.current, true);
     place(clockRef.current, playing);
-  }, [lesson, place, playing]);
+  }, [lesson, place, playing, show]);
 
   // The output clock follows the earliest playing segment's own player, so a stalled player stalls the preview rather
   // than letting the two drift apart.
@@ -128,14 +173,14 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     const tick = () => {
       const active = activeAt(edl, clockRef.current);
       const first = active[0];
-      if (!first) { setPlaying(false); place(clockRef.current, false); setMessage('Preview finished.'); return; }
+      if (!first) { setPlaying(false); place(clockRef.current, false); show(clockRef.current, true); setMessage('Preview finished.'); return; }
       const seg = edl.picture[first.index];
       const v = players[first.index % 2].current;
       if (v && v.readyState >= 2 && !v.seeking && v.dataset.segment === String(first.index)) {
         clockRef.current = Math.max(clockRef.current, seg.outStartMs + (v.currentTime * 1000 - seg.inMs));
         if (clockRef.current >= seg.outEndMs - 1 && first.index === edl.picture.length - 1) clockRef.current = seg.outEndMs;
       }
-      setOutMs(clockRef.current);
+      show(clockRef.current);
       place(clockRef.current, true);
       frame = requestAnimationFrame(tick);
     };
@@ -143,6 +188,9 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [playing, edl, place]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A change to the lesson re-cues the players where the clock stands.
+  useEffect(() => { if (!playing) place(clockRef.current, false); }, [edl, urls, place, playing]);
 
   // Shown again after the iPad froze or unloaded the page, a player that can no longer play gets a fresh link (the
   // links last five minutes), and the players are re-cued where the clock stands — as every player does (player/proxy-video).
@@ -159,9 +207,6 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     window.addEventListener('pageshow', check);
     return () => { document.removeEventListener('visibilitychange', check); window.removeEventListener('pageshow', check); };
   }, [lesson, loadUrl]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // A change to the lesson re-cues the players where the clock stands.
-  useEffect(() => { if (!playing) place(clockRef.current, false); }, [edl, urls, place, playing]);
 
   /** One command at a time, in order: each waits for the last, so undo always reverses what is on screen. */
   const send = useCallback((command: LessonCommand | { type: 'add'; entry: { brickId: string }; position: number }, opts: { isUndo?: boolean } = {}) => {
@@ -184,6 +229,21 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     });
   }, [lesson, index]);
 
+  /** A brick edit from the brick editor: a command on the brick itself, on its own file, so the lesson and the log
+   * show the same edges. Its inverse goes on the editor's own history; the lesson is read again after it. */
+  const sendBrick = useCallback((sourceId: string, command: Command, kind: 'edit' | 'undo' | 'redo' = 'edit') => {
+    busy.current = busy.current.then(async () => {
+      try {
+        const result = await applySourceCommand(sourceId, { command: command as unknown as Record<string, unknown> });
+        const inverse = { sourceId, command: result.inverse as unknown as Command };
+        if (kind === 'undo') setBrickRedo((s) => [...s, inverse]);
+        else { setBrickUndo((s) => [...s, inverse]); if (kind === 'edit') setBrickRedo([]); }
+        setMessage('');
+        await reload();
+      } catch (cause) { setMessage(reason(cause)); }
+    });
+  }, [reload]);
+
   const render = useCallback(async () => {
     if (!lesson) return;
     try {
@@ -193,15 +253,24 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     } catch (cause) { setMessage(reason(cause)); }
   }, [lesson, shootId]);
 
+  const togglePlay = useCallback(() => {
+    if (!lesson) return;
+    if (playing) { setPlaying(false); place(clockRef.current, false); show(clockRef.current, true); return; }
+    // Space plays from the playhead, wherever it is (David, 2026-10-29); only at the very end does it start again.
+    if (clockRef.current >= (lesson.lengthMs ?? 0) - 1) clockRef.current = 0;
+    setMessage('');
+    setPlaying(true);
+  }, [lesson, playing, place, show]);
+
   const runAction = useCallback((action: string, event: { shiftKey: boolean; altKey: boolean }) => {
     if (!lesson || !edl) return;
     const shift = event.shiftKey;
     const entry = entries[index];
-    const frame = entry ? Math.round(1000 / fpsOf(entry.sourceId)) : 33;
+    const frame = 1000 / lessonFps;
     switch (action) {
       case 'back': case 'forward': {
         const to = navigationTarget(lessonWords, clockRef.current, action === 'forward' ? 1 : -1, modifierOf(event), frame, lesson.lengthMs);
-        if (playing) { clockRef.current = to; setOutMs(to); place(to, true); } else seek(to);
+        if (playing) { clockRef.current = to; show(to, true); place(to, true); } else seek(to);
         return;
       }
       case 'slower': case 'normal': case 'faster': {
@@ -234,16 +303,11 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
         send({ type: 'add', entry: { brickId: brick.id }, position: index < 0 ? entries.length : index + 1 });
         return;
       }
-      case 'inEarlier': case 'inLater': case 'outEarlier': case 'outLater': {
-        // The edge keys every player with edges shares: [ ] the in point, , . the out point, by word (Shift: a frame).
-        if (!entry) { setMessage('No brick selected.'); return; }
-        const edge = action.startsWith('in') ? 'in' : 'out';
-        const direction = action.endsWith('Later') ? 1 : -1;
-        const from = edge === 'in' ? entry.brickInMs + entry.trimInMs : entry.brickOutMs + entry.trimOutMs;
-        const word = shift ? null : stepToWord(wordsOf(entry.sourceId), from, edge, direction);
-        const deltaMs = Math.round((word ?? from + direction * frame) - from);
-        if (deltaMs === 0) return;
-        send({ type: 'trim', id: entry.id, edge, deltaMs });
+      case 'edit': {
+        if (!entry) { setMessage('Select a brick (Tab, or tap it) to open it.'); return; }
+        if (playing) { setPlaying(false); place(clockRef.current, false); }
+        setBrickUndo([]); setBrickRedo([]); setMessage('');
+        setEditing(entry.id);
         return;
       }
       case 'toggleTransition': {
@@ -252,15 +316,7 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
         send({ type: 'setTransition', id: entry.id, transition: entry.transition === 'dissolve' ? 'cut' : 'dissolve' });
         return;
       }
-      case 'playPause': {
-        if (playing) { setPlaying(false); place(clockRef.current, false); return; }
-        const seg = edl.picture[index];
-        if (seg && !(clockRef.current >= seg.outStartMs && clockRef.current < seg.outEndMs)) clockRef.current = seg.outStartMs;
-        if (clockRef.current >= (lesson.lengthMs ?? 0)) clockRef.current = 0;
-        setMessage('');
-        setPlaying(true);
-        return;
-      }
+      case 'playPause': togglePlay(); return;
       case 'undo': {
         const last = undo.at(-1);
         if (!last) { setMessage('Nothing to undo.'); return; }
@@ -270,10 +326,11 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
       }
       case 'render': void render(); return;
     }
-  }, [lesson, edl, entries, index, pick, playing, undo, send, seek, place, render, fpsOf, wordsOf, lessonWords, speed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lesson, edl, entries, index, pick, playing, undo, send, seek, place, render, lessonWords, speed, togglePlay, show]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (editing) return; // the brick editor has the keys while it is open
       const el = event.target as HTMLElement | null;
       if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(el.tagName) && (el as HTMLInputElement).type !== 'range')) return;
       const action = (keymap.bindings as Record<string, string>)[event.code] ?? playerKeys[event.code];
@@ -283,20 +340,40 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [runAction]);
+  }, [runAction, editing]);
+
+  /** Dragging a tile: once the pointer has moved a few pixels it is a drag, the tile follows it, and the gap it would
+   * drop into is marked; letting go moves the brick there. A tap without a drag selects it. */
+  const dropIndex = (x: number, id: string) => {
+    let to = 0;
+    entries.forEach((e) => {
+      if (e.id === id) return;
+      const r = tileRefs.current.get(e.id)?.getBoundingClientRect();
+      if (r && x > r.left + r.width / 2) to++;
+    });
+    return to;
+  };
 
   if (loadError) return <p role="alert" className="error">{loadError}</p>;
   if (!lesson || !edl) return <p role="status">Loading the lesson…</p>;
 
-  const playingNow = activeAt(edl, outMs).map((a) => a.index + 1);
+  const playingNow = activeAt(edl, outMs);
+  const current = playingNow.length ? edl.picture[playingNow[playingNow.length - 1].index] : edl.picture[Math.max(0, index)];
+  const currentIndex = current ? edl.picture.indexOf(current) : -1;
+  const currentEntry = currentIndex >= 0 ? entries[currentIndex] : undefined;
+  const near = lessonWords?.filter((w) => w.end_ms >= outMs - 6000 && w.start_ms <= outMs + 6000) ?? [];
+  const editingEntry = entries.find((e) => e.id === editing);
+  const editingSource = editingEntry ? sourceOf(editingEntry.sourceId) : undefined;
   const spriteOf = (e: LessonEntry) => {
-    const s = lesson.sources.find((x) => x.id === e.sourceId);
+    const s = sourceOf(e.sourceId);
     const layout = s?.spriteLayout;
     if (!s?.spriteUrl || !layout) return undefined;
     const tile = Math.min(layout.count - 1, Math.floor((e.brickInMs + e.trimInMs) / 1000 / layout.intervalSeconds));
     return { width: layout.tileWidth, height: layout.tileHeight, backgroundImage: `url(${s.spriteUrl})`,
       backgroundPosition: `-${(tile % layout.columns) * layout.tileWidth}px -${Math.floor(tile / layout.columns) * layout.tileHeight}px` };
   };
+  const brickBands: StripBand[] = edl.picture.map((p, i) => ({ fromMs: p.outStartMs, toMs: p.outEndMs, className: `segment${i === currentIndex ? ' current' : ''}`,
+    label: entries[i] ? brickName(entries[i]) : undefined }));
 
   return <section className="lesson-timeline" aria-label="Lesson timeline">
     <div className="page-head">
@@ -312,31 +389,66 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
           onError={(e) => { const id = e.currentTarget.dataset.sourceId; if (id) { e.currentTarget.dataset.url = ''; void loadUrl(id).catch(() => setMessage('A proxy could not be played.')); } }} />)}
         {!edl.picture.length && <p className="lesson-empty">No bricks in the lesson. Add one from “Not in the lesson” with A.</p>}
       </div>
-      <input type="range" className="lesson-seek" aria-label="Preview position" min={0} max={lesson.lengthMs} step={1} value={Math.round(outMs)}
-        onChange={(e) => seek(Number(e.target.value))} data-testid="input-preview-seek" />
       <div className="media-bar">
-        <span data-testid="text-preview-clock">{clock(outMs)} / {clock(lesson.lengthMs)}{playingNow.length ? ` · brick ${playingNow.join(' → ')}` : ''}{playing && <strong> · playing</strong>}</span>
-        <button type="button" onClick={() => runAction('playPause', { shiftKey: false, altKey: false })} className="button-primary" data-testid="button-play-preview">{playing ? 'Pause' : 'Play'}</button>
+        <span data-testid="text-preview-clock">{clock(outMs)} / {clock(lesson.lengthMs)}{currentEntry ? ` · ${brickName(currentEntry)}` : ''}{playing && <strong> · playing</strong>}{speed !== 1 && <strong> · {speed}×</strong>}</span>
+        <button type="button" onClick={togglePlay} className="button-primary" data-testid="button-play-preview">{playing ? 'Pause' : 'Play'}</button>
       </div>
     </div>
+    <input type="range" className="lesson-seek sr-only" aria-label="Preview position" min={0} max={lesson.lengthMs} step={1} value={Math.round(outMs)}
+      onChange={(e) => seek(Number(e.target.value))} data-testid="input-preview-seek" />
+
+    {/* The whole lesson, then the brick now playing — waveform and word ticks, one playhead between them. */}
+    <p className="strip-caption">The lesson</p>
+    <Strip fromMs={0} toMs={Math.max(1, lesson.lengthMs)} segments={segments} peaks={peaks} words={wordsBySource} playhead={() => clockRef.current}
+      onSeek={seek} bands={[...brickBands, ...dissolves]} testid="lesson-strip" />
+    {current && <>
+      <p className="strip-caption" data-testid="text-current-brick">{currentEntry ? brickName(currentEntry) : 'Brick'} · {clock(current.outEndMs - current.outStartMs)}</p>
+      <Strip fromMs={current.outStartMs} toMs={current.outEndMs} segments={segments} peaks={peaks} words={wordsBySource} playhead={() => clockRef.current}
+        onSeek={seek} bands={dissolves} testid="brick-strip" />
+    </>}
+    <p className="logging-words" data-testid="lesson-words">
+      {lessonWords ? near.map((w, i) => <span key={`${w.start_ms}-${i}`} className={outMs >= w.start_ms && outMs < w.end_ms ? 'current' : ''}>{w.text} </span>)
+        : 'No transcript for these files.'}
+    </p>
 
     {message && <p role="status" className={`status-line${/doesn't fit|could not|not /i.test(message) ? ' error' : ''}`} data-testid="text-lesson-message">{message}</p>}
 
     <ol className="lesson-strip" aria-label="Lesson bricks" data-testid="strip">
-      {entries.map((e, i) => <li key={e.id} className={`lesson-tile${e.id === selected ? ' selected' : ''}`} data-testid={`tile-${e.id}`}
-        onClick={() => { setSelected(e.id); if (!playing) seek(edl.picture[i]?.outStartMs ?? 0); }} title={e.tags.join(', ')}>
-        <div className="lesson-thumb" style={spriteOf(e)} />
-        <div className="lesson-tile-title"><span>Brick {i + 1}</span><span data-testid={`text-tile-length-${e.id}`}>{clock(lengthOf(e))}</span></div>
-        <div className="lesson-tile-tags">{e.tags.length ? e.tags.join(', ') : <span className="subtle">No tags</span>}</div>
-        {i < entries.length - 1 && <span className={`pill lesson-transition${e.transition === 'dissolve' ? ' dissolve' : ''}`} data-testid={`text-transition-${e.id}`}>{e.transition === 'dissolve' ? `dissolve ${dissolveOut(edl.picture[i] ?? {}) / 1000 || 1} s` : 'cut'}</span>}
-      </li>)}
+      {entries.map((e, i) => {
+        const width = Math.max(tileMinPx, (lengthOf(e) / 1000) * tilePxPerSecond);
+        const isDragging = !!drag && Math.abs(drag.x - drag.startX) > 6;
+        const others = drag ? entries.filter((x) => x.id !== drag.id) : [];
+        const dropMark = isDragging && drag!.id !== e.id ? (others[drag!.to]?.id === e.id ? ' drop-before' : drag!.to === others.length && others.at(-1)?.id === e.id ? ' drop-after' : '') : '';
+        return <li key={e.id} ref={(el) => { if (el) tileRefs.current.set(e.id, el); else tileRefs.current.delete(e.id); }}
+          className={`lesson-tile${e.id === selected ? ' selected' : ''}${isDragging && drag!.id === e.id ? ' dragging' : ''}${dropMark}`}
+          style={{ width, ...(isDragging && drag!.id === e.id ? { transform: `translateX(${drag!.x - drag!.startX}px)` } : {}) }} data-testid={`tile-${e.id}`}
+          onPointerDown={(ev) => {
+            // A finger drags from the thumbnail, so a swipe elsewhere still scrolls the row; a mouse drags from anywhere.
+            if (ev.pointerType === 'touch' && !(ev.target as HTMLElement).closest('.lesson-thumb')) return;
+            ev.currentTarget.setPointerCapture(ev.pointerId); setDrag({ id: e.id, x: ev.clientX, startX: ev.clientX, to: i });
+          }}
+          onPointerMove={(ev) => { if (drag?.id === e.id) setDrag({ ...drag, x: ev.clientX, to: dropIndex(ev.clientX, e.id) }); }}
+          onPointerUp={() => {
+            if (drag?.id !== e.id) return;
+            const moved = Math.abs(drag.x - drag.startX) > 6;
+            setDrag(null);
+            if (moved) { dragged.current = true; if (drag.to !== i) send({ type: 'move', id: e.id, to: drag.to }); }
+          }}
+          onClick={() => { if (dragged.current) { dragged.current = false; return; } setSelected(e.id); if (!playing) seek(edl.picture[i]?.outStartMs ?? 0); }}
+          onPointerCancel={() => setDrag(null)} title={e.tags.join(', ')}>
+          <div className="lesson-thumb" style={spriteOf(e)} title="Drag to move" />
+          <div className="lesson-tile-title"><span data-testid={`text-tile-name-${e.id}`}>{brickName(e)}</span><span data-testid={`text-tile-length-${e.id}`}>{clock(lengthOf(e))}</span></div>
+          <div className="lesson-tile-tags">{e.tags.length ? e.tags.join(', ') : <span className="subtle">No labels</span>}</div>
+          {i < entries.length - 1 && <span className={`pill lesson-transition${e.transition === 'dissolve' ? ' dissolve' : ''}`} data-testid={`text-transition-${e.id}`}>
+            {e.transition === 'dissolve' ? `dissolve ${dissolveOut(edl.picture[i] ?? {}) / 1000 || 1} s →` : 'cut →'}</span>}
+        </li>;
+      })}
     </ol>
     <p className="lesson-facts"><span>Lesson length <strong data-testid="text-lesson-length">{clock(lesson.lengthMs)}</strong></span><span>{entries.length} brick{entries.length === 1 ? '' : 's'}</span></p>
     <div className="keys" aria-label="Keys">
       <span><kbd>Space</kbd>play / pause</span><span><kbd>←</kbd><kbd>→</kbd>word (Shift: 5 s · Option: frame)</span><span><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd>slower · 1× · faster</span>
-      <span><kbd>Tab</kbd>select</span><span><kbd>-</kbd><kbd>=</kbd>move earlier · later</span><span><kbd>X</kbd>remove</span><span><kbd>A</kbd>add the picked brick</span>
-      <span><kbd>[</kbd><kbd>]</kbd>in point earlier · later</span><span><kbd>,</kbd><kbd>.</kbd>out point earlier · later</span><span>by word (<kbd>Shift</kbd>: frame)</span>
-      <span><kbd>D</kbd>cut or dissolve</span><span><kbd>Esc</kbd>undo</span><span><kbd>R</kbd>render</span>
+      <span><kbd>Tab</kbd>select</span><span>drag, or <kbd>-</kbd><kbd>=</kbd>, to move</span><span><kbd>P</kbd>open the brick</span><span><kbd>X</kbd>remove</span><span><kbd>A</kbd>add the picked brick</span>
+      <span><kbd>D</kbd>dissolve out of the selected brick, into the next</span><span><kbd>Esc</kbd>undo</span><span><kbd>R</kbd>render</span>
     </div>
 
     <div className="two-col">
@@ -344,7 +456,7 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
         <h2>Not in the lesson</h2>
         {lesson.available.length === 0 ? <p className="subtle">Every logged brick is in the lesson.</p> :
           <ul className="lesson-available">{lesson.available.map((b) => <li key={b.id} className={b.id === pick ? 'selected' : ''} onClick={() => setPick(b.id)}
-            data-testid={`available-${b.id}`}>{clock(b.inMs)}–{clock(b.outMs)}{b.tags.length > 0 && ` · ${b.tags.join(', ')}`}</li>)}</ul>}
+            data-testid={`available-${b.id}`}>{brickName(b)} · {clock(b.inMs)}–{clock(b.outMs)}{b.tags.length > 0 && ` · ${b.tags.join(', ')}`}</li>)}</ul>}
       </section>
 
       <section className="card">
@@ -365,5 +477,28 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
           <figcaption className="subtle">Render {watching.number}</figcaption></figure>}
       </section>
     </div>
+
+    {editingEntry && editingSource && <BrickEditor brick={{ inMs: editingEntry.brickInMs, outMs: editingEntry.brickOutMs, number: editingEntry.brickNumber }}
+      sourceId={editingEntry.sourceId} words={wordsOf(editingEntry.sourceId)} fps={editingSource.fps} durationMs={editingSource.durationMs ?? editingEntry.brickOutMs + 10_000}
+      peaks={peaks} message={message} setMessage={setMessage}
+      onMoveTo={(edge, toMs) => {
+        const from = edge === 'in' ? editingEntry.brickInMs : editingEntry.brickOutMs;
+        const deltaMs = Math.round(toMs - from);
+        if (deltaMs) sendBrick(editingEntry.sourceId, { type: 'nudge', id: editingEntry.brickId, edge, deltaMs }); else setMessage(`The ${edge} point is already there.`);
+      }}
+      onStep={(edge, direction, byFrame) => {
+        const from = edge === 'in' ? editingEntry.brickInMs : editingEntry.brickOutMs;
+        const word = byFrame ? null : stepToWord(wordsOf(editingEntry.sourceId), from, edge, direction);
+        const deltaMs = Math.round((word ?? from + direction * (1000 / fpsOf(editingEntry.sourceId))) - from);
+        if (deltaMs) sendBrick(editingEntry.sourceId, { type: 'nudge', id: editingEntry.brickId, edge, deltaMs });
+      }}
+      onUndo={(redoing) => {
+        const stack = redoing ? brickRedo : brickUndo;
+        const last = stack.at(-1);
+        if (!last) { setMessage(redoing ? 'Nothing to redo.' : 'Nothing to undo.'); return; }
+        (redoing ? setBrickRedo : setBrickUndo)((s) => s.slice(0, -1));
+        sendBrick(last.sourceId, last.command, redoing ? 'redo' : 'undo');
+      }}
+      onClose={() => { setEditing(null); const i = entries.findIndex((e) => e.id === editingEntry.id); if (i >= 0) seek(edl.picture[i]?.outStartMs ?? 0); }} />}
   </section>;
 }
