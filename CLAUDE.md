@@ -36,5 +36,6 @@ The Repl, its database, its secrets and its disk are in
 [`docs/ai-context/replit-environment.md`](docs/ai-context/replit-environment.md).
 Footage lives in a private Backblaze B2 bucket reached only through
 short-lived signed URLs; no media is ever public. There is no production
-data yet and nothing is published, so every feature starts in prototype
-phase on `main`.
+data yet and no user depends on the product: a merge reaches only the
+development workspace, and the published deployment changes only when David
+publishes. So every feature starts in prototype phase on `main`.
