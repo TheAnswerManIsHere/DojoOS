@@ -103,7 +103,12 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
       v.style.zIndex = later ? '2' : '1';
       v.style.opacity = here ? String(later ? here.weight : 1) : '0';
       v.volume = here ? Math.min(1, Math.max(0, here.weight)) : 0;
-      if (here && play && v.paused) void v.play().catch(() => {});
+      if (here && play && v.paused) void v.play().catch((cause: Error) => {
+        // Never silent (David, 2026-10-29): a refused play is said, and the player is given a fresh link.
+        if (cause?.name === 'AbortError') return;
+        setMessage(cause?.name === 'NotAllowedError' ? 'Safari would not start playback without a tap. Tap Play once, then Space works.' : 'A player would not start; fetching a fresh link.');
+        if (seg) { v.dataset.url = ''; void loadUrl(seg.sourceId).catch(() => setMessage('A proxy could not be loaded.')); }
+      });
       if (!here || !play) v.pause();
     });
   }, [edl, urls]); // eslint-disable-line react-hooks/exhaustive-deps

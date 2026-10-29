@@ -311,7 +311,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
           <span className={`pill log-status ${status}`} data-testid="text-log-status">{statusLabel[status]}</span>
           {status === 'done'
             ? <button type="button" className="button-quiet" onClick={() => void markInProgress()} data-testid="button-log-in-progress">Mark as in progress</button>
-            : <button type="button" className="button-primary" onClick={() => void markDone()} disabled={!bricks.length} data-testid="button-log-done">I'm done logging</button>}
+            : <button type="button" className="button-primary" onClick={() => void markDone()} data-testid="button-log-done">I'm done logging</button>}
         </div></div>
     </div>
     {openWarning && <p role="alert" className="status-line error" data-testid="text-open-bricks">
