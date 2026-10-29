@@ -4,6 +4,7 @@
  * Api
  * OpenAPI spec version: 0.1.0
  */
+import type { SourceIngestProgress } from './sourceIngestProgress';
 import type { SourceRole } from './sourceRole';
 
 export interface Source {
@@ -42,4 +43,14 @@ export interface Source {
      * @nullable
      */
   transcriptionError?: string | null;
+  /**
+     * While ingest runs, the stage under way and how far through it (fraction 0–1, null when unknown).
+     * @nullable
+     */
+  ingestProgress?: SourceIngestProgress;
+  /**
+     * When the running transcription started; null when none is running.
+     * @nullable
+     */
+  transcriptionStartedAt?: string | null;
 }

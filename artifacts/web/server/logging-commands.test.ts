@@ -2,7 +2,7 @@
 // the preview's union of kept spans — pure functions, no database.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyCommand, isCommand, keepSpans, snapToWord, type Command, type SourceLog } from "@workspace/shared/commands";
+import { applyCommand, isCommand, keepSpans, snapToWord, stepToWord, type Command, type SourceLog } from "@workspace/shared/commands";
 
 const empty: SourceLog = { durationMs: 600_000, bricks: [] };
 const run = (state: SourceLog, ...commands: Command[]) => commands.reduce((s, c) => applyCommand(s, c).state, state);
@@ -73,4 +73,25 @@ test("preview the keep is the union of closed bricks: overlap once, gaps skipped
     { type: "close", atMs: 14_000 }, { type: "close", atMs: 20_000 }, { type: "open", id: "later", atMs: 30_000 },
     { type: "close", atMs: 35_000 }, { type: "open", id: "pending", atMs: 50_000 });
   assert.deepEqual(keepSpans(s.bricks), [{ inMs: 10_000, outMs: 20_000 }, { inMs: 30_000, outMs: 35_000 }]);
+});
+
+test("O on a selected open brick closes that one, not the innermost; a note is set, trimmed, cleared and undone", () => {
+  let s = run(empty, { type: "open", id: "outer", atMs: 1000 }, { type: "open", id: "inner", atMs: 2000 });
+  s = roundTrip(s, { type: "close", atMs: 3000, id: "outer" });
+  assert.deepEqual(s.bricks.map((b) => [b.id, b.outMs]), [["outer", 3000], ["inner", null]], "the selected outer brick closed; inner is still open");
+  assert.throws(() => applyCommand(s, { type: "close", atMs: 4000, id: "outer" }), /already closed/);
+  s = roundTrip(s, { type: "setNote", id: "outer", note: "  psoas release, side-lying " });
+  assert.equal(s.bricks.find((b) => b.id === "outer")!.note, "psoas release, side-lying");
+  assert.equal(run(s, { type: "setNote", id: "outer", note: "   " }).bricks.find((b) => b.id === "outer")!.note, null, "an empty note clears it");
+  assert.ok(isCommand({ type: "setNote", id: "outer", note: "x" }) && isCommand({ type: "close", atMs: 1, id: "outer" }));
+});
+
+test("the brick editor steps an edge to the next or previous word edge, and says when there is none", () => {
+  const words = [{ start_ms: 1000, end_ms: 1400 }, { start_ms: 1500, end_ms: 1900 }, { start_ms: 2100, end_ms: 2600 }];
+  assert.equal(stepToWord(words, 1000, "in", 1), 1500, "D: the next word start");
+  assert.equal(stepToWord(words, 1500, "in", -1), 1000, "A: the previous word start");
+  assert.equal(stepToWord(words, 1900, "out", 1), 2600, ".: the next word end");
+  assert.equal(stepToWord(words, 1900, "out", -1), 1400, ",: the previous word end");
+  assert.equal(stepToWord(words, 2600, "out", 1), null, "no word end beyond the last");
+  assert.equal(stepToWord(null, 1000, "in", 1), null);
 });

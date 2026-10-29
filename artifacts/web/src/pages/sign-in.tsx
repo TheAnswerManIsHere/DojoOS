@@ -5,6 +5,12 @@ import { getGetSessionQueryKey, useChooseAccount, useLogin, type Account } from 
 
 const reason = (cause: unknown) => (cause as { data?: { error?: string } })?.data?.error ?? (cause instanceof Error ? cause.message : 'Could not sign in.');
 
+/** Where to go after signing in: the page you were sent here from, when it is one of this app's own; else the library. */
+function nextPath() {
+  const next = new URLSearchParams(window.location.search).get('next');
+  return next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/sign-in') ? next : '/library';
+}
+
 export function SignIn() {
   const [, navigate] = useLocation();
   const client = useQueryClient();
@@ -12,7 +18,7 @@ export function SignIn() {
   const [password, setPassword] = useState('');
   const login = useLogin();
   const choose = useChooseAccount();
-  const signedIn = (account: Account) => { client.setQueryData(getGetSessionQueryKey(), account); navigate('/library', { replace: true }); };
+  const signedIn = (account: Account) => { client.setQueryData(getGetSessionQueryKey(), account); navigate(nextPath(), { replace: true }); };
 
   // Development only: no password, just who you are (David, 2026-10-24). A published app asks for a username and password.
   if (import.meta.env.DEV) return <main className="sign-in">

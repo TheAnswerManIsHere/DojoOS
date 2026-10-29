@@ -13,16 +13,21 @@ export const framingPresets = ["lower third", "centre", "upper third"] as const;
 export type LogBrick = {
   id: string; inMs: number; outMs: number | null; openSeq: number | null;
   action: Action; preset: string | null; tags: string[];
+  /** What the brick is, in Jared's words (David, 2026-10-28: "the 'Tags' function should really be a 'Notes' function"). */
+  note: string | null;
 };
+/** The few labels a brick can carry for the outputs that pick bricks up (the short takes "short"). */
+export const brickTags = ["lesson", "short", "highlight"] as const;
 export type SourceLog = { durationMs: number; bricks: LogBrick[] };
 
 export type Command =
   | { type: "open"; id: string; atMs: number }
-  | { type: "close"; atMs: number }
+  | { type: "close"; atMs: number; id?: string }
   | { type: "reopen"; id: string; openSeq: number }
   | { type: "nudge"; id: string; edge: "in" | "out"; deltaMs: number }
   | { type: "setAction"; id: string; action: Action; preset: string | null }
   | { type: "setTags"; id: string; tags: string[] }
+  | { type: "setNote"; id: string; note: string | null }
   | { type: "delete"; id: string }
   | { type: "restore"; brick: LogBrick };
 
@@ -44,11 +49,15 @@ export function applyCommand(state: SourceLog, command: Command): { state: Sourc
       if (state.bricks.some((b) => b.id === command.id)) fail(`Brick ${command.id} already exists`);
       const openSeq = Math.max(0, ...state.bricks.map((b) => b.openSeq ?? 0)) + 1;
       const brick: LogBrick = { id: command.id, inMs: clamp(command.atMs, state.durationMs), outMs: null, openSeq,
-        action: "keep", preset: null, tags: [] };
+        action: "keep", preset: null, tags: [], note: null };
       return { state: { ...state, bricks: [...state.bricks, brick] }, inverse: { type: "delete", id: command.id } };
     }
     case "close": {
-      const open = innermostOpen(state.bricks) ?? fail("No open brick to close");
+      // O closes the open brick you have selected, or else the innermost (David, 2026-10-28: with several open, "I still
+      // need to select amongst them to key the right one for an out point").
+      const open = command.id !== undefined
+        ? (() => { const b = find(command.id); return b.outMs === null ? b : fail("That brick is already closed"); })()
+        : innermostOpen(state.bricks) ?? fail("No open brick to close");
       const outMs = clamp(command.atMs, state.durationMs);
       if (outMs <= open.inMs) fail("The out point must come after the in point");
       return { state: replace({ ...open, outMs, openSeq: null }), inverse: { type: "reopen", id: open.id, openSeq: open.openSeq! } };
@@ -56,7 +65,7 @@ export function applyCommand(state: SourceLog, command: Command): { state: Sourc
     case "reopen": {
       const brick = find(command.id);
       if (brick.outMs === null) fail(`Brick ${command.id} is already open`);
-      return { state: replace({ ...brick, outMs: null, openSeq: command.openSeq }), inverse: { type: "close", atMs: brick.outMs! } };
+      return { state: replace({ ...brick, outMs: null, openSeq: command.openSeq }), inverse: { type: "close", atMs: brick.outMs!, id: brick.id } };
     }
     case "nudge": {
       const brick = find(command.id);
@@ -79,6 +88,11 @@ export function applyCommand(state: SourceLog, command: Command): { state: Sourc
       const tags = [...new Set(command.tags.map((t) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 20);
       return { state: replace({ ...brick, tags }), inverse: { type: "setTags", id: brick.id, tags: brick.tags } };
     }
+    case "setNote": {
+      const brick = find(command.id);
+      const note = command.note?.trim().slice(0, 500) || null;
+      return { state: replace({ ...brick, note }), inverse: { type: "setNote", id: brick.id, note: brick.note } };
+    }
     case "delete": {
       const brick = find(command.id);
       return { state: { ...state, bricks: state.bricks.filter((b) => b.id !== brick.id) }, inverse: { type: "restore", brick } };
@@ -100,16 +114,17 @@ export function isCommand(value: unknown): value is Command {
   const num = (v: unknown) => typeof v === "number" && Number.isFinite(v);
   switch (c.type) {
     case "open": return str(c.id) && num(c.atMs);
-    case "close": return num(c.atMs);
+    case "close": return num(c.atMs) && (c.id === undefined || str(c.id));
     case "reopen": return str(c.id) && num(c.openSeq);
     case "nudge": return str(c.id) && (c.edge === "in" || c.edge === "out") && num(c.deltaMs);
     case "setAction": return str(c.id) && actions.includes(c.action as Action) && (c.preset === null || typeof c.preset === "string");
     case "setTags": return str(c.id) && Array.isArray(c.tags) && c.tags.length <= 20 && c.tags.every((t) => typeof t === "string" && t.length <= 40);
+    case "setNote": return str(c.id) && (c.note === null || (typeof c.note === "string" && c.note.length <= 500));
     case "delete": return str(c.id);
     case "restore": {
       const b = c.brick as Record<string, unknown> | undefined;
       return !!b && str(b.id) && num(b.inMs) && (b.outMs === null || num(b.outMs)) && (b.openSeq === null || num(b.openSeq)) &&
-        actions.includes(b.action as Action) && Array.isArray(b.tags);
+        actions.includes(b.action as Action) && Array.isArray(b.tags) && (b.note === undefined || b.note === null || typeof b.note === "string");
     }
     default: return false;
   }
@@ -141,4 +156,15 @@ export function keepSpans(bricks: LogBrick[]): Array<{ inMs: number; outMs: numb
     else spans.push({ ...span });
   }
   return spans;
+}
+
+/** The next word edge strictly past `atMs` in one direction — a word start for an in point, a word end for an out
+ * point — or null when there is none (the brick editor's A/D and ,/. keys step by these). */
+export function stepToWord(words: Word[] | null, atMs: number, edge: "in" | "out", direction: -1 | 1): number | null {
+  let best: number | null = null;
+  for (const w of words ?? []) {
+    const at = edge === "in" ? w.start_ms : w.end_ms;
+    if (direction > 0 ? at > atMs + 1 && (best === null || at < best) : at < atMs - 1 && (best === null || at > best)) best = at;
+  }
+  return best;
 }

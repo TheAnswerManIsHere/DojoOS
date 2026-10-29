@@ -1,20 +1,29 @@
 {
-  "note": "PROTOTYPE — the logging viewer's key bindings, as data (architecture.md §5): change a key here, not in code. Shift is read by the action itself: Shift+I/O marks the raw playhead, Shift+arrows nudge by a second, Shift+Tab selects the previous brick.",
+  "note": "PROTOTYPE — the logging viewer's key bindings, as data (architecture.md §5): change a key here, not in code. Shift is read by the action itself: Shift+←/→ scrubs 5 s instead of 10 frames, Shift+I/O marks the raw playhead, Shift+Tab selects the previous brick, Shift+Esc redoes. In the brick editor (P), Shift moves an edge one frame instead of one word. Revised from David's feedback, 2026-10-28.",
   "bindings": {
     "Space": "playPause",
-    "KeyJ": "back",
-    "KeyK": "pause",
+    "ArrowLeft": "scrubBack",
+    "ArrowRight": "scrubForward",
+    "KeyJ": "slower",
+    "KeyK": "normal",
     "KeyL": "faster",
     "KeyI": "markIn",
     "KeyO": "markOut",
-    "KeyA": "cycleAction",
-    "KeyT": "tags",
-    "ArrowLeft": "nudgeEarlier",
-    "ArrowRight": "nudgeLater",
+    "KeyE": "cycleAction",
+    "KeyN": "note",
+    "KeyT": "note",
     "Tab": "selectNext",
     "Delete": "delete",
     "Backspace": "delete",
     "Escape": "undo",
-    "KeyP": "preview"
+    "KeyP": "edit"
+  },
+  "editor": {
+    "KeyA": "inEarlier",
+    "KeyD": "inLater",
+    "Comma": "outEarlier",
+    "Period": "outLater",
+    "Space": "playPause",
+    "Escape": "close"
   }
 }

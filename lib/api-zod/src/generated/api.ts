@@ -66,7 +66,12 @@ export const ListShootsResponseItem = zod.object({
   "retryable": zod.boolean().describe('The source can be processed again from the library.'),
   "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
   "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
-  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.')
+  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.'),
+  "ingestProgress": zod.object({
+  "stage": zod.enum(['download', 'proxy', 'derivatives']),
+  "fraction": zod.number().nullable()
+}).nullish().describe('While ingest runs, the stage under way and how far through it (fraction 0–1, null when unknown).'),
+  "transcriptionStartedAt": zod.string().nullish().describe('When the running transcription started; null when none is running.')
 })),
   "lessonRender": zod.object({
   "number": zod.number().int(),
@@ -103,12 +108,80 @@ export const CreateShootResponse = zod.object({
   "retryable": zod.boolean().describe('The source can be processed again from the library.'),
   "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
   "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
-  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.')
+  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.'),
+  "ingestProgress": zod.object({
+  "stage": zod.enum(['download', 'proxy', 'derivatives']),
+  "fraction": zod.number().nullable()
+}).nullish().describe('While ingest runs, the stage under way and how far through it (fraction 0–1, null when unknown).'),
+  "transcriptionStartedAt": zod.string().nullish().describe('When the running transcription started; null when none is running.')
 })),
   "lessonRender": zod.object({
   "number": zod.number().int(),
   "state": zod.string()
 }).nullish().describe('The lesson\'s newest render job, while it is queued or running.')
+})
+
+
+export const ListArchivedShootsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "shotOn": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "sources": zod.array(zod.object({
+  "id": zod.string(),
+  "role": zod.enum(['camera_a', 'camera_b', 'audio']),
+  "ingestState": zod.string(),
+  "durationMs": zod.number().int().nullish(),
+  "width": zod.number().int().nullish(),
+  "height": zod.number().int().nullish(),
+  "fps": zod.number().nullish(),
+  "hasProxy": zod.boolean().describe('A playable proxy exists; the playback URL is then the proxy\'s.'),
+  "lastError": zod.string().nullable().describe('The last ingest error, while the source is failed.'),
+  "retryable": zod.boolean().describe('The source can be processed again from the library.'),
+  "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
+  "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
+  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.'),
+  "ingestProgress": zod.object({
+  "stage": zod.enum(['download', 'proxy', 'derivatives']),
+  "fraction": zod.number().nullable()
+}).nullish().describe('While ingest runs, the stage under way and how far through it (fraction 0–1, null when unknown).'),
+  "transcriptionStartedAt": zod.string().nullish().describe('When the running transcription started; null when none is running.')
+})),
+  "lessonRender": zod.object({
+  "number": zod.number().int(),
+  "state": zod.string()
+}).nullish().describe('The lesson\'s newest render job, while it is queued or running.')
+})
+export const ListArchivedShootsResponse = zod.array(ListArchivedShootsResponseItem)
+
+
+export const ArchiveShootParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ArchiveShootResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+export const RestoreShootParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RestoreShootResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * Removes one file from its shoot; an unfinished upload is cancelled in storage.
+ */
+export const RemoveSourceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RemoveSourceResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 
@@ -168,7 +241,12 @@ export const CompleteUploadResponse = zod.object({
   "retryable": zod.boolean().describe('The source can be processed again from the library.'),
   "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
   "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
-  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.')
+  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.'),
+  "ingestProgress": zod.object({
+  "stage": zod.enum(['download', 'proxy', 'derivatives']),
+  "fraction": zod.number().nullable()
+}).nullish().describe('While ingest runs, the stage under way and how far through it (fraction 0–1, null when unknown).'),
+  "transcriptionStartedAt": zod.string().nullish().describe('When the running transcription started; null when none is running.')
 })
 
 
@@ -189,7 +267,12 @@ export const RetryIngestResponse = zod.object({
   "retryable": zod.boolean().describe('The source can be processed again from the library.'),
   "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
   "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
-  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.')
+  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.'),
+  "ingestProgress": zod.object({
+  "stage": zod.enum(['download', 'proxy', 'derivatives']),
+  "fraction": zod.number().nullable()
+}).nullish().describe('While ingest runs, the stage under way and how far through it (fraction 0–1, null when unknown).'),
+  "transcriptionStartedAt": zod.string().nullish().describe('When the running transcription started; null when none is running.')
 })
 
 
@@ -210,7 +293,12 @@ export const TranscribeSourceResponse = zod.object({
   "retryable": zod.boolean().describe('The source can be processed again from the library.'),
   "transcriptWords": zod.number().int().nullish().describe('Words in the newest transcript; null when there is none yet.'),
   "transcriptionState": zod.string().nullish().describe('The newest transcription job\'s state (queued, claimed, completed, failed); null when none has run.'),
-  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.')
+  "transcriptionError": zod.string().nullish().describe('Why the newest transcription failed, while it is failed.'),
+  "ingestProgress": zod.object({
+  "stage": zod.enum(['download', 'proxy', 'derivatives']),
+  "fraction": zod.number().nullable()
+}).nullish().describe('While ingest runs, the stage under way and how far through it (fraction 0–1, null when unknown).'),
+  "transcriptionStartedAt": zod.string().nullish().describe('When the running transcription started; null when none is running.')
 })
 
 
@@ -258,7 +346,8 @@ export const GetSourceLogResponse = zod.object({
   "openSeq": zod.number().int().nullable().describe('Order among open bricks; O closes the highest.'),
   "action": zod.enum(['keep', 'punch_in']),
   "preset": zod.string().nullable().describe('The framing preset of a punch-in.'),
-  "tags": zod.array(zod.string())
+  "tags": zod.array(zod.string()),
+  "note": zod.string().nullable().describe('What the brick is, in Jared\'s words.')
 })),
   "words": zod.array(zod.object({
   "text": zod.string(),
@@ -297,7 +386,8 @@ export const ApplySourceCommandResponse = zod.object({
   "openSeq": zod.number().int().nullable().describe('Order among open bricks; O closes the highest.'),
   "action": zod.enum(['keep', 'punch_in']),
   "preset": zod.string().nullable().describe('The framing preset of a punch-in.'),
-  "tags": zod.array(zod.string())
+  "tags": zod.array(zod.string()),
+  "note": zod.string().nullable().describe('What the brick is, in Jared\'s words.')
 })),
   "inverse": zod.record(zod.string(), zod.unknown())
 })

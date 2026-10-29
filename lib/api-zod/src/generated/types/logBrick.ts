@@ -26,4 +26,9 @@ export interface LogBrick {
      */
   preset: string | null;
   tags: string[];
+  /**
+     * What the brick is, in Jared's words.
+     * @nullable
+     */
+  note: string | null;
 }

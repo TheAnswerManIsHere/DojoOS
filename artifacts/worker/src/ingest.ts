@@ -25,7 +25,11 @@ export function ingestable(source: Pick<typeof sources.$inferSelect, "deletedAt"
   return !(source.ingestState === "ready" && source.proxyKey);
 }
 
-export async function ingest(db: Db, storage: Storage, sourceId: string, signal: AbortSignal): Promise<SourceIngestResult> {
+/** Where an ingest stands, for the library's step tracker: the stage under way and how far through it. */
+export type IngestProgress = { stage: "download" | "proxy" | "derivatives"; fraction: number | null };
+
+export async function ingest(db: Db, storage: Storage, sourceId: string, signal: AbortSignal,
+  report: (progress: IngestProgress) => void = () => {}): Promise<SourceIngestResult> {
   const [source] = await db.select().from(sources).where(eq(sources.id, sourceId));
   if (!source || !ingestable(source)) throw new Error("Source is missing, still uploading, or already has its proxy");
   await db.update(sources).set({ ingestState: "probing" }).where(eq(sources.id, sourceId));
@@ -35,7 +39,12 @@ export async function ingest(db: Db, storage: Storage, sourceId: string, signal:
     const downloadStarted = performance.now();
     const object = await storage.client.send(new GetObjectCommand({ Bucket: storage.bucket, Key: source.originalKey }), { abortSignal: signal });
     if (!object.Body) throw new Error("Stored source was empty");
-    await pipeline(Readable.fromWeb(object.Body.transformToWebStream() as ReadableStream), createWriteStream(file), { signal });
+    const size = object.ContentLength ?? 0;
+    let received = 0;
+    report({ stage: "download", fraction: size ? 0 : null });
+    const counted = Readable.fromWeb(object.Body.transformToWebStream() as ReadableStream);
+    counted.on("data", (chunk: Buffer) => { received += chunk.length; if (size) report({ stage: "download", fraction: received / size }); });
+    await pipeline(counted, createWriteStream(file), { signal });
     const downloadMs = since(downloadStarted);
     const originalBytes = (await stat(file)).size;
     const probeStarted = performance.now();
@@ -49,7 +58,10 @@ export async function ingest(db: Db, storage: Storage, sourceId: string, signal:
 
     const keys = derivedKeys(sourceId);
     const proxyFile = join(dir, "proxy.mp4"), spriteFile = join(dir, "sprite.jpg"), peaksFile = join(dir, "peaks.json");
-    const proxy = await makeProxy(file, proxyFile, signal, { hasVideo, hasAudio });
+    report({ stage: "proxy", fraction: 0 });
+    const proxy = await makeProxy(file, proxyFile, signal, { hasVideo, hasAudio },
+      { durationMs, report: (fraction) => report({ stage: "proxy", fraction }) });
+    report({ stage: "derivatives", fraction: null });
     await rm(file, { force: true });
     const proxied = await probe(proxyFile, signal);
     const spriteable = hasVideo && proxied.durationMs && proxied.width && proxied.height;

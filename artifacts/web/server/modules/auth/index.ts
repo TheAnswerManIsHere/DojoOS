@@ -95,15 +95,31 @@ async function startSession(ctx: Context, res: Response, userId: string) {
   await ctx.db.insert(sessions).values({ userId, tokenHash: hash(session), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60_000) });
   res.cookie(cookieName, session, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: 7 * 24 * 60 * 60_000 });
 }
+/** The signed-in account behind a request's session cookie, or null. */
+async function sessionAccount(ctx: Context, req: Request): Promise<Account | null> {
+  const raw = cookies(req)[cookieName];
+  if (!raw || !validToken(raw)) return null;
+  const [record] = await ctx.db.select({ id: users.id, email: users.email, tier: users.tier })
+    .from(sessions).innerJoin(users, eq(sessions.userId, users.id))
+    .where(and(eq(sessions.tokenHash, hash(raw)), gt(sessions.expiresAt, new Date()), isNull(sessions.deletedAt), isNull(users.deletedAt)));
+  return record ?? null;
+}
+/** For the data routes: no session, no data — a 401 the page turns into a trip to sign-in. */
 export function requireSession(ctx: Context) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const raw = cookies(req)[cookieName];
-    if (!raw || !validToken(raw)) return res.status(401).json({ error: "Sign in required" });
-    const [record] = await ctx.db.select({ id: users.id, email: users.email, tier: users.tier })
-      .from(sessions).innerJoin(users, eq(sessions.userId, users.id))
-      .where(and(eq(sessions.tokenHash, hash(raw)), gt(sessions.expiresAt, new Date()), isNull(sessions.deletedAt), isNull(users.deletedAt)));
-    if (!record) return res.status(401).json({ error: "Sign in required" });
-    req.account = record;
+    const account = await sessionAccount(ctx, req);
+    if (!account) return res.status(401).json({ error: "Sign in required" });
+    req.account = account;
+    return next();
+  };
+}
+/** For the pages: an expired or missing sign-in goes to the sign-in page, which brings you back here afterwards
+ * (David, 2026-10-28: a reload after the session ran out showed the bare error instead). */
+export function requirePage(ctx: Context) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const account = await sessionAccount(ctx, req);
+    if (!account) return res.redirect(302, `/sign-in?next=${encodeURIComponent(req.originalUrl)}`);
+    req.account = account;
     return next();
   };
 }

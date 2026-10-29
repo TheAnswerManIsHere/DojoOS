@@ -44,6 +44,11 @@ export interface LogBrick {
      */
   preset: string | null;
   tags: string[];
+  /**
+     * What the brick is, in Jared's words.
+     * @nullable
+     */
+  note: string | null;
 }
 
 export type SourceLogWordsItem = {
@@ -139,6 +144,25 @@ export const SourceRole = {
   audio: 'audio',
 } as const;
 
+export type SourceIngestProgressStage = typeof SourceIngestProgressStage[keyof typeof SourceIngestProgressStage];
+
+
+export const SourceIngestProgressStage = {
+  download: 'download',
+  proxy: 'proxy',
+  derivatives: 'derivatives',
+} as const;
+
+/**
+ * While ingest runs, the stage under way and how far through it (fraction 0–1, null when unknown).
+ * @nullable
+ */
+export type SourceIngestProgress = {
+  stage: SourceIngestProgressStage;
+  /** @nullable */
+  fraction: number | null;
+} | null;
+
 export interface Source {
   id: string;
   role: SourceRole;
@@ -175,6 +199,16 @@ export interface Source {
      * @nullable
      */
   transcriptionError?: string | null;
+  /**
+     * While ingest runs, the stage under way and how far through it (fraction 0–1, null when unknown).
+     * @nullable
+     */
+  ingestProgress?: SourceIngestProgress;
+  /**
+     * When the running transcription started; null when none is running.
+     * @nullable
+     */
+  transcriptionStartedAt?: string | null;
 }
 
 export type TranscriptWordsItem = {

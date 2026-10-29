@@ -85,6 +85,53 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Shoot" }
+  /shoots/archived:
+    get:
+      operationId: listArchivedShoots
+      responses:
+        "200":
+          description: Archived shoots with sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Shoot" }
+  /shoots/{id}/archive:
+    post:
+      operationId: archiveShoot
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Archived
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ok" }
+  /shoots/{id}/restore:
+    post:
+      operationId: restoreShoot
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Back in the library
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ok" }
+  /sources/{id}/remove:
+    post:
+      operationId: removeSource
+      description: Removes one file from its shoot; an unfinished upload is cancelled in storage.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ok" }
+        "409":
+          description: Still being processed
   /uploads:
     post:
       operationId: startUpload
@@ -348,7 +395,7 @@ components:
       properties: { who: { type: string, enum: [jared, david] } }
     LogBrick:
       type: object
-      required: [id, inMs, outMs, openSeq, action, preset, tags]
+      required: [id, inMs, outMs, openSeq, action, preset, tags, note]
       properties:
         id: { type: string }
         inMs: { type: integer }
@@ -357,6 +404,7 @@ components:
         action: { type: string, enum: [keep, punch_in] }
         preset: { type: ["string", "null"], description: "The framing preset of a punch-in." }
         tags: { type: array, items: { type: string } }
+        note: { type: ["string", "null"], description: "What the brick is, in Jared's words." }
     SourceLog:
       type: object
       required: [sourceId, shootName, durationMs, fps, bricks, words, spriteUrl, spriteLayout, hasPeaks]
@@ -436,6 +484,14 @@ components:
         transcriptWords: { type: ["integer", "null"], description: "Words in the newest transcript; null when there is none yet." }
         transcriptionState: { type: ["string", "null"], description: "The newest transcription job's state (queued, claimed, completed, failed); null when none has run." }
         transcriptionError: { type: ["string", "null"], description: "Why the newest transcription failed, while it is failed." }
+        ingestProgress:
+          type: ["object", "null"]
+          description: While ingest runs, the stage under way and how far through it (fraction 0–1, null when unknown).
+          required: [stage, fraction]
+          properties:
+            stage: { type: string, enum: [download, proxy, derivatives] }
+            fraction: { type: ["number", "null"] }
+        transcriptionStartedAt: { type: ["string", "null"], description: "When the running transcription started; null when none is running." }
     Transcript:
       type: object
       required: [provider, version, createdAt, words]
