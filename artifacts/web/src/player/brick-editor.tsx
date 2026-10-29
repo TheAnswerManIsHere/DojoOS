@@ -53,7 +53,8 @@ export function BrickEditor({ brick, sourceId, words, fps, durationMs, peaks, me
         const ms = v.currentTime * 1000;
         setTime(ms);
         const stopAt = edges.current.lastFrameMs;
-        if (!v.paused && ms >= stopAt && ms < stopAt + 1000) { v.pause(); v.currentTime = stopAt / 1000; }
+        // Past the last frame by any distance — an out point moved behind the playhead, or a scrub past it — stops there (Codex, PR #60).
+        if (!v.paused && ms >= stopAt) { v.pause(); v.currentTime = stopAt / 1000; }
       }
       frame = requestAnimationFrame(tick);
     };

@@ -123,7 +123,9 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
       const seg = here ? edl.picture[here.index] : edl.picture.find((p, i) => i % 2 === k && p.outStartMs > t);
       const url = seg && urls[seg.sourceId];
       if (!seg || !url) { v.pause(); v.style.opacity = '0'; v.volume = 0; return; }
-      const preroll = !here && play && seg.outStartMs - t <= prerollMs;
+      // Never earlier than the footage before the in point allows: a brick from the very start of its file starts cold,
+      // rather than running ahead of the clock (Codex, PR #60).
+      const preroll = !here && play && seg.outStartMs - t <= Math.min(prerollMs, seg.inMs);
       const wantMs = here ? here.sourceMs : preroll ? seg.inMs - (seg.outStartMs - t) : seg.inMs;
       const since = Number(v.dataset.since || 0);
       const running = play && !v.paused;
