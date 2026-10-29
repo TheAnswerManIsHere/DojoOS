@@ -7,6 +7,11 @@
 
 export interface LessonBrick {
   id: string;
+  /**
+     * The brick's permanent number within its shoot.
+     * @nullable
+     */
+  number: number | null;
   sourceId: string;
   inMs: number;
   outMs: number;

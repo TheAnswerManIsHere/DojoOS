@@ -9,6 +9,7 @@ import { applyLessonCommand, bricks, CommandError, cutBricks, cutEvents, cuts, i
   resolveCut, revisions, shoots, sources, spriteLayout, edlLengthMs, transcripts, type LessonBrick, type LessonEntry, type LessonState,
   type Transition } from "@workspace/shared";
 import type { Context } from "../../context";
+import { numberBricks } from "../logging";
 
 type Tx = Parameters<Parameters<Context["db"]["transaction"]>[0]>[0];
 type Db = Context["db"] | Tx;
@@ -21,7 +22,7 @@ async function shootBricks(db: Db, shootId: string) {
     .orderBy(asc(sources.createdAt), asc(sources.id));
   const ids = files.map((f) => f.id);
   const rows = ids.length ? await db.select().from(bricks).where(and(inArray(bricks.sourceId, ids), isNull(bricks.deletedAt), isNotNull(bricks.outMs))) : [];
-  const all: LessonBrick[] = rows.map((b) => ({ id: b.id, sourceId: b.sourceId, inMs: b.inMs, outMs: b.outMs!, tags: b.tags }));
+  const all: LessonBrick[] = rows.map((b) => ({ id: b.id, sourceId: b.sourceId, inMs: b.inMs, outMs: b.outMs!, tags: b.tags, number: b.number ?? null }));
   return { bricks: initialOrder(all, ids), sourceOrder: ids };
 }
 
@@ -74,7 +75,7 @@ async function lessonView(ctx: Context, cut: typeof cuts.$inferSelect, shootName
     const layout = s.spriteKey && s.width && s.height && s.durationMs ? spriteLayout(s.durationMs, s.width, s.height) : null;
     const [transcript] = await ctx.db.select({ words: transcripts.words }).from(transcripts)
       .where(and(eq(transcripts.sourceId, s.id), isNull(transcripts.deletedAt))).orderBy(desc(transcripts.createdAt)).limit(1);
-    return { id: s.id, role: s.role, fps: s.fps, hasProxy: !!s.proxyKey,
+    return { id: s.id, role: s.role, fps: s.fps, hasProxy: !!s.proxyKey, hasPeaks: !!s.peaksKey, durationMs: s.durationMs,
       spriteUrl: layout ? await ctx.storage.playback(s.spriteKey!) : null, spriteLayout: layout,
       words: transcript?.words?.length ? transcript.words : null };
   }));
@@ -88,7 +89,7 @@ async function lessonView(ctx: Context, cut: typeof cuts.$inferSelect, shootName
   return {
     cutId: cut.id, shootId: cut.shootId, shootName,
     entries: state.entries.map((e) => ({ ...e, sourceId: brickOf.get(e.brickId)!.sourceId, brickInMs: brickOf.get(e.brickId)!.inMs,
-      brickOutMs: brickOf.get(e.brickId)!.outMs, tags: brickOf.get(e.brickId)!.tags })),
+      brickOutMs: brickOf.get(e.brickId)!.outMs, tags: brickOf.get(e.brickId)!.tags, brickNumber: brickOf.get(e.brickId)!.number ?? null })),
     available: state.bricks.filter((b) => !included.has(b.id)),
     resolved, lengthMs: edlLengthMs(resolved), sources: media,
     renders: revs.map((r) => {
@@ -104,6 +105,7 @@ export function cutRoutes(ctx: Context) {
   const router = Router();
 
   router.get("/shoots/:id/lesson", async (req, res) => {
+    await numberBricks(ctx.db, req.params.id as string);
     const found = await lessonCut(ctx, req.params.id as string);
     if (!found) return res.status(404).json({ error: "No such shoot" });
     return res.json(await lessonView(ctx, found.cut, found.shoot.name));

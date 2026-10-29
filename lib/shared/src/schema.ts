@@ -39,7 +39,10 @@ export const bricks = pgTable("bricks", {
   id: id(), sourceId: text("source_id").notNull().references(() => sources.id), inMs: integer("in_ms").notNull(),
   // Null while the brick is open: marked in, not yet out (the logging viewer, PLAN_LOGGING_VIEWER.md §3).
   outMs: integer("out_ms"), attributes: jsonb("attributes").$type<Record<string, unknown>>().notNull().default({}),
-  tags: text("tags").array().notNull().default([]), beatId: text("beat_id"), isChosen: boolean("is_chosen").notNull().default(false), ...audit,
+  tags: text("tags").array().notNull().default([]), beatId: text("beat_id"), isChosen: boolean("is_chosen").notNull().default(false),
+  // The brick's permanent number within its shoot, given when it is marked and kept however a lesson orders it
+  // (David, 2026-10-29: "Bricks should be given unique numerical identities that stick with them").
+  number: integer("number"), ...audit,
 });
 export const templates = pgTable("templates", { id: id(), name: text("name").notNull(), spec: jsonb("spec").$type<Record<string, unknown>>().notNull(), ...audit });
 export const cuts = pgTable("cuts", {

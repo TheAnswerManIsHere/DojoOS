@@ -1,0 +1,15 @@
+{
+  "note": "PROTOTYPE — the brick editor's own keys, as data (architecture.md §5), shared by the logger and the lesson page. The player keys — Space, ← →, J K L — are every player's (@workspace/shared/navigation). I/O set an edge at the playhead (Shift: exact); [ ] step the in point and , . the out point by word (Shift: a frame); Esc undoes and Shift+Esc redoes; D is done (David, 2026-10-29).",
+  "bindings": {
+    "KeyB": "toStart",
+    "KeyE": "toEnd",
+    "KeyI": "setIn",
+    "KeyO": "setOut",
+    "BracketLeft": "inEarlier",
+    "BracketRight": "inLater",
+    "Comma": "outEarlier",
+    "Period": "outLater",
+    "Escape": "undo",
+    "KeyD": "close"
+  }
+}

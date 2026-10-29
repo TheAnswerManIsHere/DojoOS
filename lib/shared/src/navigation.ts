@@ -45,3 +45,15 @@ export const playerKeys: Record<string, "playPause" | "back" | "forward" | "slow
 
 /** Which modifier a key press carries, for navigationTarget. */
 export const modifierOf = (e: { shiftKey: boolean; altKey: boolean }) => (e.altKey ? "option" : e.shiftKey ? "shift" : "none") as "none" | "shift" | "option";
+
+/** A time code as minutes:seconds:frames — hours:minutes:seconds:frames past an hour — at the source's own frame
+ * rate (David, 2026-10-29: "Decimal fractions of seconds are not useful"). Every player and every time a brick shows. */
+export function timecode(ms: number, fps: number | null | undefined): string {
+  const rate = Math.max(1, Math.round(fps || 30));
+  const totalFrames = Math.round((Math.max(0, ms) / 1000) * rate);
+  const frames = totalFrames % rate;
+  const totalSeconds = Math.floor(totalFrames / rate);
+  const s = totalSeconds % 60, m = Math.floor(totalSeconds / 60) % 60, h = Math.floor(totalSeconds / 3600);
+  const two = (n: number) => String(n).padStart(2, '0');
+  return h ? `${h}:${two(m)}:${two(s)}:${two(frames)}` : `${m}:${two(s)}:${two(frames)}`;
+}

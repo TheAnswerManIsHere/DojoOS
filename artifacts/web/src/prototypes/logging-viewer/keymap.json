@@ -1,5 +1,5 @@
 {
-  "note": "PROTOTYPE — the logging viewer's own key bindings, as data (architecture.md §5): change a key here, not in code. The player keys — Space, ← →, J K L — are every player's and live in @workspace/shared/navigation, so they cannot drift between players. Shift is read by the action itself: Shift+I/O marks the exact playhead, Shift+Tab selects the previous brick, Shift+Esc redoes. In the brick editor (P), I/O set an edge at the playhead, [ ] step the in point and , . the out point by word, a frame with Shift. Revised from David's feedback, 2026-10-29.",
+  "note": "PROTOTYPE — the logging viewer's own key bindings, as data (architecture.md §5): change a key here, not in code. The player keys — Space, ← →, J K L — are every player's and live in @workspace/shared/navigation; the brick editor's keys are its own (src/player/brick-editor-keys.json). Shift is read by the action itself: Shift+I/O marks the exact playhead, Shift+Tab selects the previous brick, Shift+Esc redoes. Revised from David's feedback, 2026-10-29.",
   "bindings": {
     "KeyI": "markIn",
     "KeyO": "markOut",
@@ -11,16 +11,5 @@
     "Backspace": "delete",
     "Escape": "undo",
     "KeyP": "edit"
-  },
-  "editor": {
-    "KeyB": "toStart",
-    "KeyE": "toEnd",
-    "KeyI": "setIn",
-    "KeyO": "setOut",
-    "BracketLeft": "inEarlier",
-    "BracketRight": "inLater",
-    "Comma": "outEarlier",
-    "Period": "outLater",
-    "Escape": "close"
   }
 }

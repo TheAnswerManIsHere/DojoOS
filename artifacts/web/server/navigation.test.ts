@@ -36,3 +36,12 @@ test("J slows, L speeds up, K is 1×, and the ends hold", () => {
   assert.equal(nextSpeed(2, "faster"), 2);
   assert.equal(nextSpeed(1.5, "normal"), 1);
 });
+
+test("time codes are minutes:seconds:frames at the source's rate, with hours past an hour", async () => {
+  const { timecode } = await import("@workspace/shared/navigation");
+  assert.equal(timecode(45_860, 30), "0:45:26");
+  assert.equal(timecode(45_860, 29.97), "0:45:26");
+  assert.equal(timecode(1000 / 30 * 29, 30), "0:00:29");
+  assert.equal(timecode(3_735_500, 25), "1:02:15:13");
+  assert.equal(timecode(0, null), "0:00:00");
+});

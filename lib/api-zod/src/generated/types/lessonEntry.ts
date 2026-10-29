@@ -8,6 +8,11 @@ import type { LessonEntryTransition } from './lessonEntryTransition';
 
 export interface LessonEntry {
   id: string;
+  /**
+     * The brick's permanent number within its shoot.
+     * @nullable
+     */
+  brickNumber: number | null;
   brickId: string;
   sourceId: string;
   brickInMs: number;

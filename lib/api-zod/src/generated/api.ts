@@ -392,6 +392,7 @@ export const GetSourceLogResponse = zod.object({
   "fps": zod.number().nullable(),
   "bricks": zod.array(zod.object({
   "id": zod.string(),
+  "number": zod.number().int().nullable().describe('The brick\'s permanent number within its shoot.'),
   "inMs": zod.number().int(),
   "outMs": zod.number().int().nullable().describe('Null while the brick is open.'),
   "openSeq": zod.number().int().nullable().describe('Order among open bricks; O closes the highest.'),
@@ -432,6 +433,7 @@ export const ApplySourceCommandBody = zod.object({
 export const ApplySourceCommandResponse = zod.object({
   "bricks": zod.array(zod.object({
   "id": zod.string(),
+  "number": zod.number().int().nullable().describe('The brick\'s permanent number within its shoot.'),
   "inMs": zod.number().int(),
   "outMs": zod.number().int().nullable().describe('Null while the brick is open.'),
   "openSeq": zod.number().int().nullable().describe('Order among open bricks; O closes the highest.'),
@@ -472,6 +474,7 @@ export const GetLessonResponse = zod.object({
   "shootName": zod.string(),
   "entries": zod.array(zod.object({
   "id": zod.string(),
+  "brickNumber": zod.number().int().nullable().describe('The brick\'s permanent number within its shoot.'),
   "brickId": zod.string(),
   "sourceId": zod.string(),
   "brickInMs": zod.number().int(),
@@ -483,6 +486,7 @@ export const GetLessonResponse = zod.object({
 })),
   "available": zod.array(zod.object({
   "id": zod.string(),
+  "number": zod.number().int().nullable().describe('The brick\'s permanent number within its shoot.'),
   "sourceId": zod.string(),
   "inMs": zod.number().int(),
   "outMs": zod.number().int(),
@@ -492,6 +496,8 @@ export const GetLessonResponse = zod.object({
   "lengthMs": zod.number().int(),
   "sources": zod.array(zod.object({
   "id": zod.string(),
+  "hasPeaks": zod.boolean(),
+  "durationMs": zod.number().int().nullable(),
   "role": zod.string(),
   "words": zod.array(zod.object({
   "text": zod.string(),
@@ -540,6 +546,7 @@ export const ApplyLessonCommandResponse = zod.object({
   "shootName": zod.string(),
   "entries": zod.array(zod.object({
   "id": zod.string(),
+  "brickNumber": zod.number().int().nullable().describe('The brick\'s permanent number within its shoot.'),
   "brickId": zod.string(),
   "sourceId": zod.string(),
   "brickInMs": zod.number().int(),
@@ -551,6 +558,7 @@ export const ApplyLessonCommandResponse = zod.object({
 })),
   "available": zod.array(zod.object({
   "id": zod.string(),
+  "number": zod.number().int().nullable().describe('The brick\'s permanent number within its shoot.'),
   "sourceId": zod.string(),
   "inMs": zod.number().int(),
   "outMs": zod.number().int(),
@@ -560,6 +568,8 @@ export const ApplyLessonCommandResponse = zod.object({
   "lengthMs": zod.number().int(),
   "sources": zod.array(zod.object({
   "id": zod.string(),
+  "hasPeaks": zod.boolean(),
+  "durationMs": zod.number().int().nullable(),
   "role": zod.string(),
   "words": zod.array(zod.object({
   "text": zod.string(),

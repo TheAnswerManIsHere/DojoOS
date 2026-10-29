@@ -8,6 +8,11 @@ import type { LogBrickAction } from './logBrickAction';
 
 export interface LogBrick {
   id: string;
+  /**
+     * The brick's permanent number within its shoot.
+     * @nullable
+     */
+  number: number | null;
   inMs: number;
   /**
      * Null while the brick is open.

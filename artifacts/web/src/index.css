@@ -584,6 +584,33 @@ kbd { font-family: 'Rubik', system-ui, sans-serif; font-size: .78rem; font-weigh
 .editor-strip-label { position: absolute; bottom: 2px; font-size: .7rem; color: #8a94a0; pointer-events: none; }
 .editor-strip-label.start { left: 6px; } .editor-strip-label.end { right: 6px; }
 .shoot-log-summary { font-size: .85rem; }
+/* The strip every player draws (src/player/strip.tsx): the waveform above the word ticks, bands behind both. */
+.player-strip { position: relative; height: 72px; margin: 12px 0 4px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  cursor: pointer; touch-action: none; user-select: none; overflow: hidden; color: #9aa6b2; }
+.player-strip .strip-wave { position: absolute; left: 0; right: 0; top: 4px; width: 100%; height: 40px; pointer-events: none; }
+.player-strip .strip-wave.empty { display: none; }
+.player-strip .strip-words { position: absolute; left: 0; right: 0; bottom: 6px; height: 16px; pointer-events: none; border-top: 1px dashed var(--line); }
+.player-strip .strip-tick { position: absolute; top: 3px; width: 1px; height: 11px; background: #6f7c89; }
+.player-strip .strip-band { position: absolute; top: 0; bottom: 0; pointer-events: none; }
+.player-strip .strip-band.brick { background: var(--gold-tint); border-left: 3px solid var(--gold); border-right: 3px solid var(--gold); }
+.player-strip .strip-band.segment { border-left: 1px solid #c9d1d9; }
+.player-strip .strip-band.segment.current { background: rgba(172, 140, 64, .12); }
+.player-strip .strip-band.dissolve { background: repeating-linear-gradient(135deg, rgba(122, 45, 64, .22) 0 6px, rgba(122, 45, 64, .08) 6px 12px); }
+.player-strip .strip-band-label { position: absolute; top: 2px; left: 4px; font-size: .68rem; color: #5b6573; white-space: nowrap; }
+.player-strip .strip-band.dissolve .strip-band-label { color: var(--wine); font-weight: 600; }
+/* On the logger the bricks run in a lane along the top, above the waveform and words. */
+.player-strip.logging-timeline { height: 118px; margin: 14px 0 6px; overflow: visible; border-radius: 12px; }
+.player-strip.logging-timeline .strip-wave { top: 42px; }
+.strip-caption { margin: 10px 0 -6px; font-size: .78rem; font-weight: 600; color: #5b6573; text-transform: uppercase; letter-spacing: .04em; }
+.lesson-tile { flex: none; user-select: none; position: relative; }
+.lesson-tile .lesson-thumb { touch-action: none; cursor: grab; }
+@media (pointer: fine) { .lesson-tile { touch-action: none; } }
+.lesson-tile.drop-before { box-shadow: -5px 0 0 var(--gold); }
+.lesson-tile.drop-after { box-shadow: 5px 0 0 var(--gold); }
+.lesson-tile.dragging { opacity: .85; z-index: 5; box-shadow: var(--shadow-card); cursor: grabbing; }
+.lesson-tile .lesson-tile-title span { white-space: nowrap; }
+.lesson-tile .lesson-transition { position: static; display: inline-block; margin-top: 6px; }
+.lesson-tile-next { display: flex; justify-content: flex-end; }
 
 .sign-in { max-width: 440px; margin: 10vh auto 0; text-align: center; }
 .sign-in .card { text-align: left; }
