@@ -24,6 +24,10 @@ Node 20+ and pnpm are required. Install with `pnpm install`. The workspace alrea
 | `WORKER_SAFETY_POLL_MS` | worker | Safety-drain interval, at least six hours (default 21600000) |
 | `JOB_LEASE_MS` | both | Job lease duration in milliseconds (default 1800000) |
 | `BUILD_VERSION` | web | Optional value recorded with tester feedback (default `development`) |
+| `ELEVENLABS_API_KEY` | worker | ElevenLabs key for transcription (Scribe v2); with neither transcription key set, transcription is off and sources still ingest |
+| `ASSEMBLYAI_API_KEY` | worker | AssemblyAI key for transcription, the alternative provider |
+| `TRANSCRIPTION_PROVIDER` | worker | Optional: `assemblyai`, `scribe_v2` or `scribe_v2_medical` (default Scribe v2 when `ELEVENLABS_API_KEY` is set, else AssemblyAI) |
+| `TRANSCRIPTION_KEYTERMS` | worker | Optional comma-separated vocabulary to favour (up to 1,000 terms) |
 | `PORT`, `BASE_PATH` | web | Injected by the Replit artifact workflow |
 
 For Backblaze B2, use its S3-compatible endpoint and application key as generic S3 credentials. The bucket must be **private**. Configure bucket CORS to permit the web origin to `PUT`, allow `Content-Type`, and expose the `ETag` response header; otherwise direct multipart uploads cannot resume or complete. The browser sends chunks directly to the S3 endpoint. Parts use short-lived presigned URLs and require no proxy through Express. After an interrupted upload, select the same original file in Pending uploads to resume. Reopening the browser retains upload IDs and completed part ETags locally; the authoritative upload record is in Postgres.

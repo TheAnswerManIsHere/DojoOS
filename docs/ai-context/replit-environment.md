@@ -10,7 +10,22 @@
   and production schema changes are applied by Replit's publish flow.
 - **Deployment:** one Reserved VM (2 vCPU / 8 GB), production command
   `node scripts/run-production.mjs`, which supervises web and worker and
-  exits non-zero if either dies. Published at `https://dojo-os.replit.app`
+  exits non-zero if either dies. Dedicated 2 vCPU / 8 GiB RAM, *"$50 per
+  month ($0.0694/hour)"*, region North America (David's screenshot,
+  2026-10-29). The one startup those screenshots captured (deployment
+  `3ff15af5`, 2026-10-29 02:52 UTC) logged five *"healthcheck failed
+  error=healthcheck / returned status 500"* lines before *"DojoOS web
+  listening on 22333"*, and the publish still promoted. The web process logs
+  that line only after it listens, so something other than the app answered
+  `/` in those seconds; whether it happens on every boot, and how slow a boot
+  would have to be to fail a publish's health check, were not measured. The
+  same startup logged the `pg` driver's warning that *"The SSL modes 'prefer',
+  'require', and 'verify-ca' are treated as aliases for 'verify-full'"* and
+  that *"In the next major version (pg-connection-string v3.0.0 and pg
+  v9.0.0), these modes will adopt standard libpq semantics, which have weaker
+  security guarantees"* — a dependency upgrade to read before taking, not a
+  fault today.
+  Published at `https://dojo-os.replit.app`
   (`get_publish_status`, 2026-10-29: `"status":"success"`, deployment
   `0abb77c7-26ee-41e5-8c5a-ce85897e56b5`); an earlier line here said not yet
   published. Being published changes nothing about who publishes: a
@@ -29,7 +44,12 @@
 - **Secrets** (the Replit Secrets pane; never committed): `SESSION_SECRET`,
   `OPERATOR_EMAIL`, `TESTER_EMAIL`, `JARED_PASSWORD`, `DAVID_PASSWORD`,
   `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`,
-  `S3_SECRET_ACCESS_KEY`. The full list with defaults is in `README.md`.
+  `S3_SECRET_ACCESS_KEY`, and the transcription keys `ELEVENLABS_API_KEY` and
+  `ASSEMBLYAI_API_KEY` (`architecture.md`, *Transcription*). The full list
+  with defaults is in `README.md`. All of these appear in the deployment's
+  *Production app secrets* synced from the workspace (David's screenshot,
+  2026-10-29), so changing one in the workspace changes production at the
+  next publish unless that secret is unsynced there.
 - **Disk:** the workspace volume is 256 GB; the development workspace's
   `/tmp` is a 4 GB RAM disk (`tmpfs`, measured 2026-10-23; an earlier note
   here said 32 GB), which a 3 GB original and its proxy overflowed with
