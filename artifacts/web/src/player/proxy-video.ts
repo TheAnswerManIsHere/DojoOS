@@ -9,12 +9,15 @@ import { noteKey } from './key-log';
 
 /** A signed link this old is refreshed when the page is shown again, before Safari finds out the hard way. */
 const staleAfterMs = 4 * 60 * 1000;
+/** Recoveries allowed in a minute: past this a fresh link is not what the video needs, and the page says so. */
+const recoveriesPerMinute = 3;
 
 export function useProxyVideo(video: RefObject<HTMLVideoElement | null>, sourceId: string, say: (message: string) => void) {
   const [url, setUrl] = useState<string>();
   const issuedAt = useRef(0);
   const restore = useRef<{ time: number; rate: number; play: boolean } | null>(null);
   const recovering = useRef<Promise<boolean> | null>(null);
+  const recent = useRef<number[]>([]);
   /** Where the player last was while it worked: a failed load can reset the element to 0 before the error arrives. */
   const lastGood = useRef<{ time: number; rate: number; play: boolean }>({ time: 0, rate: 1, play: false });
 
@@ -30,6 +33,14 @@ export function useProxyVideo(video: RefObject<HTMLVideoElement | null>, sourceI
   /** Fetches a fresh link and reloads at the same place; one recovery at a time. */
   const recover = useCallback((why: string, thenPlay?: boolean): Promise<boolean> => {
     if (recovering.current) return recovering.current;
+    const now = Date.now();
+    recent.current = recent.current.filter((t) => now - t < 60_000);
+    if (recent.current.length >= recoveriesPerMinute) {
+      noteKey({ code: 'recover', outcome: `gave up (${why})` });
+      say('The video keeps failing to play, even with a fresh link. Reload the page; if it happens again, tap “Report a key problem”.');
+      return Promise.resolve(false);
+    }
+    recent.current.push(now);
     const v = video.current;
     const last = lastGood.current;
     restore.current = v ? { time: last.time, rate: last.rate, play: thenPlay ?? last.play } : null;
