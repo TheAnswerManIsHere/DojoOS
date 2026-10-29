@@ -51,6 +51,8 @@ function useScrub(seek: (ms: number) => void, fromMs: number, toMs: number) {
     handlers: {
       onPointerDown: (e: ReactPointerEvent<HTMLElement>) => {
         if ((e.target as HTMLElement).dataset.brick) return;
+        // A tap on the strip takes the keys back from a text box, as a tap on the video does.
+        (document.activeElement as HTMLElement | null)?.blur();
         dragging.current = true; e.currentTarget.setPointerCapture(e.pointerId); seek(at(e));
       },
       onPointerMove: (e: ReactPointerEvent<HTMLElement>) => { if (dragging.current) seek(at(e)); },
@@ -100,9 +102,10 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
   // Keys go to a text box while one has the focus; the page says so rather than seeming not to respond.
   useEffect(() => {
     const check = () => setKeysPaused(typing(document.activeElement) && (document.activeElement as HTMLElement).dataset.testid !== 'input-note');
+    const later = () => setTimeout(check, 0);
     document.addEventListener('focusin', check);
-    document.addEventListener('focusout', () => setTimeout(check, 0));
-    return () => { document.removeEventListener('focusin', check); };
+    document.addEventListener('focusout', later);
+    return () => { document.removeEventListener('focusin', check); document.removeEventListener('focusout', later); };
   }, []);
 
   const durationMs = log?.durationMs ?? 0;
