@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { applyLessonCommand, applySourceCommand, getLesson, getPlayback, getRenderDownload, getRenderFile, renderLesson, type Lesson,
   type LessonEntry, type LessonRender } from '@workspace/api-client-react';
-import { activeAt, dissolveOut, type ResolvedEDL } from '@workspace/shared/edl';
+import { activeAt, dissolveOut, regionTransform, type ResolvedEDL } from '@workspace/shared/edl';
 import type { LessonCommand } from '@workspace/shared/lesson';
 import { stepToWord, type Command } from '@workspace/shared/commands';
 import { modifierOf, navigationTarget, nextSpeed, playerKeys, timecode, type Word } from '@workspace/shared/navigation';
@@ -48,6 +48,10 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
   const [watching, setWatching] = useState<{ number: number; url: string } | null>(null);
   const [speed, setSpeed] = useState(1);
   const [editing, setEditing] = useState<string | null>(null);
+  // The lesson is the cut, so it plays with each brick's action by default; S shows the footage as shot instead.
+  const [showAction, setShowAction] = useState(true);
+  const showActionRef = useRef(true);
+  showActionRef.current = showAction;
   const [brickUndo, setBrickUndo] = useState<Array<{ sourceId: string; command: Command }>>([]);
   const [brickRedo, setBrickRedo] = useState<Array<{ sourceId: string; command: Command }>>([]);
   const [drag, setDrag] = useState<{ id: string; x: number; startX: number; to: number } | null>(null);
@@ -137,6 +141,9 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
       } else if (v.readyState < 1) v.dataset.pending = String(Math.max(0, wantMs));
       v.dataset.sourceId = seg.sourceId;
       v.dataset.segment = String(edl.picture.indexOf(seg));
+      // The segment's framing — a punch-in — as the render will crop it, unless S has turned actions off.
+      const frame = regionTransform(showActionRef.current ? seg.framing?.[0]?.region : undefined);
+      if (v.style.transform !== frame.transform) { v.style.transform = frame.transform; v.style.transformOrigin = frame.transformOrigin; }
       if (v.playbackRate !== speedRef.current) v.playbackRate = speedRef.current;
       // The later of two overlapping segments sits on top and fades in; the one beneath stays opaque while it plays.
       const later = here && active.length === 2 && here.index === Math.max(...active.map((a) => a.index));
@@ -220,6 +227,9 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     }, 250);
     return () => { live = false; clearInterval(timer); };
   }, [playing, edl]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Turning actions on or off reframes the players at once.
+  useEffect(() => { place(clockRef.current, playing); }, [showAction]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A change to the lesson re-cues the players where the clock stands.
   useEffect(() => { if (!playing) place(clockRef.current, false); }, [edl, urls, place, playing]);
@@ -349,6 +359,7 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
         return;
       }
       case 'playPause': togglePlay(); return;
+      case 'showAction': setShowAction((on) => !on); return;
       case 'undo': {
         const last = undo.at(-1);
         if (!last) { setMessage('Nothing to undo.'); return; }
@@ -423,7 +434,8 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
         {!edl.picture.length && <p className="lesson-empty">No bricks in the lesson. Add one from “Not in the lesson” with A.</p>}
       </div>
       <div className="media-bar">
-        <span data-testid="text-preview-clock">{clock(outMs)} / {clock(lesson.lengthMs)}{currentEntry ? ` · ${brickName(currentEntry)}` : ''}{playing && <strong> · playing</strong>}{speed !== 1 && <strong> · {speed}×</strong>}</span>
+        <span data-testid="text-preview-clock">{clock(outMs)} / {clock(lesson.lengthMs)}{currentEntry ? ` · ${brickName(currentEntry)}` : ''}{playing && <strong> · playing</strong>}{speed !== 1 && <strong> · {speed}×</strong>}
+          <strong className="action-badge" data-testid="text-lesson-actions"> · {showAction ? 'with actions' : 'as shot'}{showAction && currentEntry?.action === 'punch_in' ? ` (punch in, ${currentEntry.preset})` : ''}</strong></span>
         <button type="button" onClick={togglePlay} className="button-primary" data-testid="button-play-preview">{playing ? 'Pause' : 'Play'}</button>
       </div>
     </div>
@@ -472,6 +484,7 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
           <div className="lesson-thumb" style={spriteOf(e)} title="Drag to move" />
           <div className="lesson-tile-title"><span data-testid={`text-tile-name-${e.id}`}>{brickName(e)}</span><span data-testid={`text-tile-length-${e.id}`}>{clock(lengthOf(e))}</span></div>
           <div className="lesson-tile-tags">{e.tags.length ? e.tags.join(', ') : <span className="subtle">No labels</span>}</div>
+          {e.action === 'punch_in' && <div className="lesson-tile-action" data-testid={`text-tile-action-${e.id}`}>punch in · {e.preset}</div>}
           {i < entries.length - 1 && <div className="lesson-tile-next"><span className={`pill lesson-transition${e.transition === 'dissolve' ? ' dissolve' : ''}`} data-testid={`text-transition-${e.id}`}>
             {e.transition === 'dissolve' ? `dissolve ${dissolveOut(edl.picture[i] ?? {}) / 1000 || 1} s →` : 'cut →'}</span></div>}
         </li>;
@@ -481,7 +494,7 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     <div className="keys" aria-label="Keys">
       <span><kbd>Space</kbd>play / pause</span><span><kbd>←</kbd><kbd>→</kbd>word (Shift: 5 s · Option: frame)</span><span><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd>slower · 1× · faster</span>
       <span><kbd>Tab</kbd>select</span><span>drag, or <kbd>-</kbd><kbd>=</kbd>, to move</span><span><kbd>P</kbd>open the brick</span><span><kbd>X</kbd>remove</span><span><kbd>A</kbd>add the picked brick</span>
-      <span><kbd>D</kbd>dissolve out of the selected brick, into the next</span><span><kbd>Esc</kbd>undo</span><span><kbd>R</kbd>render</span>
+      <span><kbd>D</kbd>dissolve out of the selected brick, into the next</span><span><kbd>S</kbd>actions on · off</span><span><kbd>Esc</kbd>undo</span><span><kbd>R</kbd>render</span>
     </div>
 
     <div className="two-col">
@@ -511,7 +524,8 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
       </section>
     </div>
 
-    {editingEntry && editingSource && <BrickEditor brick={{ inMs: editingEntry.brickInMs, outMs: editingEntry.brickOutMs, number: editingEntry.brickNumber }}
+    {editingEntry && editingSource && <BrickEditor brick={{ inMs: editingEntry.brickInMs, outMs: editingEntry.brickOutMs, number: editingEntry.brickNumber,
+      action: editingEntry.action, preset: editingEntry.preset }} showAction={showAction} onShowAction={setShowAction}
       sourceId={editingEntry.sourceId} words={wordsOf(editingEntry.sourceId)} fps={editingSource.fps} durationMs={editingSource.durationMs ?? editingEntry.brickOutMs + 10_000}
       peaks={peaks} message={message} setMessage={setMessage}
       onMoveTo={(edge, toMs) => {

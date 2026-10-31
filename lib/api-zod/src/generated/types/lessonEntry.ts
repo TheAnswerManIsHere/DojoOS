@@ -4,6 +4,7 @@
  * Api
  * OpenAPI spec version: 0.1.0
  */
+import type { LessonEntryAction } from './lessonEntryAction';
 import type { LessonEntryTransition } from './lessonEntryTransition';
 
 export interface LessonEntry {
@@ -24,4 +25,7 @@ export interface LessonEntry {
   /** The transition into the entry that follows. */
   transition: LessonEntryTransition;
   tags: string[];
+  action: LessonEntryAction;
+  /** @nullable */
+  preset: string | null;
 }

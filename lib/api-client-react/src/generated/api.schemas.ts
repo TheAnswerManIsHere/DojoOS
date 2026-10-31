@@ -283,6 +283,14 @@ export const LessonEntryTransition = {
   dissolve: 'dissolve',
 } as const;
 
+export type LessonEntryAction = typeof LessonEntryAction[keyof typeof LessonEntryAction];
+
+
+export const LessonEntryAction = {
+  keep: 'keep',
+  punch_in: 'punch_in',
+} as const;
+
 export interface LessonEntry {
   id: string;
   /**
@@ -301,6 +309,9 @@ export interface LessonEntry {
   /** The transition into the entry that follows. */
   transition: LessonEntryTransition;
   tags: string[];
+  action: LessonEntryAction;
+  /** @nullable */
+  preset: string | null;
 }
 
 export type LessonSourceWordsItem = {

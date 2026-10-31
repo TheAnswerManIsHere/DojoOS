@@ -188,6 +188,20 @@ test("the arrows step by word, a second through silence, Shift 5 s and Option a 
   const page = await viewer(sourceId);
   const time = () => page.evaluate<number>(`${VIDEO}.currentTime`);
   const near = async (want: number, why: string) => { const t = await time(); assert.ok(Math.abs(t - want) < 0.02, `${why} (${t})`); };
+  // S shows the action: inside the outer brick, a punch-in at the lower third (set by A in the walkthrough), the
+  // picture is framed as the render frames it; outside any punch-in it is the footage as shot. S again turns it off.
+  const frame = () => page.evaluate<string>(`${VIDEO}.style.transform`);
+  await seek(page, 0.5);
+  await page.keyboard.press("s");
+  await page.getByTestId("text-showing-action").waitFor();
+  assert.equal(await frame(), "", "no punch-in at 0.5 s");
+  await seek(page, 3);
+  await page.waitForFunction(`${VIDEO}.style.transform === "scale(1.5)"`);
+  assert.equal(await page.evaluate<string>(`${VIDEO}.style.transformOrigin`), "50% 100%", "anchored at the bottom: the lower third");
+  await page.getByTestId("text-showing-action").filter({ hasText: "punch in, lower third" }).waitFor();
+  await page.keyboard.press("s");
+  await page.waitForFunction(`${VIDEO}.style.transform === ""`);
+
   // Words start at 1.0, 1.5, 2.0 and 5.0 s.
   await seek(page, 3);
   await page.keyboard.press("ArrowRight"); await near(5, "→ to the next word, 2 s away");
@@ -256,6 +270,12 @@ test("the brick editor plays exactly the brick and stops on its last frame; its 
   await page.getByTestId("brick-editor").waitFor();
   const EDITOR = 'document.querySelector("[data-testid=video-editor]")';
   await page.waitForFunction(`${EDITOR}?.readyState >= 2`);
+  // S in the editor: this brick's action is keep, so the picture stays as shot, and the editor says so.
+  await page.keyboard.press("s");
+  await page.getByTestId("text-editor-action").filter({ hasText: "keep (as shot)" }).waitFor();
+  assert.equal(await page.evaluate<string>(`${EDITOR}.style.transform`), "");
+  await page.keyboard.press("s");
+  await page.getByTestId("text-editor-action").waitFor({ state: "detached" });
   const editorTime = () => page.evaluate<number>(`${EDITOR}.currentTime`);
   assert.ok(Math.abs((await editorTime()) - 2) < 0.05, "opened at the in point");
   await page.keyboard.press("Space");

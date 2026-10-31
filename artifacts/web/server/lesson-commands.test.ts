@@ -91,3 +91,18 @@ test("only well-formed commands of the lesson's set pass the route's check", () 
   assert.equal(isLessonCommand({ type: "add", entry: { id: "e", brickId: "b", trimInMs: -5, trimOutMs: 0, transition: "cut" }, position: 0 }), false);
   assert.equal(isLessonCommand({ type: "open", id: "x", atMs: 1 }), false, "a logging command is not a lesson command");
 });
+
+test("a punch-in brick resolves to a framing region its preset places; a keep resolves to none", async () => {
+  const { punchInRegion, regionTransform } = await import("@workspace/shared/edl");
+  const lower = punchInRegion("lower third"), upper = punchInRegion("upper third");
+  assert.deepEqual([lower.w, lower.y].map((v) => +v.toFixed(4)), [0.6667, 0.3333]);
+  assert.equal(upper.y, 0);
+  const edl = resolveCut({ orientation: "16:9" }, [
+    { entry: { id: "e1", brickId: "b1", trimInMs: 0, trimOutMs: 0, transition: "cut" }, brick: { id: "b1", sourceId: "s", inMs: 0, outMs: 1000, tags: [], action: "punch_in", preset: "lower third" } },
+    { entry: { id: "e2", brickId: "b2", trimInMs: 0, trimOutMs: 0, transition: "cut" }, brick: { id: "b2", sourceId: "s", inMs: 1000, outMs: 2000, tags: [], action: "keep" } },
+  ]);
+  assert.deepEqual(edl.picture.map((p) => p.framing.length), [1, 0]);
+  // On a player: scaled 1.5×, anchored so the region's bottom stays on the frame's bottom.
+  assert.deepEqual(regionTransform(lower), { transform: "scale(1.5)", transformOrigin: "50.00% 100.00%" });
+  assert.deepEqual(regionTransform(undefined), { transform: "", transformOrigin: "" });
+});

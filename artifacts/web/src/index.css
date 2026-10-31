@@ -601,6 +601,10 @@ kbd { font-family: 'Rubik', system-ui, sans-serif; font-size: .78rem; font-weigh
 /* On the logger the bricks run in a lane along the top, above the waveform and words. */
 .player-strip.logging-timeline { height: 118px; margin: 14px 0 6px; overflow: visible; border-radius: 12px; }
 .player-strip.logging-timeline .strip-wave { top: 42px; }
+.video-frame { position: relative; overflow: hidden; border-radius: 12px; }
+.video-frame .logging-video { display: block; transition: transform .12s ease-out; }
+.action-badge { color: var(--gold); }
+.lesson-tile-action { font-size: .75rem; color: var(--gold-dark); font-weight: 600; margin-top: 2px; }
 .strip-caption { margin: 10px 0 -6px; font-size: .78rem; font-weight: 600; color: #5b6573; text-transform: uppercase; letter-spacing: .04em; }
 .lesson-tile { flex: none; user-select: none; position: relative; }
 .lesson-tile .lesson-thumb { touch-action: none; cursor: grab; }

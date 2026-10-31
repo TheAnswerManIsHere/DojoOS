@@ -564,7 +564,7 @@ components:
         tags: { type: array, items: { type: string } }
     LessonEntry:
       type: object
-      required: [id, brickId, brickNumber, sourceId, brickInMs, brickOutMs, trimInMs, trimOutMs, transition, tags]
+      required: [id, brickId, brickNumber, sourceId, brickInMs, brickOutMs, trimInMs, trimOutMs, transition, tags, action, preset]
       properties:
         id: { type: string }
         brickNumber: { type: ["integer", "null"], description: "The brick's permanent number within its shoot." }
@@ -576,6 +576,8 @@ components:
         trimOutMs: { type: integer, description: "≤ 0: how far the out point is moved earlier than the brick's." }
         transition: { type: string, enum: [cut, dissolve], description: "The transition into the entry that follows." }
         tags: { type: array, items: { type: string } }
+        action: { type: string, enum: [keep, punch_in] }
+        preset: { type: ["string", "null"] }
     LessonSource:
       type: object
       required: [id, role, fps, hasProxy, hasPeaks, durationMs, spriteUrl, spriteLayout, words]

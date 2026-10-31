@@ -1,5 +1,5 @@
 {
-  "note": "PROTOTYPE — the logging viewer's own key bindings, as data (architecture.md §5): change a key here, not in code. The player keys — Space, ← →, J K L — are every player's and live in @workspace/shared/navigation; the brick editor's keys are its own (src/player/brick-editor-keys.json). Shift is read by the action itself: Shift+I/O marks the exact playhead, Shift+Tab selects the previous brick, Shift+Esc redoes. Revised from David's feedback, 2026-10-29.",
+  "note": "PROTOTYPE — the logging viewer's own key bindings, as data (architecture.md §5): change a key here, not in code. The player keys — Space, ← →, J K L — are every player's and live in @workspace/shared/navigation; the brick editor's keys are its own (src/player/brick-editor-keys.json). Shift is read by the action itself: Shift+I/O marks the exact playhead, Shift+Tab selects the previous brick, Shift+Esc redoes. Revised from David's feedback, 2026-10-29. S toggles showing each brick's action — a punch-in plays framed as the render will frame it (David, 2026-10-30).",
   "bindings": {
     "KeyI": "markIn",
     "KeyO": "markOut",
@@ -10,6 +10,7 @@
     "Delete": "delete",
     "Backspace": "delete",
     "Escape": "undo",
-    "KeyP": "edit"
+    "KeyP": "edit",
+    "KeyS": "showAction"
   }
 }

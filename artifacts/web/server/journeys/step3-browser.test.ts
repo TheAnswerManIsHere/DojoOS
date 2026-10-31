@@ -61,7 +61,7 @@ before(async () => {
   }
   // Logged out of order on purpose: file A's two bricks come first in D1's order, file B's after them.
   await db.insert(bricks).values([
-    { id: `${shootId}b1`, sourceId: ids.A, inMs: 0, outMs: 3000 }, { id: `${shootId}b2`, sourceId: ids.B, inMs: 1000, outMs: 5000 },
+    { id: `${shootId}b1`, sourceId: ids.A, inMs: 0, outMs: 3000, attributes: { action: "punch_in", preset: "upper third" } }, { id: `${shootId}b2`, sourceId: ids.B, inMs: 1000, outMs: 5000 },
     { id: `${shootId}b3`, sourceId: ids.A, inMs: 5000, outMs: 7000 }, { id: `${shootId}open`, sourceId: ids.A, inMs: 8000, outMs: null },
   ]);
   server = await startServer();
@@ -216,6 +216,22 @@ test("the preview plays through the dissolve and the cut showing and sounding wh
       assert.ok(v && Math.abs(v.ms - a.sourceMs) < 200, `at ${at} ms file ${source(a.sourceId)} is cued at ${a.sourceMs} ms (${JSON.stringify(state.videos)})`);
     }
   }
+
+  // The lesson plays each brick's action: b1 is a punch-in at the upper third, framed as the render frames it, and b2 is
+  // as shot. S turns actions off, and on again.
+  await page.getByTestId("input-preview-seek").fill("1000");
+  await settled(page);
+  const transforms = () => page.evaluate<Record<string, string>>(`Object.fromEntries([...document.querySelectorAll("[data-testid=preview] video")]
+    .filter((v) => Number(v.style.opacity || 0) > 0).map((v) => [v.dataset.sourceId, v.style.transform + " @ " + v.style.transformOrigin]))`);
+  assert.equal((await transforms())[ids.A], "scale(1.5) @ 50% 0%", "b1 framed at the top");
+  await page.getByTestId(`text-lesson-actions`).filter({ hasText: "punch in, upper third" }).waitFor();
+  await page.keyboard.press("s");
+  await page.waitForFunction(`[...document.querySelectorAll("[data-testid=preview] video")].every((v) => v.style.transform === "")`);
+  await page.getByTestId("text-lesson-actions").filter({ hasText: "as shot" }).waitFor();
+  await page.keyboard.press("s");
+  await page.getByTestId("input-preview-seek").fill("4500");
+  await settled(page);
+  assert.equal((await transforms())[ids.B], " @ ", "b2, a keep, as shot");
 
   // Sound and source time while it plays, from 1.5 s on through the dissolve and the cut.
   await page.getByTestId("input-preview-seek").fill("1500");

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Peaks } from '@workspace/api-client-react';
 import { snapToWord } from '@workspace/shared/commands';
 import { modifierOf, navigationTarget, nextSpeed, playerKeys, timecode, type Word } from '@workspace/shared/navigation';
+import { punchInRegion, regionTransform } from '@workspace/shared/edl';
 import { useProxyVideo } from './proxy-video';
 import { noteKey } from './key-log';
 import { Strip } from './strip';
@@ -16,12 +17,14 @@ import keys from './brick-editor-keys.json';
 const contextMs = 3000;
 const editorBindings = keys.bindings as Record<string, string>;
 
-export type EditableBrick = { inMs: number; outMs: number; note?: string | null; number?: number | null };
+export type EditableBrick = { inMs: number; outMs: number; note?: string | null; number?: number | null; action?: string; preset?: string | null };
 
-export function BrickEditor({ brick, sourceId, words, fps, durationMs, peaks, message, setMessage, onMoveTo, onStep, onUndo, onClose }: {
+export function BrickEditor({ brick, sourceId, words, fps, durationMs, peaks, message, setMessage, onMoveTo, onStep, onUndo, onClose, showAction, onShowAction }: {
   brick: EditableBrick; sourceId: string; words: Array<Word & { text: string }> | null; fps: number | null; durationMs: number; peaks: Record<string, Peaks | null>;
   message: string; setMessage: (m: string) => void; onMoveTo: (edge: 'in' | 'out', toMs: number) => void;
   onStep: (edge: 'in' | 'out', direction: -1 | 1, byFrame: boolean) => void; onUndo: (redo: boolean) => void; onClose: () => void;
+  /** S: play the brick as shot, or as its action asks (David, 2026-10-30). */
+  showAction: boolean; onShowAction: (on: boolean) => void;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const player = useProxyVideo(video, sourceId, setMessage);
@@ -81,6 +84,7 @@ export function BrickEditor({ brick, sourceId, words, fps, durationMs, peaks, me
       const at = (v?.currentTime ?? 0) * 1000;
       switch (action) {
         case 'close': onClose(); return;
+        case 'showAction': onShowAction(!showAction); return;
         case 'undo': onUndo(event.shiftKey); return;
         case 'playPause': togglePlay(); return;
         case 'back': case 'forward':
@@ -100,20 +104,24 @@ export function BrickEditor({ brick, sourceId, words, fps, durationMs, peaks, me
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onMoveTo, onStep, onUndo, onClose, togglePlay, seek, words, frameMs, durationMs, speed, inMs, outMs]);
+  }, [onMoveTo, onStep, onUndo, onClose, togglePlay, seek, words, frameMs, durationMs, speed, inMs, outMs, showAction, onShowAction]);
 
   const inside = words?.filter((w) => w.end_ms > fromMs && w.start_ms < toMs) ?? [];
+  const actionStyle = showAction && brick.action === 'punch_in' ? regionTransform(punchInRegion(brick.preset)) : undefined;
   return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Brick editor" data-testid="brick-editor" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div className="modal card">
       <div className="card-head"><div><p className="eyebrow">{brick.number ? `Brick ${brick.number}` : 'Brick'}</p><h2 data-testid="text-editor-span">{tc(inMs)} – {tc(outMs)}</h2>
         {brick.note && <p className="subtle">{brick.note}</p>}</div>
         <button type="button" onClick={onClose} data-testid="button-close-editor">Done (D)</button></div>
       <div className="media-card">
-        {player.url && <video ref={video} src={player.url} preload="auto" playsInline className="logging-video" data-testid="video-editor"
+        <div className="video-frame">
+        {player.url && <video ref={video} src={player.url} preload="auto" playsInline className="logging-video" data-testid="video-editor" style={actionStyle}
           onLoadedMetadata={() => { if (!ready.current) { ready.current = true; seek(inMs); } player.onLoadedMetadata(); }}
           onError={player.onError} onStalled={player.onStalled} onTimeUpdate={player.onTimeUpdate} onSeeked={player.onSeeked}
           onPause={player.onPause} onPlaying={player.onPlaying} onClick={togglePlay} />}
-        <div className="media-bar"><span data-testid="text-editor-time">{tc(time)}{time < inMs - 1 ? ' · before the brick' : time > outMs ? ' · after the brick' : ''}{speed !== 1 && <strong> · {speed}×</strong>}</span>
+        </div>
+        <div className="media-bar"><span data-testid="text-editor-time">{tc(time)}{time < inMs - 1 ? ' · before the brick' : time > outMs ? ' · after the brick' : ''}{speed !== 1 && <strong> · {speed}×</strong>}
+          {showAction && <strong className="action-badge" data-testid="text-editor-action"> · {brick.action === 'punch_in' ? `Showing the action: punch in, ${brick.preset}` : 'Showing the action: keep (as shot)'}</strong>}</span>
           <span>{tc(outMs - inMs)} long</span></div>
       </div>
       {/* The strip: waveform and word ticks, the brick as a band, a few seconds either side; click or drag to scrub. */}
@@ -128,7 +136,7 @@ export function BrickEditor({ brick, sourceId, words, fps, durationMs, peaks, me
         <span><kbd>Space</kbd>play the brick</span><span><kbd>←</kbd><kbd>→</kbd>word (Shift: 5 s · Option: frame)</span>
         <span><kbd>B</kbd>to the start</span><span><kbd>E</kbd>near the end</span><span><kbd>I</kbd><kbd>O</kbd>set in · out here (Shift: exact)</span>
         <span><kbd>[</kbd><kbd>]</kbd>in point earlier · later</span><span><kbd>,</kbd><kbd>.</kbd>out point earlier · later</span>
-        <span>by word (<kbd>Shift</kbd>: frame)</span><span><kbd>Esc</kbd>undo (Shift: redo)</span><span><kbd>D</kbd>done</span></div>
+        <span>by word (<kbd>Shift</kbd>: frame)</span><span><kbd>Esc</kbd>undo (Shift: redo)</span><span><kbd>S</kbd>show the action</span><span><kbd>D</kbd>done</span></div>
       <div className="editor-buttons">
         <button type="button" onClick={() => seek(inMs)} data-testid="button-to-start">⇤ Start</button>
         <button type="button" onClick={togglePlay} data-testid="button-editor-play">Play / pause</button>
