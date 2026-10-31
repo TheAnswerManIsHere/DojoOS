@@ -1,5 +1,5 @@
 {
-  "note": "PROTOTYPE — the brick editor's own keys, as data (architecture.md §5), shared by the logger and the lesson page. The player keys — Space, ← →, J K L — are every player's (@workspace/shared/navigation). I/O set an edge at the playhead (Shift: exact); [ ] step the in point and , . the out point by word (Shift: a frame); Esc undoes and Shift+Esc redoes; D is done (David, 2026-10-29).",
+  "note": "PROTOTYPE — the brick editor's own keys, as data (architecture.md §5), shared by the logger and the lesson page. The player keys — Space, ← →, J K L — are every player's (@workspace/shared/navigation). I/O set an edge at the playhead (Shift: exact); [ ] step the in point and , . the out point by word (Shift: a frame); Esc undoes and Shift+Esc redoes; D is done (David, 2026-10-29). S toggles showing each brick's action — a punch-in plays framed as the render will frame it (David, 2026-10-30).",
   "bindings": {
     "KeyB": "toStart",
     "KeyE": "toEnd",
@@ -10,6 +10,7 @@
     "Comma": "outEarlier",
     "Period": "outLater",
     "Escape": "undo",
-    "KeyD": "close"
+    "KeyD": "close",
+    "KeyS": "showAction"
   }
 }

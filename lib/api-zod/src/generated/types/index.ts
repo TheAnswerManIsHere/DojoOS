@@ -22,6 +22,7 @@ export * from './lessonBrick';
 export * from './lessonCommandResult';
 export * from './lessonCommandResultInverse';
 export * from './lessonEntry';
+export * from './lessonEntryAction';
 export * from './lessonEntryTransition';
 export * from './lessonRender';
 export * from './lessonResolved';

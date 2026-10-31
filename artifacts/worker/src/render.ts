@@ -32,7 +32,10 @@ export function renderArgs(edl: ResolvedEDL, inputs: Map<string, RenderInput>, o
     const length = s(seg.outMs - seg.inMs);
     args.push("-ss", s(seg.inMs), "-t", length, "-i", input.file);
     const video = input.hasVideo ? `[${i}:v:0]` : `color=c=black:s=${w}x${h}:r=${fps}:d=${length},`;
-    graph.push(`${video}fps=${fps},scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2,setsar=1,` +
+    // A punch-in: the segment's framing region, cropped out of the source frame and scaled up to fill the render.
+    const region = input.hasVideo ? seg.framing[0]?.region : undefined;
+    const crop = region && region.w < 1 ? `crop=w=iw*${region.w.toFixed(5)}:h=ih*${region.h.toFixed(5)}:x=iw*${region.x.toFixed(5)}:y=ih*${region.y.toFixed(5)},` : "";
+    graph.push(`${video}${crop}fps=${fps},scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2,setsar=1,` +
       `format=yuv420p,trim=duration=${length},setpts=PTS-STARTPTS,settb=AVTB[v${i}]`);
     const audio = input.hasAudio ? `[${i}:a:0]` : "anullsrc=r=48000:cl=stereo,";
     graph.push(`${audio}aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,apad=whole_dur=${length},` +

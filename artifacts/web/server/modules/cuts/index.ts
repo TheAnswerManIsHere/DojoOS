@@ -22,7 +22,11 @@ async function shootBricks(db: Db, shootId: string) {
     .orderBy(asc(sources.createdAt), asc(sources.id));
   const ids = files.map((f) => f.id);
   const rows = ids.length ? await db.select().from(bricks).where(and(inArray(bricks.sourceId, ids), isNull(bricks.deletedAt), isNotNull(bricks.outMs))) : [];
-  const all: LessonBrick[] = rows.map((b) => ({ id: b.id, sourceId: b.sourceId, inMs: b.inMs, outMs: b.outMs!, tags: b.tags, number: b.number ?? null }));
+  const all: LessonBrick[] = rows.map((b) => {
+    const a = b.attributes ?? {};
+    return { id: b.id, sourceId: b.sourceId, inMs: b.inMs, outMs: b.outMs!, tags: b.tags, number: b.number ?? null,
+      action: a.action === "punch_in" ? "punch_in" : "keep", preset: typeof a.preset === "string" ? a.preset : null };
+  });
   return { bricks: initialOrder(all, ids), sourceOrder: ids };
 }
 
@@ -89,7 +93,8 @@ async function lessonView(ctx: Context, cut: typeof cuts.$inferSelect, shootName
   return {
     cutId: cut.id, shootId: cut.shootId, shootName,
     entries: state.entries.map((e) => ({ ...e, sourceId: brickOf.get(e.brickId)!.sourceId, brickInMs: brickOf.get(e.brickId)!.inMs,
-      brickOutMs: brickOf.get(e.brickId)!.outMs, tags: brickOf.get(e.brickId)!.tags, brickNumber: brickOf.get(e.brickId)!.number ?? null })),
+      brickOutMs: brickOf.get(e.brickId)!.outMs, tags: brickOf.get(e.brickId)!.tags, brickNumber: brickOf.get(e.brickId)!.number ?? null,
+      action: brickOf.get(e.brickId)!.action ?? "keep", preset: brickOf.get(e.brickId)!.preset ?? null })),
     available: state.bricks.filter((b) => !included.has(b.id)),
     resolved, lengthMs: edlLengthMs(resolved), sources: media,
     renders: revs.map((r) => {

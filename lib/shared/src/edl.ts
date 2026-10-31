@@ -15,6 +15,24 @@ export interface ResolvedEDL {
   chapters: Array<{ atMs: number; title: string }>;
 }
 
+/** How far a punch-in zooms, until a template sets it (architecture.md §5: the template's punchInScale; step 5). */
+export const defaultPunchInScale = 1.5;
+/** The part of the picture a punch-in fills the frame with, as fractions of the source frame: 1/scale of its width and
+ * height, centred across, and placed down the frame by the preset — the lower third keeps the bottom, the upper third the
+ * top (David, 2026-10-30: the action a brick asks for is what plays). One answer for the render and every player. */
+export function punchInRegion(preset: string | null | undefined, scale = defaultPunchInScale) {
+  const size = 1 / Math.max(1, scale);
+  const y = preset === "upper third" ? 0 : preset === "centre" ? (1 - size) / 2 : 1 - size;
+  return { x: (1 - size) / 2, y, w: size, h: size };
+}
+/** The CSS that shows a region full-frame on a player: scaled up about the point that keeps the region's edges on the
+ * frame's edges. A player inside a box that clips its overflow then shows exactly what the render will. */
+export function regionTransform(region: { x: number; y: number; w: number; h: number } | null | undefined) {
+  if (!region || region.w >= 1) return { transform: "", transformOrigin: "" };
+  const ox = region.w < 1 ? region.x / (1 - region.w) : 0.5, oy = region.h < 1 ? region.y / (1 - region.h) : 0.5;
+  return { transform: `scale(${1 / region.w})`, transformOrigin: `${(ox * 100).toFixed(2)}% ${(oy * 100).toFixed(2)}%` };
+}
+
 /** One entry of a cut, as the resolver reads it: the brick's source and span, and this cut's overrides. */
 export type ResolveEntry = { entry: LessonEntry; brick: LessonBrick };
 
@@ -34,7 +52,9 @@ export function resolveCut(cut: { orientation: "16:9" | "9:16" }, entries: Resol
     const overlap = !last && entry.transition === "dissolve"
       ? Math.max(0, Math.min(dissolveMs, length - incoming, spans[i + 1].outMs - spans[i + 1].inMs)) : 0;
     const outStartMs = at, outEndMs = at + length;
-    picture.push({ sourceId: brick.sourceId, inMs, outMs, outStartMs, outEndMs, framing: [], placement: "full",
+    const scale = typeof template.punchInScale === "number" ? template.punchInScale : defaultPunchInScale;
+    const framing = brick.action === "punch_in" ? [{ atMs: 0, region: punchInRegion(brick.preset, scale) }] : [];
+    picture.push({ sourceId: brick.sourceId, inMs, outMs, outStartMs, outEndMs, framing, placement: "full",
       ...(overlap > 0 && { transitionOut: `dissolve:${overlap}` }) });
     narration.push({ sourceId: brick.sourceId, inMs, outMs, outStartMs, outEndMs, gain: 1 });
     at = outEndMs - overlap;

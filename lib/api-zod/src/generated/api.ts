@@ -482,7 +482,9 @@ export const GetLessonResponse = zod.object({
   "trimInMs": zod.number().int().describe('≥ 0: how far the in point is moved later than the brick\'s.'),
   "trimOutMs": zod.number().int().describe('≤ 0: how far the out point is moved earlier than the brick\'s.'),
   "transition": zod.enum(['cut', 'dissolve']).describe('The transition into the entry that follows.'),
-  "tags": zod.array(zod.string())
+  "tags": zod.array(zod.string()),
+  "action": zod.enum(['keep', 'punch_in']),
+  "preset": zod.string().nullable()
 })),
   "available": zod.array(zod.object({
   "id": zod.string(),
@@ -554,7 +556,9 @@ export const ApplyLessonCommandResponse = zod.object({
   "trimInMs": zod.number().int().describe('≥ 0: how far the in point is moved later than the brick\'s.'),
   "trimOutMs": zod.number().int().describe('≤ 0: how far the out point is moved earlier than the brick\'s.'),
   "transition": zod.enum(['cut', 'dissolve']).describe('The transition into the entry that follows.'),
-  "tags": zod.array(zod.string())
+  "tags": zod.array(zod.string()),
+  "action": zod.enum(['keep', 'punch_in']),
+  "preset": zod.string().nullable()
 })),
   "available": zod.array(zod.object({
   "id": zod.string(),

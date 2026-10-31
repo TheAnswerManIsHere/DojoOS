@@ -11,7 +11,9 @@ export type Transition = (typeof transitions)[number];
 export const dissolveMs = 1000;
 
 /** A closed brick the lesson can include. */
-export type LessonBrick = { id: string; sourceId: string; inMs: number; outMs: number; tags: string[]; number?: number | null };
+export type LessonBrick = { id: string; sourceId: string; inMs: number; outMs: number; tags: string[]; number?: number | null;
+  /** What the brick asks of the picture: keep it as shot, or punch in at a preset (the logger's action). */
+  action?: "keep" | "punch_in"; preset?: string | null };
 /** One entry of the lesson, in output order. trimInMs ≥ 0 moves the in point later; trimOutMs ≤ 0 moves the out point
  * earlier. The transition belongs to this entry and applies to whichever entry follows it. */
 export type LessonEntry = { id: string; brickId: string; trimInMs: number; trimOutMs: number; transition: Transition };

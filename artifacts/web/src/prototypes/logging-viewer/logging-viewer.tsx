@@ -12,6 +12,7 @@ import { applySourceCommand, getSourceLog, markLogDone, markLogInProgress, type 
   type SourceLog } from '@workspace/api-client-react';
 import { brickTags, framingPresets, snapToWord, stepToWord, type Command } from '@workspace/shared/commands';
 import { modifierOf, navigationTarget, nextSpeed, playerKeys, timecode } from '@workspace/shared/navigation';
+import { punchInRegion, regionTransform } from '@workspace/shared/edl';
 import { BrickEditor } from '../../player/brick-editor';
 import { Strip, usePeaks } from '../../player/strip';
 import { useProxyVideo } from '../../player/proxy-video';
@@ -53,6 +54,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
   const [speed, setSpeed] = useState(1);
   const [hover, setHover] = useState<number | null>(null);
   const [keysPaused, setKeysPaused] = useState(false);
+  const [showAction, setShowAction] = useState(false);
   const [reported, setReported] = useState('');
   const video = useRef<HTMLVideoElement>(null);
   const busy = useRef(Promise.resolve());
@@ -198,6 +200,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
         return;
       }
       case 'undo': undoRedo(shift); return;
+      case 'showAction': setShowAction((on) => !on); return;
       case 'edit': {
         if (!t) { setMessage('Select a brick (Tab, or tap it) to open it.'); return; }
         if (t.outMs === null) { setMessage('This brick is still open: press O to give it an out point, then P to open it.'); return; }
@@ -252,6 +255,10 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
   const tile = hover !== null && layout ? Math.min(layout.count - 1, Math.floor(hover / 1000 / layout.intervalSeconds)) : null;
   const t = target();
   const ordered = [...bricks].sort((a, b) => a.inMs - b.inMs);
+  // The punch-in playing now: of the closed bricks around the playhead that ask for one, the innermost — the latest to start.
+  const acting = showAction ? bricks.filter((b) => b.action === 'punch_in' && b.outMs !== null && playhead >= b.inMs && playhead < b.outMs)
+    .sort((a, b) => b.inMs - a.inMs)[0] : undefined;
+  const actionStyle = acting ? regionTransform(punchInRegion(acting.preset)) : undefined;
   const page = `/sources/${sourceId}/log`;
 
   return <section className="logging-viewer" aria-label="Logging viewer">
@@ -277,13 +284,17 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
     </div>}
 
     <div className="media-card">
+    {/* Show action (S): while a punch-in brick plays, the picture shows what the render will — that brick's framing. */}
+    <div className="video-frame">
     {player.url
-      ? <video ref={video} src={player.url} preload="auto" className="logging-video" data-testid="video-log" playsInline
+      ? <video ref={video} src={player.url} preload="auto" className="logging-video" data-testid="video-log" playsInline style={actionStyle}
           onLoadedMetadata={player.onLoadedMetadata} onError={player.onError} onStalled={player.onStalled}
           onTimeUpdate={player.onTimeUpdate} onSeeked={player.onSeeked} onPause={player.onPause} onPlaying={player.onPlaying}
           onClick={() => { (document.activeElement as HTMLElement | null)?.blur(); togglePlay(); }} />
       : <p role="status" style={{ color: '#fff' }}>Loading the proxy…</p>}
-    <div className="media-bar"><span data-testid="text-playhead">{clock(playhead)} / {clock(durationMs)}{speed !== 1 && <strong> · {speed}×</strong>}</span>
+    </div>
+    <div className="media-bar"><span data-testid="text-playhead">{clock(playhead)} / {clock(durationMs)}{speed !== 1 && <strong> · {speed}×</strong>}
+      {showAction && <strong className="action-badge" data-testid="text-showing-action"> · Showing actions{acting ? ` · Brick ${acting.number ?? ''}: punch in, ${acting.preset}` : ''}</strong>}</span>
       <span>{bricks.length} brick{bricks.length === 1 ? '' : 's'}</span></div>
     </div>
 
@@ -314,7 +325,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
       <span><kbd>Space</kbd>play / pause</span><span><kbd>←</kbd><kbd>→</kbd>word (Shift: 5 s · Option: frame)</span>
       <span><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd>slower · 1× · faster</span><span><kbd>I</kbd><kbd>O</kbd>in · out (Shift: exact)</span>
       <span><kbd>Tab</kbd>select</span><span><kbd>P</kbd>open the brick</span><span><kbd>N</kbd>note</span><span><kbd>A</kbd>action</span>
-      <span><kbd>Delete</kbd>remove</span><span><kbd>Esc</kbd>undo (Shift: redo)</span>
+      <span><kbd>Delete</kbd>remove</span><span><kbd>Esc</kbd>undo (Shift: redo)</span><span><kbd>S</kbd>show actions</span>
     </div>
 
     {noting && <form className="plain-form" style={{ marginTop: 12 }} onSubmit={(e) => {
@@ -352,7 +363,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
     </table></div>
     </div>
 
-    {editingBrick && <BrickEditor brick={{ ...editingBrick, outMs: editingBrick.outMs! }} sourceId={sourceId} words={words} fps={log.fps}
+    {editingBrick && <BrickEditor brick={{ ...editingBrick, outMs: editingBrick.outMs! }} showAction={showAction} onShowAction={setShowAction} sourceId={sourceId} words={words} fps={log.fps}
       durationMs={durationMs} peaks={peaks} message={message} setMessage={setMessage} onMoveTo={(edge, toMs) => moveEdgeTo(editingBrick, edge, toMs)}
       onStep={(edge, direction, byFrame) => stepEdge(editingBrick, edge, direction, byFrame)} onUndo={undoRedo}
       onClose={() => { setEditing(null); seekTo(editingBrick.inMs); }} />}

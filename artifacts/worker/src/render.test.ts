@@ -91,3 +91,24 @@ test("at each boundary, inside the dissolve and either side of the hard cut, the
     } else if (Math.min(...active.map((a) => a.weight)) >= 0.25) assert.ok(low > 0.01 && high > 0.01, `both tones inside the dissolve ${where}`);
   }
 });
+
+test("a punch-in brick is rendered framed: the preset's part of the picture fills the frame (David, 2026-10-30)", () => {
+  // A source whose blue rises from the top of the frame to the bottom: the mean blue says which part of it is showing.
+  const ramp = join(dir, "ramp.mp4");
+  execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=320x180:r=30:d=3,format=gbrp,geq=r=0:g=0:b='255*Y/H'",
+    "-f", "lavfi", "-i", "sine=frequency=440:duration=3", "-c:v", "libx264", "-pix_fmt", "yuv444p", "-crf", "10", "-c:a", "aac", "-y", ramp]);
+  const inputs = new Map([["R", { file: ramp, hasVideo: true, hasAudio: true }]]);
+  const blueOf = (action: "keep" | "punch_in", preset: string | null) => {
+    const brick: LessonBrick = { id: "r", sourceId: "R", inMs: 0, outMs: 2000, tags: [], action, preset };
+    const edl = resolveCut({ orientation: "16:9" }, [{ entry: { id: "e", brickId: "r", trimInMs: 0, trimOutMs: 0, transition: "cut" }, brick }]);
+    const out = join(dir, `ramp-${action}-${preset ?? "none"}.mp4`);
+    execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", ...renderArgs(edl, inputs, out)]);
+    return colourAt(out, 1)[2];
+  };
+  const keep = blueOf("keep", null), lower = blueOf("punch_in", "lower third"), upper = blueOf("punch_in", "upper third"), centre = blueOf("punch_in", "centre");
+  // At 1.5×: the whole frame averages half way; the lower third's crop is the bottom two thirds (≈ 2/3), the upper the top two thirds (≈ 1/3).
+  assert.ok(Math.abs(keep - 127) < 15, `keep shows the whole frame (${keep})`);
+  assert.ok(Math.abs(lower - 170) < 15, `lower third shows the bottom of the frame (${lower})`);
+  assert.ok(Math.abs(upper - 85) < 15, `upper third shows the top of the frame (${upper})`);
+  assert.ok(Math.abs(centre - 127) < 15, `centre shows the middle (${centre})`);
+});

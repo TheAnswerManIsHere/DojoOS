@@ -1,5 +1,5 @@
 {
-  "note": "PROTOTYPE — the lesson timeline's own key bindings, as data (architecture.md §5): change a key here, not in code. The player keys — Space, ← →, J K L — are every player's and live in @workspace/shared/navigation (David, 2026-10-29). Tab and Shift+Tab select a brick; - and = move it earlier or later (or drag it). P opens the selected brick in the brick editor, the same one the logger uses, to fix its edges; the lesson has no edge keys of its own (David, 2026-10-29). D sets the transition out of the selected brick into the next: cut or dissolve.",
+  "note": "PROTOTYPE — the lesson timeline's own key bindings, as data (architecture.md §5): change a key here, not in code. The player keys — Space, ← →, J K L — are every player's and live in @workspace/shared/navigation (David, 2026-10-29). Tab and Shift+Tab select a brick; - and = move it earlier or later (or drag it). P opens the selected brick in the brick editor, the same one the logger uses, to fix its edges; the lesson has no edge keys of its own (David, 2026-10-29). D sets the transition out of the selected brick into the next: cut or dissolve. S toggles showing each brick's action — a punch-in plays framed as the render will frame it (David, 2026-10-30).",
   "bindings": {
     "Tab": "selectNext",
     "Minus": "moveEarlier",
@@ -11,6 +11,7 @@
     "KeyD": "toggleTransition",
     "Escape": "undo",
     "KeyR": "render",
-    "KeyP": "edit"
+    "KeyP": "edit",
+    "KeyS": "showAction"
   }
 }
