@@ -143,7 +143,9 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
       v.dataset.segment = String(edl.picture.indexOf(seg));
       // The segment's framing — a punch-in — as the render will crop it, unless S has turned actions off.
       const frame = regionTransform(showActionRef.current ? seg.framing?.[0]?.region : undefined);
-      if (v.style.transform !== frame.transform) { v.style.transform = frame.transform; v.style.transformOrigin = frame.transformOrigin; }
+      // Scale and anchor are set apart: two punch-ins at different presets share a scale, not an anchor (Codex, PR #67).
+      if (v.style.transform !== frame.transform) v.style.transform = frame.transform;
+      if (v.dataset.origin !== frame.transformOrigin) { v.dataset.origin = frame.transformOrigin; v.style.transformOrigin = frame.transformOrigin; }
       if (v.playbackRate !== speedRef.current) v.playbackRate = speedRef.current;
       // The later of two overlapping segments sits on top and fades in; the one beneath stays opaque while it plays.
       const later = here && active.length === 2 && here.index === Math.max(...active.map((a) => a.index));
