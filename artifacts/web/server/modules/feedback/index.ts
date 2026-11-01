@@ -9,11 +9,12 @@ import lessonTimelineQuestions from "../../../src/prototypes/lesson-timeline/que
 export function featureOfPage(page: string): string | null {
   if (page === "/library") return "library";
   if (page === "/feedback") return "feedback";
+  if (page === "/guide") return "guide";
   if (/^\/sources\/[A-Za-z0-9]{1,64}\/log$/.test(page)) return "logging-viewer";
   if (/^\/shoots\/[A-Za-z0-9]{1,64}\/lesson$/.test(page)) return "lesson-timeline";
   return null;
 }
-const features = ["library", "feedback", "logging-viewer", "lesson-timeline"];
+const features = ["library", "feedback", "guide", "logging-viewer", "lesson-timeline"];
 
 /** A prototype's questions file is the source of its questions (the prototype skill): synced into the table at boot,
  * so the rail serves exactly what the file says, and a question taken out of the file is retired, not deleted. */

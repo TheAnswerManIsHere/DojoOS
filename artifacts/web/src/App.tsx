@@ -5,6 +5,7 @@ import { getGetSessionQueryKey, getListQuestionsQueryKey, useGetSession, useList
 import { QuestionRail } from '@/components/question-rail';
 import { Library } from '@/pages/library';
 import { FeedbackPage } from '@/pages/feedback';
+import { GuidePage } from '@/pages/guide';
 import { SignIn } from '@/pages/sign-in';
 import { LoggingViewer } from '@/prototypes/logging-viewer/logging-viewer';
 import { LessonTimeline } from '@/prototypes/lesson-timeline/lesson-timeline';
@@ -37,8 +38,8 @@ function Emblem() {
   </svg>;
 }
 
-/** The user guide for Jared (David, 2026-11-01). */
-const guideUrl = 'https://claude.ai/artifact/7y56FkpmEcRDGHf8QWzmzH';
+/** The user guide, a page of the app, opened in its own tab so the page Jared is on stays put (David, 2026-11-01). */
+const guideUrl = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/guide`;
 
 function AuthenticatedShell({ children, feature, page, email, tier }: {
   children: ReactNode; feature: string; page: string; email: string; tier: string;
@@ -59,8 +60,7 @@ function AuthenticatedShell({ children, feature, page, email, tier }: {
         <nav className="app-nav" aria-label="Main navigation">
           <Link href="/library" aria-current={here('/library')} data-testid="link-library">Library</Link>
           <Link href="/feedback" aria-current={here('/feedback')} data-testid="link-feedback">Feedback</Link>
-          {/* Jared's guide, a shared doc outside the app: opens in a new tab so the page he is on stays put (David, 2026-11-01). */}
-          <a href={guideUrl} target="_blank" rel="noopener noreferrer" className="guide-link" data-testid="link-guide">User guide ↗</a>
+          <a href={guideUrl} target="_blank" rel="noopener" aria-current={here('/guide')} className="guide-link" data-testid="link-guide">User guide ↗</a>
           {/* The address stays in the page for the journeys and screen readers; on screen it is just the person. */}
           <span className="app-who" data-testid="text-account-email">{name}<span className="sr-only"> · {email}</span></span>
           <button type="button" disabled={logout.isPending} onClick={async () => {
@@ -102,6 +102,7 @@ function Routes() {
     <Route path="/library"><AuthenticatedShell feature="library" page="/library" email={account.email} tier={account.tier}><Library accountId={account.id} /></AuthenticatedShell></Route>
     <Route path="/shoots/:id/lesson">{(params: { id: string }) => <AuthenticatedShell feature="lesson-timeline" page={`/shoots/${params.id}/lesson`} email={account.email} tier={account.tier}><LessonTimeline shootId={params.id} /></AuthenticatedShell>}</Route>
     <Route path="/sources/:id/log">{(params: { id: string }) => <AuthenticatedShell feature="logging-viewer" page={`/sources/${params.id}/log`} email={account.email} tier={account.tier}><LoggingViewer sourceId={params.id} /></AuthenticatedShell>}</Route>
+    <Route path="/guide"><AuthenticatedShell feature="guide" page="/guide" email={account.email} tier={account.tier}><GuidePage /></AuthenticatedShell></Route>
     <Route path="/feedback"><AuthenticatedShell feature="feedback" page="/feedback" email={account.email} tier={account.tier}><FeedbackPage /></AuthenticatedShell></Route>
     <Route><AuthenticatedShell feature="not-found" page={location} email={account.email} tier={account.tier}><h1>Page not found</h1><p><Link href="/library" data-testid="link-return-library">Return to library</Link></p></AuthenticatedShell></Route>
   </Switch>;

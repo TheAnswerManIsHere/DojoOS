@@ -647,3 +647,18 @@ kbd { font-family: 'Rubik', system-ui, sans-serif; font-size: .78rem; font-weigh
 .lesson-facts strong { color: var(--ink-heading); }
 .two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-top: 18px; }
 .two-col > .card + .card { margin-top: 0; }
+
+/* The user guide (David, 2026-11-01): the site's cards and tables, read as a document. */
+.guide { max-width: 860px; }
+.guide-contents ol { columns: 2; column-gap: 32px; margin: 8px 0 0; padding-left: 22px; }
+.guide-contents li { margin: 2px 0; }
+.guide-section { scroll-margin-top: 90px; }
+.guide-section h2 { margin-top: 0; }
+.guide-section p, .guide-section ul, .guide-section ol { max-width: 70ch; }
+.guide-points { padding-left: 20px; } .guide-points li { margin: 8px 0; }
+.guide-steps, .guide-checklist { padding-left: 24px; } .guide-steps li, .guide-checklist li { margin: 4px 0; }
+.guide-checklist li::marker { color: var(--gold); font-weight: 700; }
+.plain-table.guide-table tbody tr { cursor: default; }
+.guide-table td:first-child, .guide-table th:first-child { white-space: nowrap; overflow-wrap: normal; width: 1%; padding-right: 18px; }
+.guide-keys kbd { margin-right: 2px; }
+@media (max-width: 640px) { .guide-contents ol { columns: 1; } }
