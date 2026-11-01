@@ -37,6 +37,9 @@ function Emblem() {
   </svg>;
 }
 
+/** The user guide for Jared (David, 2026-11-01). */
+const guideUrl = 'https://claude.ai/artifact/7y56FkpmEcRDGHf8QWzmzH';
+
 function AuthenticatedShell({ children, feature, page, email, tier }: {
   children: ReactNode; feature: string; page: string; email: string; tier: string;
 }) {
@@ -56,6 +59,8 @@ function AuthenticatedShell({ children, feature, page, email, tier }: {
         <nav className="app-nav" aria-label="Main navigation">
           <Link href="/library" aria-current={here('/library')} data-testid="link-library">Library</Link>
           <Link href="/feedback" aria-current={here('/feedback')} data-testid="link-feedback">Feedback</Link>
+          {/* Jared's guide, a shared doc outside the app: opens in a new tab so the page he is on stays put (David, 2026-11-01). */}
+          <a href={guideUrl} target="_blank" rel="noopener noreferrer" className="guide-link" data-testid="link-guide">User guide ↗</a>
           {/* The address stays in the page for the journeys and screen readers; on screen it is just the person. */}
           <span className="app-who" data-testid="text-account-email">{name}<span className="sr-only"> · {email}</span></span>
           <button type="button" disabled={logout.isPending} onClick={async () => {
