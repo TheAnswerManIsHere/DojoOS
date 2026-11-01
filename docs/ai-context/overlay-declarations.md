@@ -1,6 +1,6 @@
 # What the shared rules ask DojoOS
 
-The handbook's rules dereference six answers from this file. Both
+KITT's rules dereference six answers from this file. Both
 `CLAUDE.md` and `AGENTS.md` route here; nothing else holds these answers.
 
 ## Sensitive subsystems

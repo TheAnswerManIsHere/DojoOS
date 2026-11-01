@@ -7,8 +7,8 @@ by David on 2026-10-03 (sha256
 one scope exchange and four assessment exchanges with Astra. The plan is
 committed at [`docs/plans/PLAN_DOJOOS_ARCHITECTURE.md`](../plans/PLAN_DOJOOS_ARCHITECTURE.md)
 as the approved snapshot, pinned by that digest and never edited: its own
-status line ("presented for approval. Never pushed") predates the
-handbook's 2026-10-12 rule that an approved plan is committed on its feature
+status line ("presented for approval. Never pushed") predates
+KITT's 2026-10-12 rule that an approved plan is committed on its feature
 branch, and stays as approved because the digest verifies the file
 byte-for-byte. This page carries its design sections and is where design
 changes are written; the reasons behind each choice are in

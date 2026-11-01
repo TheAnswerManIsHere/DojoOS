@@ -7,6 +7,6 @@ runs in a cloud sandbox from this repository.
   database is available there; anything needing Postgres is verified in
   the Repl instead.
 - **What runs there:** `pnpm install`, `pnpm run typecheck`, the web lint,
-  and the handbook's node test suites (`node --test scripts/__tests__/`).
+  and KITT's node test suites (`node --test scripts/__tests__/`).
 - **Setup script:** none yet. One is added when a Codex task first needs
   more than the list above.

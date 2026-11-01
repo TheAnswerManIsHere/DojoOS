@@ -79,7 +79,7 @@ jobs:
       - run: pnpm -r --if-present run test
       # The step-0 journeys spawn the real web server against the migrated database.
       - run: pnpm -r --if-present run test:journeys
-      # check-docs-accuracy.mjs is left out until the handbook exempts synced files
+      # check-docs-accuracy.mjs is left out until KITT exempts synced files
       # from its path rule: every failure today is a vendored doc citing another
       # product's paths (docs/engineering/deferred-work.md).
 
