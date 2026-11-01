@@ -24,7 +24,7 @@ product manager.
 
 ## Product-specific skills
 
-None yet. The handbook's skills cover everything so far.
+None yet. KITT's skills cover everything so far.
 
 ## What the shared rules ask this repo
 

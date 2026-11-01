@@ -23,7 +23,7 @@ makes ease of use the product requirement rather than a preference. It is
 single-tenant, bespoke, and never needs large-scale deployment.
 
 Business owner: Jared Cooper. Product manager: David. Engineer: Claude Code,
-with Codex reviewing and Replit hosting, under the AI-Handbook contract.
+with Codex reviewing and Replit hosting, under the KITT contract.
 
 ## Facts (looked up 2026-09-25; not decisions)
 
@@ -135,7 +135,7 @@ stays live throughout.
   original at the worst case, about 6 GB per hour for today's files,
   ~2.7 GB per hour of 1080p proxy.
 - **Operator** (Q4). Jared, with David for testing; no roles beyond the
-  tester tier the handbook's prototype phase requires.
+  tester tier KITT's prototype phase requires.
 - **Publishing is David's** (Q30). Claude merges to `main` and stops; David
   tests in the development environment and publishes when he chooses.
 
@@ -250,10 +250,10 @@ keep-span of a source with attributes. **Cut** — an assembled output
 **Library** — all bricks across shoots, including b-roll. "Project" is
 avoided because it would mean two things.
 
-## Process decisions carried from the handbook
+## Process decisions carried from KITT
 
 - The first product feature is a **prototype** of the logging viewer and
-  the live preview (Q17), in prototype phase under the handbook's
+  the live preview (Q17), in prototype phase under KITT's
   per-feature phase rule: its first version runs the short planning loop
   with Astra and David's approval; no code review, no UAT doc, the three
   machine lanes scaled to a prototype as the agent's proof (`ci` and

@@ -15,8 +15,8 @@ maintenance pass reads and updates this list.
 - **Transcription, speech-to-text and the command classifier** — providers
   chosen in the build (architecture, *Media pipeline* and *commands*).
 - **Docs-accuracy check out of CI** — its path rule fails on 31 citations
-  in synced handbook files (examples from another product), none in
-  DojoOS's own docs. Restored to CI once the handbook exempts synced files
+  in synced KITT files (examples from another product), none in
+  DojoOS's own docs. Restored to CI once KITT exempts synced files
   from the path rule. (Enrollment, 2026-10-03.)
 - **`lib/db` is an unused template package** whose `push` and `push-force`
   scripts point drizzle-kit at the live database with an empty schema.
