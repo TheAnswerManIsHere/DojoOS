@@ -55,6 +55,7 @@ app.get("/shoots/:id/lesson", gatePage, (_req, _res, next) => next());
 // The pages the SPA serves: sign-in, and every page the rail knows (featureOfPage).
 const isPage = (path: string) => path === "/" || path === "/sign-in" || featureOfPage(path) !== null;
 app.get("/feedback", gatePage, (_req, _res, next) => next());
+app.get("/guide", gatePage, (_req, _res, next) => next());
 if (process.env.NODE_ENV !== "production") {
   const vite = await createDevVite(httpServer, join(root, "vite.config.ts"));
   app.use(vite.middlewares);
