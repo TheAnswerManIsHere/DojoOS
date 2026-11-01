@@ -313,6 +313,8 @@ button:focus-visible, .button:focus-visible, a:focus-visible { outline: 2px soli
 .app-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 22px; }
 .app-nav a { color: #fff; text-decoration: none; padding: 4px 0; border-bottom: 2px solid transparent; }
 .app-nav a:hover, .app-nav a[aria-current=page] { color: #fff; border-bottom-color: var(--gold); }
+.app-nav a.guide-link { background: var(--gold); border: 1.5px solid var(--gold); border-radius: 999px; padding: 4px 14px; font-weight: 600; }
+.app-nav a.guide-link:hover { background: var(--gold-dark); border-color: var(--gold-dark); }
 .app-who { color: #b9c2ca; font-size: .92rem; }
 .app-nav button { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .45); padding: 4px 14px; }
 .app-nav button:hover:not(:disabled) { background: rgba(255, 255, 255, .1); color: #fff; }
