@@ -439,7 +439,8 @@ Jared is doing anyway. Per-output trims may still matter later for the short,
 where the same brick is cut tighter. The plan records the change in
 `decisions.md`.
 
-**Questions for David:**
+**Decided (David, 2026-11-06: *"Go with your recommendations for now"*):** all three as recommended below.
+
 1. **Which bricks are in the edited view:** every brick, or only those
    labelled *lesson*? Recommendation: every brick. Labels then pick bricks
    for the other outputs (a short = the bricks labelled *short*), and an
@@ -454,3 +455,30 @@ where the same brick is cut tighter. The plan records the change in
 3. **Reordering bricks** (the lesson page's `-` / `=` today): not
    needed when the job is cutting dead sections. Recommendation: drop it
    from this version and bring it back if Jared asks.
+
+## 15. Overlapping bricks stack in lanes on the strip
+
+**Asked:** bricks can overlap, so when two bricks overlap they stack
+vertically on the strip.
+
+**Today:** stacking exists only for **nesting**. A brick moves down one row
+for each brick that fully contains it (`depthOf`,
+`logging-viewer.tsx:33`), at most three rows. Two bricks that **partly**
+overlap (A 0–10 s, B 5–15 s) both get row 0 and are drawn on top of each
+other, so one hides the other. That is the bug being described.
+
+**Recommendation:**
+- **Lanes, assigned like tracks.** Bricks are placed in order of start
+  time, the longer one first on a tie. Each brick goes into the highest
+  lane where it overlaps nothing. The result: a brick never covers another
+  one, and a brick that contains others sits above them.
+- **The brick area grows to fit the lanes it needs,** so a strip with no
+  overlaps stays one lane thin. Past four lanes the brick area scrolls
+  inside itself, so the waveform never gets pushed off screen.
+- **Lanes hold still while you drag.** During an edge drag (item 6) the
+  lanes are frozen, so bricks don't jump rows under the pointer. They
+  settle when the drag ends.
+- **Each lane is tall enough to grab** (about 14 px, and more on touch),
+  since edges and taps need a target, not a hairline.
+- In the **Edited** view (item 14), overlapping bricks play once, but they
+  still show in their lanes, so you can see what is inside what.
