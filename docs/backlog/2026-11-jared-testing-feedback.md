@@ -123,5 +123,9 @@ brick editor and the lesson page.
   highlight would leave the view, putting that line at the top.
 - **The brick editor** keeps dimming the words outside the brick.
 
-**Offered, not asked:** clicking a word moves the playhead to it. It is
-cheap once the box exists. Included only if David wants it.
+- **Clicking a word moves the playhead to that word's start** (David,
+  2026-11-06: *"that was going to be my exact next request"*). This works in
+  all three players, the dimmed words outside a brick in the brick editor
+  included. That editor already lets the playhead sit outside the brick. A
+  click also takes the keys back from a text box, the same way a tap on the
+  strip does. It does not start playback: a paused player stays paused.
