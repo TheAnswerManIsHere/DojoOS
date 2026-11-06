@@ -252,3 +252,25 @@ leaves two open bricks, one nested inside the other.
   make the inner one, or drag edges (item 6).
 - `[` `]` and `,` `.` still step the selected brick's in and out by word
   (Shift: a frame), as in the brick editor.
+
+## 9. "Automatic note creation": the note box opens as soon as `O` closes a new brick
+
+**Asked:** a toggle, *Automatic note creation*. When it is on, closing a
+brick with `O` opens the note field straight away, so there is no separate
+`N`.
+
+**Today:** `N` (or `T`) opens the note box for the brick the keys target.
+Enter saves the note and Esc closes the box without saving
+(`logging-viewer.tsx:331`). Playback carries on while the box is open.
+
+**Recommendation:**
+- **A switch beside *Show actions*,** labelled *Automatic note creation*.
+  It is off by default and remembered in this browser.
+- **It opens only on the `O` that closes a brick.** A second `O` that moves
+  the out point (item 8) does not open it again, so fixing an out point
+  never brings up a note box.
+- **Playback pauses when the box opens, and Enter plays on** if it was
+  playing. Otherwise the footage keeps running past while Jared types, and
+  he has to go back for what he missed. Esc, or Enter on an empty box,
+  closes it with no note and also plays on.
+- **`N` still works** to write or change any brick's note, switch on or off.
