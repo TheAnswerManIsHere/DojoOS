@@ -167,6 +167,24 @@ export interface LoginInput {
   password: string;
 }
 
+export interface SourceNameInput {
+  /**
+     * The new name; empty or null goes back to the original file name.
+     * @nullable
+     */
+  name: string | null;
+}
+
+/**
+ * The first tile of the file's sprite, by a short-lived signed link.
+ * @nullable
+ */
+export type SourceThumbnail = {
+  url: string;
+  width: number;
+  height: number;
+} | null;
+
 export type SourceRole = typeof SourceRole[keyof typeof SourceRole];
 
 
@@ -197,6 +215,21 @@ export type SourceIngestProgress = {
 
 export interface Source {
   id: string;
+  /**
+     * The name the file shows; starts as its original file name.
+     * @nullable
+     */
+  name?: string | null;
+  /**
+     * The file's name as uploaded; null for files uploaded before names were kept.
+     * @nullable
+     */
+  originalFileName?: string | null;
+  /**
+     * The first tile of the file's sprite, by a short-lived signed link.
+     * @nullable
+     */
+  thumbnail?: SourceThumbnail;
   logStatus: LogStatus;
   brickCount: number;
   role: SourceRole;
@@ -308,6 +341,8 @@ export interface LessonEntry {
   trimOutMs: number;
   /** The transition into the entry that follows. */
   transition: LessonEntryTransition;
+  /** The dissolve's length into the entry that follows, when the transition is a dissolve; absent means the default 1 s. */
+  dissolveMs?: number;
   tags: string[];
   action: LessonEntryAction;
   /** @nullable */
@@ -500,6 +535,15 @@ export interface Feedback {
   state: FeedbackState;
   createdAt: string;
 }
+
+export type RenameSource200 = {
+  /** @nullable */
+  name: string | null;
+};
+
+export type SuggestSourceName200 = {
+  name: string;
+};
 
 export type ListQuestionsParams = {
 feature: string;

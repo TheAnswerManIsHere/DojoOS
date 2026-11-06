@@ -36,6 +36,13 @@
       "when": 1793304393345,
       "tag": "0004_striped_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794006707648,
+      "tag": "0005_tidy_karnak",
+      "breakpoints": true
     }
   ]
 }

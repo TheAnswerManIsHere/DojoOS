@@ -1,5 +1,5 @@
 import type { revisions } from "./schema";
-import { dissolveMs, entrySpan, type LessonBrick, type LessonEntry } from "./lesson";
+import { dissolveOf, entrySpan, type LessonBrick, type LessonEntry } from "./lesson";
 
 export interface ResolvedEDL {
   orientation: "16:9" | "9:16";
@@ -50,7 +50,7 @@ export function resolveCut(cut: { orientation: "16:9" | "9:16" }, entries: Resol
     const length = outMs - inMs;
     const last = i === entries.length - 1;
     const overlap = !last && entry.transition === "dissolve"
-      ? Math.max(0, Math.min(dissolveMs, length - incoming, spans[i + 1].outMs - spans[i + 1].inMs)) : 0;
+      ? Math.max(0, Math.min(dissolveOf(entry), length - incoming, spans[i + 1].outMs - spans[i + 1].inMs)) : 0;
     const outStartMs = at, outEndMs = at + length;
     const scale = typeof template.punchInScale === "number" ? template.punchInScale : defaultPunchInScale;
     const framing = brick.action === "punch_in" ? [{ atMs: 0, region: punchInRegion(brick.preset, scale) }] : [];

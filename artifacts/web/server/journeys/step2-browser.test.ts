@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { bricks, cutEvents, derivedKeys, feedback, shoots, sources, transcripts } from "@workspace/shared";
+import { bricks, cutBricks, cutEvents, cuts, derivedKeys, feedback, shoots, sources, transcripts } from "@workspace/shared";
 import { requireTestDatabase, startServer, testerEmail, type RunningServer } from "./harness";
 import { openPage, signInFromPage } from "./browser";
 
@@ -58,6 +58,12 @@ after(async () => {
   } finally {
     if (shootId) {
       const ids = [sourceId, bareId].filter(Boolean);
+      const lessonCuts = (await db.select({ id: cuts.id }).from(cuts).where(eq(cuts.shootId, shootId))).map((c) => c.id);
+      if (lessonCuts.length) {
+        await db.delete(cutEvents).where(inArray(cutEvents.cutId, lessonCuts));
+        await db.delete(cutBricks).where(inArray(cutBricks.cutId, lessonCuts));
+        await db.delete(cuts).where(inArray(cuts.id, lessonCuts));
+      }
       await db.delete(cutEvents).where(inArray(cutEvents.sourceId, ids));
       await db.delete(bricks).where(inArray(bricks.sourceId, ids));
       await db.delete(transcripts).where(inArray(transcripts.sourceId, ids));
@@ -314,6 +320,33 @@ test("the strip zooms and scrolls; the selected brick's edges drag to a frame, o
   await page.keyboard.press("Delete");
   await until(liveBricks, (b) => !b.some((x) => x.inMs === 6500));
   await page.getByTestId("input-auto-note").uncheck();
+  await page.close();
+});
+
+test("V flips to the Edited view — the bricks with the gaps gone, overlaps once — at the same moment, and back", async () => {
+  const page = await viewer(sourceId);
+  // Bricks 1.0–2.6 s and 2.0–5.6 s: the edit is 1.0–5.6 s of the file, 4.6 s, starting at the first brick.
+  await page.getByTestId("text-view-lengths").filter({ hasText: "0:08:00 → 0:04:18 kept" }).waitFor();
+  await seek(page, 3);
+  await page.keyboard.press("v");
+  await page.getByTestId("lesson-strip").waitFor();
+  await page.getByTestId("text-lesson-length").filter({ hasText: "0:04:18" }).waitFor();
+  // 3 s of the file plays 2 s into the edit.
+  await page.getByTestId("preview").and(page.locator('[data-out-ms="2000"]')).waitFor();
+  await page.keyboard.press("ArrowRight");
+  await page.getByTestId("preview").and(page.locator('[data-out-ms="4000"]')).waitFor();
+  // Back to Original at the footage under the playhead: 4 s into the edit is 5 s of the file.
+  await page.keyboard.press("v");
+  await page.getByTestId("video-log").waitFor();
+  await page.waitForFunction(`${VIDEO}?.readyState >= 1 && Math.abs(${VIDEO}.currentTime - 5) < 0.05`);
+  // The buttons do the same, and the keys work straight after a click (Codex, PR #82).
+  await page.getByTestId("button-view-edited").click();
+  await page.getByTestId("preview").and(page.locator('[data-out-ms="4000"]')).waitFor();
+  await page.keyboard.press("ArrowLeft");
+  await page.getByTestId("preview").and(page.locator('[data-out-ms="1000"]')).waitFor();
+  await page.getByTestId("button-view-original").click();
+  await page.getByTestId("video-log").waitFor();
+  await page.waitForFunction(`${VIDEO}?.readyState >= 1 && Math.abs(${VIDEO}.currentTime - 2) < 0.05`);
   await page.close();
 });
 

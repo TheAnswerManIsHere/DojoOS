@@ -53,46 +53,46 @@ after(async () => {
   }
 });
 
-test("a ready source plays its proxy through a signed URL; a source still proxying offers nothing to play", async () => {
+test("a ready file shows its thumbnail and its camera name, which can be renamed and put back; AI Rename says when it is not set up; the proxy is signed for five minutes", async () => {
+  await db.update(sources).set({ originalFileName: "C0001.MP4", name: "C0001.MP4" }).where(eq(sources.id, readyId));
   const page = await openPage(browser);
   await signInFromPage(page, server.origin, operatorEmail);
   const proxying = page.getByTestId(`row-source-${probingId}`);
   await proxying.waitFor();
-  assert.equal(await proxying.getByRole("button", { name: "Play proxy" }).count(), 0);
   assert.match(await proxying.textContent() ?? "", /proxying/i, "the row says it is still proxying");
+  assert.equal(await proxying.getByTestId(`thumb-${probingId}`).count(), 0, "no sprite yet, so no thumbnail");
+  assert.equal(await proxying.getByTestId(`button-rename-${probingId}`).textContent(), "File 1", "a file with no name is numbered");
 
   const ready = page.getByTestId(`row-source-${readyId}`);
-  const playback = page.waitForResponse((r) => r.url().endsWith(`/app-api/sources/${readyId}/playback`));
-  await ready.getByTestId(`button-play-${readyId}`).click();
-  const src = new URL(((await (await playback).json()) as { url: string }).url);
+  await ready.getByTestId(`thumb-${readyId}`).waitFor();
+  assert.equal(await ready.getByRole("button", { name: "Play proxy" }).count(), 0, "the library's own player is gone (David, 2026-11-06)");
+  await ready.getByTestId(`button-rename-${readyId}`).filter({ hasText: "C0001.MP4" }).click();
+  await ready.getByTestId(`input-name-${readyId}`).fill("Psoas release, side-lying");
+  await ready.getByTestId(`input-name-${readyId}`).press("Enter");
+  await ready.getByTestId(`button-rename-${readyId}`).filter({ hasText: "Psoas release, side-lying" }).waitFor();
+  await ready.getByTestId(`text-original-name-${readyId}`).filter({ hasText: "Originally C0001.MP4" }).waitFor();
+  assert.equal((await db.select().from(sources).where(eq(sources.id, readyId)))[0].originalFileName, "C0001.MP4", "the original never changes");
+  await ready.getByTestId(`button-rename-${readyId}`).click();
+  await ready.getByTestId(`button-original-name-${readyId}`).click();
+  await ready.getByTestId(`button-rename-${readyId}`).filter({ hasText: "C0001.MP4" }).waitFor();
+  // The journey's server has no AI key: the button says so rather than failing silently.
+  await ready.getByTestId(`button-ai-rename-${readyId}`).click();
+  await ready.getByTestId(`text-name-error-${readyId}`).filter({ hasText: "not set up yet" }).waitFor();
+
+  const src = new URL(await page.evaluate<string>(`fetch("/app-api/sources/${readyId}/playback").then((r) => r.json()).then((b) => b.url)`));
   assert.equal(src.pathname, `/journey/${derivedKeys(readyId).proxy}`, "the proxy's key, path-style in the configured bucket — not the original");
   assert.equal(src.searchParams.get("X-Amz-Expires"), "300", "a five-minute URL");
   assert.ok(src.searchParams.get("X-Amz-Signature"), "signed");
   await page.context().close();
 });
 
-test("when playback cannot continue the player says so and offers Play again, after exactly one automatic refresh", async () => {
-  // The journey's bucket is unreachable, so every load fails: the first failure fetches a fresh URL once, the second ends.
-  const page = await openPage(browser);
-  await signInFromPage(page, server.origin, operatorEmail);
-  let fetches = 0;
-  page.on("response", (r) => { if (r.url().endsWith(`/app-api/sources/${readyId}/playback`)) fetches++; });
-  const ready = page.getByTestId(`row-source-${readyId}`);
-  await ready.getByTestId(`button-play-${readyId}`).click();
-  await ready.getByText("The proxy could not be played. Press Play to try again.").waitFor();
-  await ready.getByTestId(`button-play-${readyId}`).waitFor();
-  assert.equal(fetches, 2, "the user's fetch and one automatic refresh");
-  await page.context().close();
-});
-
-test("the library refreshes itself while a source is in ingest, so Play appears without a reload", async () => {
+test("the library refreshes itself while a source is in ingest, so its new state appears without a reload", async () => {
   const page = await openPage(browser);
   await signInFromPage(page, server.origin, operatorEmail);
   const row = page.getByTestId(`row-source-${probingId}`);
   await row.getByTestId(`text-ingest-state-${probingId}`).filter({ hasText: "proxying" }).waitFor();
   await db.update(sources).set({ ingestState: "ready", proxyKey: derivedKeys(probingId).proxy }).where(eq(sources.id, probingId));
-  await row.getByTestId(`button-play-${probingId}`).waitFor({ timeout: 15_000 });
-  await row.getByTestId(`text-ingest-state-${probingId}`).filter({ hasText: "ready" }).waitFor();
+  await row.getByTestId(`text-ingest-state-${probingId}`).filter({ hasText: "ready" }).waitFor({ timeout: 15_000 });
   await page.context().close();
 });
 

@@ -35,12 +35,15 @@ import type {
   PartsInput,
   Peaks,
   Question,
+  RenameSource200,
   RenderQueued,
   Shoot,
   ShootInput,
   SignedUrl,
   Source,
   SourceLog,
+  SourceNameInput,
+  SuggestSourceName200,
   Transcript,
   Upload,
   UploadInput
@@ -1337,6 +1340,157 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getTranscribeSourceMutationOptions(options));
+    }
+
+export const getRenameSourceUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/sources/${id}/name`
+}
+
+export const renameSource = async (id: string,
+    sourceNameInput: SourceNameInput, options?: Parameters<typeof customFetch>[1]): Promise<RenameSource200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RenameSource200>(getRenameSourceUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(sourceNameInput)
+  }
+);}
+
+
+
+
+
+export const getRenameSourceMutationKey = () => ['renameSource'] as const;
+
+export const getRenameSourceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameSource>>, TError,RenameSourceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof renameSource>>, TError,RenameSourceMutationVariables, TContext> => {
+
+const mutationKey = getRenameSourceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renameSource>>, RenameSourceMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  renameSource(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenameSourceMutationResult = NonNullable<Awaited<ReturnType<typeof renameSource>>>
+    export type RenameSourceMutationBody = BodyType<SourceNameInput>
+    export type RenameSourceMutationError = ErrorType<unknown>
+    export type RenameSourceMutationVariables = {id: string;data: BodyType<SourceNameInput>}
+
+    export const useRenameSource = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameSource>>, TError,RenameSourceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof renameSource>>,
+        TError,
+        RenameSourceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRenameSourceMutationOptions(options));
+    }
+
+export const getSuggestSourceNameUrl = (id: string,) => {
+
+
+
+
+  return `/app-api/sources/${id}/suggest-name`
+}
+
+export const suggestSourceName = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<SuggestSourceName200> => {
+
+  return customFetch<SuggestSourceName200>(getSuggestSourceNameUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSuggestSourceNameMutationKey = () => ['suggestSourceName'] as const;
+
+export const getSuggestSourceNameMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestSourceName>>, TError,SuggestSourceNameMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suggestSourceName>>, TError,SuggestSourceNameMutationVariables, TContext> => {
+
+const mutationKey = getSuggestSourceNameMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suggestSourceName>>, SuggestSourceNameMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  suggestSourceName(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SuggestSourceNameMutationResult = NonNullable<Awaited<ReturnType<typeof suggestSourceName>>>
+
+    export type SuggestSourceNameMutationError = ErrorType<void>
+    export type SuggestSourceNameMutationVariables = {id: string}
+
+    export const useSuggestSourceName = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestSourceName>>, TError,SuggestSourceNameMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof suggestSourceName>>,
+        TError,
+        SuggestSourceNameMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSuggestSourceNameMutationOptions(options));
     }
 
 export const getGetPlaybackUrl = (id: string,) => {

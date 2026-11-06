@@ -8,7 +8,7 @@ import { FeedbackPage } from '@/pages/feedback';
 import { GuidePage } from '@/pages/guide';
 import { SignIn } from '@/pages/sign-in';
 import { LoggingViewer } from '@/prototypes/logging-viewer/logging-viewer';
-import { LessonTimeline } from '@/prototypes/lesson-timeline/lesson-timeline';
+import { LessonPage } from '@/prototypes/lesson-timeline/lesson-timeline';
 
 /** A sign-in that runs out while a page is open: the next request to fail for it goes to the sign-in page, which brings
  * you back here afterwards (David, 2026-10-28). The session check itself is left to Routes. */
@@ -100,8 +100,8 @@ function Routes() {
   return <Switch>
     <Route path="/"><Redirect to="/library" /></Route>
     <Route path="/library"><AuthenticatedShell feature="library" page="/library" email={account.email} tier={account.tier}><Library accountId={account.id} /></AuthenticatedShell></Route>
-    <Route path="/shoots/:id/lesson">{(params: { id: string }) => <AuthenticatedShell feature="lesson-timeline" page={`/shoots/${params.id}/lesson`} email={account.email} tier={account.tier}><LessonTimeline shootId={params.id} /></AuthenticatedShell>}</Route>
-    <Route path="/sources/:id/log">{(params: { id: string }) => <AuthenticatedShell feature="logging-viewer" page={`/sources/${params.id}/log`} email={account.email} tier={account.tier}><LoggingViewer sourceId={params.id} /></AuthenticatedShell>}</Route>
+    <Route path="/shoots/:id/lesson">{(params: { id: string }) => <AuthenticatedShell feature="lesson-timeline" page={`/shoots/${params.id}/lesson`} email={account.email} tier={account.tier}><LessonPage shootId={params.id} /></AuthenticatedShell>}</Route>
+    <Route path="/sources/:id/log">{(params: { id: string }) => <AuthenticatedShell feature="logging-viewer" page={`/sources/${params.id}/log`} email={account.email} tier={account.tier}><LoggingViewer key={params.id} sourceId={params.id} /></AuthenticatedShell>}</Route>
     <Route path="/guide"><AuthenticatedShell feature="guide" page="/guide" email={account.email} tier={account.tier}><GuidePage /></AuthenticatedShell></Route>
     <Route path="/feedback"><AuthenticatedShell feature="feedback" page="/feedback" email={account.email} tier={account.tier}><FeedbackPage /></AuthenticatedShell></Route>
     <Route><AuthenticatedShell feature="not-found" page={location} email={account.email} tier={account.tier}><h1>Page not found</h1><p><Link href="/library" data-testid="link-return-library">Return to library</Link></p></AuthenticatedShell></Route>

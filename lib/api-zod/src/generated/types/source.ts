@@ -7,9 +7,25 @@
 import type { LogStatus } from './logStatus';
 import type { SourceIngestProgress } from './sourceIngestProgress';
 import type { SourceRole } from './sourceRole';
+import type { SourceThumbnail } from './sourceThumbnail';
 
 export interface Source {
   id: string;
+  /**
+     * The name the file shows; starts as its original file name.
+     * @nullable
+     */
+  name?: string | null;
+  /**
+     * The file's name as uploaded; null for files uploaded before names were kept.
+     * @nullable
+     */
+  originalFileName?: string | null;
+  /**
+     * The first tile of the file's sprite, by a short-lived signed link.
+     * @nullable
+     */
+  thumbnail?: SourceThumbnail;
   logStatus: LogStatus;
   brickCount: number;
   role: SourceRole;

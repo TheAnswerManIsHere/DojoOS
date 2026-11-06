@@ -42,7 +42,9 @@ function putPart(url: string, blob: Blob, onProgress: (bytes: number) => void): 
 }
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-/** Adding a file to a shoot. One place to choose it: a file that matches an unfinished upload of this shoot (same name,
+/** Adding files to a shoot (several at once since 2026-11-06: David, "open a folder full of files, multi-select them, and
+ * initiate the transfer in one shot"). They go up one at a time, in order, each with its own progress; one that stops
+ * does not stop the rest. One place to choose them: a file that matches an unfinished upload of this shoot (same name,
  * size and date) continues that upload from where it stopped; any other file starts a new one. A stopped upload says
  * how far it got and what to do, and can be discarded, which cancels it in storage. */
 export function UploadManager({ shootId, accountId, sources }: { shootId: string; accountId: string; sources: Source[] }) {
@@ -54,6 +56,9 @@ export function UploadManager({ shootId, accountId, sources }: { shootId: string
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [dragging, setDragging] = useState(false);
+  /** The batch chosen together: each file's name and how it stands. */
+  const [queue, setQueue] = useState<Array<{ name: string; state: 'waiting' | 'uploading' | 'done' | 'stopped' }>>([]);
+  const [batchBusy, setBatchBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const start = useStartUpload();
   const sign = useSignPart();
@@ -70,7 +75,7 @@ export function UploadManager({ shootId, accountId, sources }: { shootId: string
     if (stale.length) save(load(key).filter(item => !stale.some(s => s.id === item.id)));
   }, [sources.map(s => `${s.id}:${s.ingestState}`).join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function transfer(initial: Descriptor, file: File) {
+  async function transfer(initial: Descriptor, file: File): Promise<boolean> {
     setBusyId(initial.id); setError(''); setNotice('');
     let current = initial;
     try {
@@ -101,25 +106,46 @@ export function UploadManager({ shootId, accountId, sources }: { shootId: string
       setProgress(previous => { const next = { ...previous }; delete next[current.id]; return next; });
       setNotice(`${current.fileName} is uploaded. Processing has started — follow it in the file’s steps above.`);
       await client.invalidateQueries({ queryKey: getListShootsQueryKey() });
+      return true;
     } catch (cause) {
       const done = current.parts.length, total = partsOf(current);
       setError(`The upload of ${current.fileName} stopped at part ${done} of ${total} (${cause instanceof Error ? cause.message : 'the connection dropped'}). ` +
         'Choose the same file again and it will continue from there.');
+      return false;
     } finally { setBusyId(null); }
   }
 
   /** One file chosen or dropped: continue its unfinished upload if there is one, else start a new upload. */
-  async function choose(file: File) {
+  async function choose(file: File): Promise<boolean> {
     setError(''); setNotice('');
     const resume = pending.find(item => sameFile(item, file));
-    if (resume) { await transfer(resume, file); return; }
+    if (resume) return transfer(resume, file);
     try {
       const upload = await start.mutateAsync({ data: { shootId, role, fileName: file.name, contentType: file.type || 'application/octet-stream' } });
       const descriptor: Descriptor = { id: upload.id, uploadId: upload.uploadId, shootId, role, fileName: file.name, size: file.size, lastModified: file.lastModified, parts: [] };
       save(load(key).concat(descriptor));
       await client.invalidateQueries({ queryKey: getListShootsQueryKey() });
-      await transfer(descriptor, file);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not start the upload.'); }
+      return await transfer(descriptor, file);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not start the upload.'); return false; }
+  }
+
+  /** Several files chosen or dropped together: one after another, in the order given. */
+  async function chooseMany(list: File[]) {
+    const files = list.filter(f => /^(video|audio)\//.test(f.type) || !f.type);
+    if (!files.length) { setError('None of those is a video or audio file.'); return; }
+    if (files.length === 1) { await choose(files[0]); return; }
+    setBatchBusy(true);
+    setQueue(files.map(f => ({ name: f.name, state: 'waiting' })));
+    let stopped = 0;
+    for (const [i, file] of files.entries()) {
+      setQueue(q => q.map((x, j) => (j === i ? { ...x, state: 'uploading' } : x)));
+      const ok = await choose(file);
+      if (!ok) stopped++;
+      setQueue(q => q.map((x, j) => (j === i ? { ...x, state: ok ? 'done' : 'stopped' } : x)));
+    }
+    setBatchBusy(false);
+    setNotice(stopped ? `${files.length - stopped} of ${files.length} files uploaded; choose the stopped ones again to continue them.`
+      : `All ${files.length} files are uploaded. Processing has started — follow each in its steps above.`);
   }
 
   async function discard(item: Descriptor) {
@@ -132,7 +158,7 @@ export function UploadManager({ shootId, accountId, sources }: { shootId: string
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not discard the upload.'); }
   }
 
-  const busy = !!busyId || start.isPending;
+  const busy = !!busyId || start.isPending || batchBusy;
   return <section className="uploader">
     {pending.map(item => {
       const done = item.parts.length, total = partsOf(item);
@@ -149,19 +175,21 @@ export function UploadManager({ shootId, accountId, sources }: { shootId: string
       </div>;
     })}
     <details className="fold" open={pending.length > 0 || undefined}>
-      <summary>{pending.length ? 'Choose a file' : 'Add a file to this shoot'}</summary>
+      <summary>{pending.length ? 'Choose a file' : 'Add files to this shoot'}</summary>
       <div className="plain-form">
         <label htmlFor={`role-${shootId}`}>What is it?<select id={`role-${shootId}`} value={role} onChange={event => setRole(event.target.value as UploadInputRole)} disabled={busy} data-testid={`select-role-${shootId}`}>
           <option value="camera_a">Camera A</option><option value="camera_b">Camera B</option><option value="audio">Audio</option>
         </select></label>
         <label className={`drop-zone${dragging ? ' dragging' : ''}${busy ? ' disabled' : ''}`}
           onDragOver={event => { event.preventDefault(); if (!busy) setDragging(true); }} onDragLeave={() => setDragging(false)}
-          onDrop={event => { event.preventDefault(); setDragging(false); const file = event.dataTransfer.files?.[0]; if (file && !busy) void choose(file); }}>
-          <input ref={input} type="file" accept="video/*,audio/*" className="sr-only" disabled={busy} data-testid={`input-source-file-${shootId}`}
-            onChange={event => { const file = event.target.files?.[0]; if (file) void choose(file); event.target.value = ''; }} />
-          <span className="drop-zone-title">{busy ? 'Uploading…' : 'Choose a video or audio file'}</span>
-          <span className="subtle">{busy ? 'Keep this page open until it finishes.' : pending.length ? 'Choosing the file of a stopped upload continues it; any other file starts a new upload.' : 'Tap to pick from your files, or drop one here.'}</span>
+          onDrop={event => { event.preventDefault(); setDragging(false); const files = [...(event.dataTransfer.files ?? [])]; if (files.length && !busy) void chooseMany(files); }}>
+          <input ref={input} type="file" accept="video/*,audio/*" multiple className="sr-only" disabled={busy} data-testid={`input-source-file-${shootId}`}
+            onChange={event => { const files = [...(event.target.files ?? [])]; if (files.length) void chooseMany(files); event.target.value = ''; }} />
+          <span className="drop-zone-title">{busy ? 'Uploading…' : 'Choose video or audio files'}</span>
+          <span className="subtle">{busy ? 'Keep this page open until it finishes.' : pending.length ? 'Choosing the file of a stopped upload continues it; any other file starts a new upload.' : 'Tap to pick from your files — select several at once — or drop them here.'}</span>
         </label>
+        {queue.length > 1 && <ol className="upload-queue" data-testid={`upload-queue-${shootId}`}>{queue.map((q, i) => <li key={i} data-testid={`upload-queue-item-${i}`}>
+          <span>{q.name}</span><span className="subtle">{q.state === 'waiting' ? 'waiting' : q.state === 'uploading' ? 'uploading…' : q.state === 'done' ? '✓ uploaded' : 'stopped'}</span></li>)}</ol>}
       </div>
     </details>
     {error && <p className="status-line error" role="alert" data-testid={`status-upload-error-${shootId}`}>{error}</p>}

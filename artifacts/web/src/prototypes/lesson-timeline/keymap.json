@@ -1,16 +1,14 @@
 {
-  "note": "PROTOTYPE — the lesson timeline's own key bindings, as data (architecture.md §5): change a key here, not in code. The player keys — Space, ← →, J K L — are every player's and live in @workspace/shared/navigation (David, 2026-10-29). Tab and Shift+Tab select a brick; - and = move it earlier or later (or drag it). P opens the selected brick in the brick editor, the same one the logger uses, to fix its edges; the lesson has no edge keys of its own (David, 2026-10-29). D sets the transition out of the selected brick into the next: cut or dissolve. S toggles showing each brick's action — a punch-in plays framed as the render will frame it (David, 2026-10-30).",
+  "note": "PROTOTYPE — the Edited view's own key bindings, as data (architecture.md §5): change a key here, not in code. The player keys — Space, ← →, J K L — are every player's and live in @workspace/shared/navigation. The edit is the bricks with the gaps gone (David, 2026-11-06), so nothing here moves or removes a brick: Tab and Shift+Tab select a brick, D sets the join after it to a cut or a dissolve, = and - zoom and \\ fits, V goes back to the Original view. S toggles showing each brick's action.",
   "bindings": {
     "Tab": "selectNext",
-    "Minus": "moveEarlier",
-    "Equal": "moveLater",
-    "KeyX": "remove",
-    "Delete": "remove",
-    "Backspace": "remove",
-    "KeyA": "add",
     "KeyD": "toggleTransition",
     "Escape": "undo",
     "KeyR": "render",
-    "KeyS": "showAction"
+    "KeyS": "showAction",
+    "Equal": "zoomIn",
+    "Minus": "zoomOut",
+    "Backslash": "zoomFit",
+    "KeyV": "original"
   }
 }
