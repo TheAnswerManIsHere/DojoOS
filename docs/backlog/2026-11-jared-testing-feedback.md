@@ -129,3 +129,37 @@ brick editor and the lesson page.
   included. That editor already lets the playhead sit outside the brick. A
   click also takes the keys back from a text box, the same way a tap on the
   strip does. It does not start playback: a paused player stays paused.
+
+## 5. One editor: logging, brick editing and assembly in a single window (the umbrella)
+
+**Asked:** the pop-up brick editor goes. Every edit happens in one screen.
+With zoom (item 2), the start and end of each brick can be seen on the
+strip, so the brick editor's in/out keys move back into that window. Logging
+and editing become one step, and the same window is also where the lesson,
+the short and the rest get made. Jared found the separate steps confusing
+and unnecessary. David's next notes support this concept.
+
+**What it replaces (today):** three surfaces, each with its own keymap.
+- the logging viewer (`prototypes/logging-viewer/keymap.json`)
+- the brick editor pop-up (`player/brick-editor-keys.json`), opened with P
+  from the logger and from the lesson page
+- the lesson timeline (`prototypes/lesson-timeline/keymap.json`)
+
+**Key collisions one window has to settle** (read from the three keymaps):
+- `I` / `O`: in the logger they mark a new brick's in and out points; in the
+  editor they move the selected brick's edges.
+- `A`: the logger cycles a brick's action; the lesson page adds a brick to
+  the lesson.
+- `D`: the editor's Done; the lesson page toggles a dissolve.
+- `-` / `=`: the lesson page moves a brick earlier or later. Item 2 proposed
+  them for zoom.
+- `Tab`, `Esc`, `S`: the same meaning everywhere, so no conflict.
+- `P` (open the editor) disappears with the pop-up.
+
+**Ceremony:** this reshapes three prototype features into one and changes
+the roadmap's step order (step 2, logging, and step 3, the lesson timeline,
+were separate steps). So it gets a short plan and an Astra pass before it is
+built, as a first version does. Items 2–4 can be built inside it or ahead of
+it; that is decided when the backlog is sequenced.
+
+**Supporting notes:** items 6 onward.
