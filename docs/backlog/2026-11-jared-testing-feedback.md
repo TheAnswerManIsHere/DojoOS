@@ -215,7 +215,35 @@ them.
 - **`E`** puts the playhead on the brick's **last frame**, as asked. This
   is what the drag and zoom work needs: you see the exact frame the brick
   ends on.
-- **`Shift+E`** keeps today's run-up: 2 s before the end, ready to play
-  into the cut.
+- **No `Shift+E`** (David, 2026-11-06: *"it's not necessary now"*). The 2 s
+  run-up goes away.
 - Neither key starts or stops playback. If zoomed in, the view scrolls to
   show the playhead.
+
+## 8. A second `I` moves the open brick's in point; it doesn't start another brick
+
+**Asked:** pressing `I` sets an in point. If the playhead moves and `I` is
+pressed again, it updates that brick's in point instead of making a new one.
+
+**Today:** every `I` opens a new brick
+(`logging-viewer.tsx:177`, `send({ type: 'open', … })`), so `I`, move, `I`
+leaves two open bricks, one nested inside the other.
+
+**Recommendation:** this also settles the `I`/`O` collision from item 5.
+- **While a brick is open** (it has an in point and no out point yet), `I`
+  moves its in point to the playhead (snapped to a word; Shift: exact, as
+  today).
+- **`O` closes it, and closing deselects it.** The next `I` therefore
+  starts a new brick. This keeps the fast rhythm of `I` … `O` … `I` …
+  `O` through a shoot. If the closed brick stayed selected, every new `I`
+  would move the brick just finished.
+- **A brick you select on purpose** (tap it, or `Tab` to it) is the one
+  `I` and `O` act on: they move its in or out point to the playhead. This
+  is the brick editor's `I`/`O`, moved into the one window. Selecting
+  nothing (a tap on an empty part of the strip) puts `I` back to starting
+  a new brick.
+- **What goes:** opening a brick inside a brick that is still open.
+  Nesting itself stays. Close the outer brick, then `I` and `O` inside it
+  make the inner one, or drag edges (item 6).
+- `[` `]` and `,` `.` still step the selected brick's in and out by word
+  (Shift: a frame), as in the brick editor.
