@@ -66,8 +66,12 @@ into blocks. Two ways to handle that:
    loaded only when zoomed in deep. That is a worker change, and every
    existing source has to be processed again.
 
-Recommendation: ship 1 first, then build 2 if Jared actually zooms to the
-cap and asks for more.
+**Decided (David, 2026-11-06):** neither one. The waveform's detail is not a
+concern. The deepest zoom only has to make frame-level edits easy, without
+going to extremes. So the deepest zoom shows about 3 seconds across the
+window, which makes one frame about 10 pixels wide on a laptop screen. At
+that zoom the waveform looks blocky, and that is accepted. Waveform
+processing does not change.
 
 ## 3. Remove the word ticks from the strip
 
