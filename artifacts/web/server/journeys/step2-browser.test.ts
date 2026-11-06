@@ -339,6 +339,14 @@ test("V flips to the Edited view — the bricks with the gaps gone, overlaps onc
   await page.keyboard.press("v");
   await page.getByTestId("video-log").waitFor();
   await page.waitForFunction(`${VIDEO}?.readyState >= 1 && Math.abs(${VIDEO}.currentTime - 5) < 0.05`);
+  // The buttons do the same, and the keys work straight after a click (Codex, PR #82).
+  await page.getByTestId("button-view-edited").click();
+  await page.getByTestId("preview").and(page.locator('[data-out-ms="4000"]')).waitFor();
+  await page.keyboard.press("ArrowLeft");
+  await page.getByTestId("preview").and(page.locator('[data-out-ms="1000"]')).waitFor();
+  await page.getByTestId("button-view-original").click();
+  await page.getByTestId("video-log").waitFor();
+  await page.waitForFunction(`${VIDEO}?.readyState >= 1 && Math.abs(${VIDEO}.currentTime - 2) < 0.05`);
   await page.close();
 });
 

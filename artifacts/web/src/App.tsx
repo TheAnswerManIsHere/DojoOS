@@ -101,7 +101,7 @@ function Routes() {
     <Route path="/"><Redirect to="/library" /></Route>
     <Route path="/library"><AuthenticatedShell feature="library" page="/library" email={account.email} tier={account.tier}><Library accountId={account.id} /></AuthenticatedShell></Route>
     <Route path="/shoots/:id/lesson">{(params: { id: string }) => <AuthenticatedShell feature="lesson-timeline" page={`/shoots/${params.id}/lesson`} email={account.email} tier={account.tier}><LessonPage shootId={params.id} /></AuthenticatedShell>}</Route>
-    <Route path="/sources/:id/log">{(params: { id: string }) => <AuthenticatedShell feature="logging-viewer" page={`/sources/${params.id}/log`} email={account.email} tier={account.tier}><LoggingViewer sourceId={params.id} /></AuthenticatedShell>}</Route>
+    <Route path="/sources/:id/log">{(params: { id: string }) => <AuthenticatedShell feature="logging-viewer" page={`/sources/${params.id}/log`} email={account.email} tier={account.tier}><LoggingViewer key={params.id} sourceId={params.id} /></AuthenticatedShell>}</Route>
     <Route path="/guide"><AuthenticatedShell feature="guide" page="/guide" email={account.email} tier={account.tier}><GuidePage /></AuthenticatedShell></Route>
     <Route path="/feedback"><AuthenticatedShell feature="feedback" page="/feedback" email={account.email} tier={account.tier}><FeedbackPage /></AuthenticatedShell></Route>
     <Route><AuthenticatedShell feature="not-found" page={location} email={account.email} tier={account.tier}><h1>Page not found</h1><p><Link href="/library" data-testid="link-return-library">Return to library</Link></p></AuthenticatedShell></Route>

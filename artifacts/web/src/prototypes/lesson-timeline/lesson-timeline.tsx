@@ -37,12 +37,14 @@ type Words = Array<Word & { text: string }>;
 /** Where the Edited view opens, and where it hands back to the Original view: a moment of one file. */
 export type FilePlace = { sourceId: string; ms: number };
 
-export function LessonTimeline({ shootId, startAt, onOriginal }: {
+export function LessonTimeline({ shootId, startAt, onOriginal, placeHandle }: {
   shootId: string;
   /** Open at the output moment that plays this moment of footage, or the next brick after it. */
   startAt?: FilePlace;
   /** Back to the Original view, at the footage under the playhead (V, or the switch). */
   onOriginal?: (at: FilePlace) => void;
+  /** Filled with a reader of the footage under the playhead, for a switch outside this view. */
+  placeHandle?: { current: (() => FilePlace | null) | null };
 }) {
   const [lesson, setLesson] = useState<Lesson>();
   const [renders, setRenders] = useState<LessonRender[]>([]);
@@ -184,16 +186,22 @@ export function LessonTimeline({ shootId, startAt, onOriginal }: {
     place(clockRef.current, playing);
   }, [lesson, place, playing, show]);
 
-  /** Back to the Original view, at the footage under the playhead. */
-  const toOriginal = useCallback(() => {
-    if (!edl || !onOriginal) return;
+  /** The footage under the playhead: the segment playing, or else the next one. */
+  const placeNow = useCallback((): FilePlace | null => {
+    if (!edl) return null;
     const t = clockRef.current;
     const here = activeAt(edl, t).at(-1);
     const seg = here ? edl.picture[here.index] : edl.picture.find((p) => p.outStartMs >= t) ?? edl.picture.at(-1);
-    if (!seg) return;
-    if (playing) { setPlaying(false); place(t, false); }
-    onOriginal({ sourceId: seg.sourceId, ms: here ? here.sourceMs : seg.inMs });
-  }, [edl, onOriginal, playing, place]);
+    return seg ? { sourceId: seg.sourceId, ms: here ? here.sourceMs : seg.inMs } : null;
+  }, [edl]);
+  if (placeHandle) placeHandle.current = placeNow;
+  /** Back to the Original view, at the footage under the playhead. */
+  const toOriginal = useCallback(() => {
+    const at = placeNow();
+    if (!at || !onOriginal) return;
+    if (playing) { setPlaying(false); place(clockRef.current, false); }
+    onOriginal(at);
+  }, [placeNow, onOriginal, playing, place]);
 
   // Opened from the Original view: the output moment that plays the footage under its playhead, or else the next
   // brick after it (David, 2026-11-06: flipping keeps your place).

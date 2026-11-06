@@ -181,7 +181,10 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
 
   /** Original → Edited at the footage under the playhead; Edited → Original at the footage it was playing, on this
    * file's page or the other file's. */
-  const toEdited = () => { video.current?.pause(); setEditedAt({ sourceId, ms: now() }); setView('edited'); };
+  // The button that switched views keeps no focus, so the Edited view's keys work at once (Codex, PR #82).
+  const toEdited = () => { video.current?.pause(); (document.activeElement as HTMLElement | null)?.blur(); setEditedAt({ sourceId, ms: now() }); setView('edited'); };
+  /** The Edited view's playhead, as a moment of footage, for the Original button (V asks the view itself). */
+  const editedPlace = useRef<(() => FilePlace | null) | null>(null);
   const toOriginal = (at: FilePlace) => {
     if (at.sourceId !== sourceId) { navigate(`/sources/${at.sourceId}/log?t=${Math.round(at.ms)}`); return; }
     pendingSeek.current = at.ms;
@@ -386,7 +389,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
       <div className="card-head"><h1>{log.shootName}</h1>
         <div className="view-switch" role="group" aria-label="View" data-testid="view-switch">
           <button type="button" className={`chip${view === 'original' ? ' on' : ''}`} aria-pressed={view === 'original'} data-testid="button-view-original"
-            onClick={() => { if (view === 'edited') { pendingSeek.current = null; setView('original'); } }}>Original</button>
+            onClick={(e) => { e.currentTarget.blur(); if (view !== 'edited') return; const at = editedPlace.current?.(); if (at) toOriginal(at); else setView('original'); }}>Original</button>
           <button type="button" className={`chip${view === 'edited' ? ' on' : ''}`} aria-pressed={view === 'edited'} data-testid="button-view-edited"
             onClick={() => { if (view === 'original') toEdited(); }}>Edited</button>
           <span className="subtle" data-testid="text-view-lengths">This file {clock(durationMs)} → {clock(keptMs)} kept</span>
@@ -411,7 +414,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
         : <button type="button" className="button button-primary" onClick={toEdited} data-testid="link-open-lesson">See the edit</button>}
     </div>}
 
-    {view === 'edited' ? <LessonTimeline shootId={log.shootId} startAt={editedAt ?? (pendingSeek.current !== null ? { sourceId, ms: pendingSeek.current } : undefined)} onOriginal={toOriginal} /> : <>
+    {view === 'edited' ? <LessonTimeline shootId={log.shootId} placeHandle={editedPlace} startAt={editedAt ?? (pendingSeek.current !== null ? { sourceId, ms: pendingSeek.current } : undefined)} onOriginal={toOriginal} /> : <>
     <div className="media-card">
     {/* Show action (S): while a punch-in brick plays, the picture shows what the render will — that brick's framing. */}
     <div className="video-frame">
