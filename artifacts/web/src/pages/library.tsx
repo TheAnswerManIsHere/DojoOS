@@ -139,7 +139,7 @@ export function Library({ accountId }: { accountId: string }) {
         </div>
         <div className="source-actions">
           {shoot.lessonRender && <span className="pill busy" role="status" data-testid={`text-lesson-render-${shoot.id}`}>Render {shoot.lessonRender.number} · {shoot.lessonRender.state === 'claimed' ? 'rendering…' : 'queued…'}</span>}
-          <Link href={`/shoots/${shoot.id}/lesson`} className="button button-primary" data-testid={`link-lesson-${shoot.id}`}>Open lesson</Link>
+          <Link href={`/shoots/${shoot.id}/lesson`} className="button button-primary" data-testid={`link-lesson-${shoot.id}`}>Open the edit</Link>
           <button type="button" className="button-quiet" data-testid={`button-archive-${shoot.id}`} onClick={async () => {
             if (!window.confirm(`Archive “${shoot.name}”? It leaves the library; you can bring it back from Archived shoots. Nothing is erased.`)) return;
             try { await archiveShoot(shoot.id); refresh(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not archive the shoot.'); }

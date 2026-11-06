@@ -308,6 +308,8 @@ export interface LessonEntry {
   trimOutMs: number;
   /** The transition into the entry that follows. */
   transition: LessonEntryTransition;
+  /** The dissolve's length into the entry that follows, when the transition is a dissolve; absent means the default 1 s. */
+  dissolveMs?: number;
   tags: string[];
   action: LessonEntryAction;
   /** @nullable */

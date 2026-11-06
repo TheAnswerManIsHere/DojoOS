@@ -7,8 +7,12 @@ import { CommandError } from "./commands";
 
 export const transitions = ["cut", "dissolve"] as const;
 export type Transition = (typeof transitions)[number];
-/** The one dissolve length in this version. */
+/** A new dissolve's length; each join keeps its own (David, 2026-11-06: "a way to change how long a dissolve lasts"). */
 export const dissolveMs = 1000;
+/** The shortest and longest dissolve a join may ask for: two frames at 30 fps, and ten seconds. */
+export const minDissolveMs = 67, maxDissolveMs = 10_000;
+/** An entry's dissolve length, for one stored before lengths existed. */
+export const dissolveOf = (e: { dissolveMs?: number }) => e.dissolveMs ?? dissolveMs;
 
 /** A closed brick the lesson can include. */
 export type LessonBrick = { id: string; sourceId: string; inMs: number; outMs: number; tags: string[]; number?: number | null;
@@ -16,7 +20,7 @@ export type LessonBrick = { id: string; sourceId: string; inMs: number; outMs: n
   action?: "keep" | "punch_in"; preset?: string | null };
 /** One entry of the lesson, in output order. trimInMs ≥ 0 moves the in point later; trimOutMs ≤ 0 moves the out point
  * earlier. The transition belongs to this entry and applies to whichever entry follows it. */
-export type LessonEntry = { id: string; brickId: string; trimInMs: number; trimOutMs: number; transition: Transition };
+export type LessonEntry = { id: string; brickId: string; trimInMs: number; trimOutMs: number; transition: Transition; dissolveMs?: number };
 export type LessonState = { entries: LessonEntry[]; bricks: LessonBrick[] };
 
 export type LessonCommand =
@@ -24,7 +28,9 @@ export type LessonCommand =
   | { type: "remove"; id: string }
   | { type: "move"; id: string; to: number }
   | { type: "trim"; id: string; edge: "in" | "out"; deltaMs: number }
-  | { type: "setTransition"; id: string; transition: Transition };
+  | { type: "setTransition"; id: string; transition: Transition }
+  /** The join after an entry: cut, or a dissolve of a length (the one editor's Edited view, 2026-11-06). */
+  | { type: "setJoin"; id: string; transition: Transition; dissolveMs: number };
 
 const fail = (message: string): never => { throw new CommandError(message); };
 
@@ -40,7 +46,7 @@ export function entrySpan(entry: LessonEntry, brick: LessonBrick) {
 export function misfits(state: LessonState): string[] {
   const brickOf = new Map(state.bricks.map((b) => [b.id, b]));
   const lengths = state.entries.map((e) => { const s = entrySpan(e, brickOf.get(e.brickId)!); return s.outMs - s.inMs; });
-  const out = (i: number) => (i < state.entries.length - 1 && state.entries[i].transition === "dissolve" ? dissolveMs : 0);
+  const out = (i: number) => (i < state.entries.length - 1 && state.entries[i].transition === "dissolve" ? dissolveOf(state.entries[i]) : 0);
   return state.entries.filter((_, i) => (i > 0 ? out(i - 1) : 0) + out(i) > lengths[i]).map((e) => e.id);
 }
 
@@ -100,6 +106,16 @@ export function applyLessonCommand(state: LessonState, command: LessonCommand): 
       inverse = { type: "setTransition", id: command.id, transition: state.entries[i].transition };
       break;
     }
+    case "setJoin": {
+      const i = index(command.id);
+      const was = state.entries[i];
+      const ms = Math.round(command.dissolveMs);
+      if (ms < minDissolveMs || ms > maxDissolveMs) fail(`A dissolve is between ${secs(minDissolveMs)} and ${secs(maxDissolveMs)}`);
+      if (was.transition === command.transition && dissolveOf(was) === ms) fail(command.transition === "cut" ? "Already a cut" : "The dissolve is already that long");
+      next = state.entries.map((e, j) => (j === i ? { ...e, transition: command.transition, dissolveMs: ms } : e));
+      inverse = { type: "setJoin", id: command.id, transition: was.transition, dissolveMs: dissolveOf(was) };
+      break;
+    }
   }
   const after = { ...state, entries: next };
   // A lesson already out of fit (a brick shortened in the logging viewer since) never blocks an edit that adds no misfit.
@@ -108,7 +124,16 @@ export function applyLessonCommand(state: LessonState, command: LessonCommand): 
   if (fresh.length) {
     const i = next.findIndex((e) => e.id === fresh[0]);
     const span = entrySpan(next[i], brickOf(next[i].brickId));
-    fail(`A ${secs(dissolveMs)} dissolve doesn't fit: brick ${i + 1} would be ${secs(span.outMs - span.inMs)} long with its dissolves. ` +
+    if (command.type === "setJoin") {
+      // Say how long a dissolve can be here: it may not outlast the brick before it or the one after, less their other dissolves.
+      const j = index(command.id);
+      const len = (k: number) => { const s = entrySpan(next[k], brickOf(next[k].brickId)); return s.outMs - s.inMs; };
+      const into = j > 0 && next[j - 1].transition === "dissolve" ? dissolveOf(next[j - 1]) : 0;
+      const after = j + 2 < next.length && next[j + 1].transition === "dissolve" ? dissolveOf(next[j + 1]) : 0;
+      const longest = Math.max(0, Math.min(len(j) - into, j + 1 < next.length ? len(j + 1) - after : 0));
+      fail(`A ${secs(command.dissolveMs)} dissolve doesn't fit here: the longest that fits is ${secs(longest)}.`);
+    }
+    fail(`A ${secs(dissolveOf(next[i]))} dissolve doesn't fit: brick ${i + 1} would be ${secs(span.outMs - span.inMs)} long with its dissolves. ` +
       "Make the dissolve next to it a cut (D), then try again.");
   }
   return { state: after, inverse };
@@ -122,7 +147,8 @@ export function isLessonCommand(value: unknown): value is LessonCommand {
   const isEntry = (v: unknown) => {
     const e = v as Record<string, unknown> | null;
     return !!e && typeof e === "object" && str(e.id) && str(e.brickId) && int(e.trimInMs) && (e.trimInMs as number) >= 0
-      && int(e.trimOutMs) && (e.trimOutMs as number) <= 0 && transitions.includes(e.transition as Transition);
+      && int(e.trimOutMs) && (e.trimOutMs as number) <= 0 && transitions.includes(e.transition as Transition)
+      && (e.dissolveMs === undefined || int(e.dissolveMs, maxDissolveMs));
   };
   switch (c.type) {
     case "add": return isEntry(c.entry) && int(c.position, 100_000) && (c.position as number) >= 0;
@@ -130,6 +156,7 @@ export function isLessonCommand(value: unknown): value is LessonCommand {
     case "move": return str(c.id) && int(c.to, 100_000) && (c.to as number) >= 0;
     case "trim": return str(c.id) && (c.edge === "in" || c.edge === "out") && int(c.deltaMs) && c.deltaMs !== 0;
     case "setTransition": return str(c.id) && transitions.includes(c.transition as Transition);
+    case "setJoin": return str(c.id) && transitions.includes(c.transition as Transition) && int(c.dissolveMs, maxDissolveMs);
     default: return false;
   }
 }
@@ -139,4 +166,28 @@ export function isLessonCommand(value: unknown): value is LessonCommand {
 export function initialOrder<B extends LessonBrick>(bricks: B[], sourceOrder: string[]): B[] {
   const rank = new Map(sourceOrder.map((id, i) => [id, i]));
   return [...bricks].sort((a, b) => (rank.get(a.sourceId) ?? 1e9) - (rank.get(b.sourceId) ?? 1e9) || a.inMs - b.inMs || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/** The edit (the one editor's Edited view, David, 2026-11-06): every closed brick, file by file in the order the files
+ * were added, each file's bricks in time order, joined, with the gaps between them gone. Where bricks overlap or nest,
+ * their combined span plays once: a brick wholly inside what is already covered adds nothing, and one that runs past
+ * it adds only the part past it (as a trim of its in point). Each join keeps the cut or dissolve it was given, by brick,
+ * from `stored`; a new one is a cut. `newId` names an entry for a brick that has none yet. */
+export function editEntries(bricks: LessonBrick[], sourceOrder: string[], stored: LessonEntry[], newId: () => string): LessonEntry[] {
+  const kept = new Map(stored.map((e) => [e.brickId, e]));
+  const rank = new Map(sourceOrder.map((id, i) => [id, i]));
+  const ordered = [...bricks].sort((a, b) => (rank.get(a.sourceId) ?? 1e9) - (rank.get(b.sourceId) ?? 1e9) || a.inMs - b.inMs
+    || (b.outMs - b.inMs) - (a.outMs - a.inMs) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const out: LessonEntry[] = [];
+  let source = "", covered = -1;
+  for (const b of ordered) {
+    if (b.sourceId !== source) { source = b.sourceId; covered = -1; }
+    if (b.outMs <= covered) continue;
+    const trimInMs = Math.max(0, covered - b.inMs);
+    covered = b.outMs;
+    const was = kept.get(b.id);
+    out.push({ id: was?.id ?? newId(), brickId: b.id, trimInMs, trimOutMs: 0, transition: was?.transition ?? "cut",
+      ...(was?.dissolveMs !== undefined && { dissolveMs: was.dissolveMs }) });
+  }
+  return out;
 }

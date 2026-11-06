@@ -18,7 +18,7 @@ function KeyTable({ rows, label }: { rows: Array<[string, ReactNode]>; label: st
 
 const sections = [
   ['what', 'What DojoOS does'], ['library', 'Signing in and the library'], ['logging', 'Logging a file'],
-  ['editor', 'The brick editor'], ['lesson', 'Building the lesson'], ['render', 'Rendering'],
+  ['editor', 'Original and Edited'], ['lesson', 'The edit: joins and dissolves'], ['render', 'Rendering'],
   ['feedback', 'Giving feedback'], ['test', 'Your test session'], ['rough', 'Known rough edges'],
 ] as const;
 
@@ -53,7 +53,7 @@ export function GuidePage() {
           <tr><td><strong>File</strong></td><td>One recording in a shoot: Camera A, Camera B, or a separate audio recorder.</td></tr>
           <tr><td><strong>Brick</strong></td><td>A stretch of a file you want to keep, from an in point to an out point. Each brick has a number that never changes.</td></tr>
           <tr><td><strong>Action</strong></td><td>What a brick does in the lesson. <em>Keep</em> plays it as filmed. <em>Punch in</em> zooms in on the lower third, centre or upper third of the frame.</td></tr>
-          <tr><td><strong>Lesson</strong></td><td>Your bricks in the order you choose, with a cut or a dissolve between each pair.</td></tr>
+          <tr><td><strong>Edit</strong></td><td>Your bricks in order with the gaps between them cut out, and a cut or a dissolve at each join. It is what renders as the lesson.</td></tr>
           <tr><td><strong>Render</strong></td><td>The finished video file DojoOS makes from the lesson, to play or download.</td></tr>
         </tbody>
       </table></div>
@@ -74,82 +74,76 @@ export function GuidePage() {
     </Section>
 
     <Section id="logging" n={3}>
-      <p>Logging means watching a file and marking each part worth keeping as a brick. Press <kbd>I</kbd> where a part starts and <kbd>O</kbd> where it ends. The mark snaps to the nearest word edge; hold <kbd>Shift</kbd> to mark the exact frame instead.</p>
-      <p>The strip under the video shows the waveform, a tick for each word and your bricks as bands. Tap or drag on it to move around, and tap a brick to jump to its start.</p>
+      <p>Logging and editing happen in one window. Open a file with <strong>Log</strong> in the library and watch it, marking each part worth keeping as a brick. Press <kbd>I</kbd> where a part starts and <kbd>O</kbd> where it ends. The mark snaps to the nearest word edge; hold <kbd>Shift</kbd> to mark the exact frame instead.</p>
       <ul className="guide-points">
-        <li><strong>Describing a brick.</strong> <kbd>N</kbd> writes a note, such as "psoas release, side-lying". <kbd>A</kbd> steps through the actions: keep, then punch in at the lower third, the centre and the upper third. The <strong>Lesson</strong>, <strong>Short</strong> and <strong>Highlight</strong> chips in the table label a brick.</li>
+        <li><strong>Fixing as you go.</strong> Press <kbd>I</kbd> again while a brick is still open, and its start moves to the playhead. Press <kbd>O</kbd> again, and its end moves. After <kbd>O</kbd>, the next <kbd>I</kbd> starts a new brick.</li>
+        <li><strong>Fixing an older brick.</strong> Tap it on the strip, or press <kbd>Tab</kbd>, to pick it. Then <kbd>I</kbd> and <kbd>O</kbd> move its edges to the playhead, <kbd>[</kbd> <kbd>]</kbd> and <kbd>,</kbd> <kbd>.</kbd> step them a word at a time (with Shift: a frame), and you can drag its two handles on the strip. <kbd>B</kbd> and <kbd>E</kbd> jump to its first and last frame. Tap an empty part of the strip to let go of it.</li>
+        <li><strong>The strip.</strong> It shows the waveform and your bricks. Bricks that overlap stack in separate rows. Colour shows the label: blue for lesson, orange for short, purple for highlight, grey for none. Tap or drag on the strip to move around.</li>
+        <li><strong>Zooming.</strong> <kbd>=</kbd> and <kbd>-</kbd> zoom in and out around the playhead, and <kbd>\</kbd> shows the whole file. You can also use the <strong>+</strong>, <strong>−</strong> and <strong>Fit</strong> buttons, Ctrl or ⌘ with the scroll wheel, or a pinch. Zoomed in, a scroll bar appears under the strip; drag its ends to zoom.</li>
+        <li><strong>The transcript.</strong> It shows 3 lines, or 5, or the full transcript. The lines hold still while the highlighted word moves, then the next lines come up. Tap a word to jump to it.</li>
+        <li><strong>Describing a brick.</strong> <kbd>N</kbd> writes a note. Turn on <strong>Automatic note creation</strong> and the note box opens by itself each time <kbd>O</kbd> closes a brick; the video waits while you type, and Enter carries on. <kbd>A</kbd> steps through the actions: keep, then punch in at the lower third, the centre and the upper third. The <strong>Lesson</strong>, <strong>Short</strong> and <strong>Highlight</strong> chips in the table label a brick.</li>
         <li><strong>Seeing the actions.</strong> <kbd>S</kbd> shows a punch-in zoomed, the way the render will frame it.</li>
-        <li><strong>Bricks inside bricks.</strong> They are allowed. <kbd>O</kbd> closes the selected open brick.</li>
-        <li><strong>Finishing.</strong> Press <strong>I'm done logging</strong>. Then go to the next file or open the lesson. Done never locks anything: <strong>Mark as in progress</strong> reopens the file.</li>
+        <li><strong>Finishing.</strong> Press <strong>I'm done logging</strong>. Done never locks anything: <strong>Mark as in progress</strong> reopens the file.</li>
       </ul>
-      <KeyTable label="Logging keys" rows={[
+      <KeyTable label="Editing keys" rows={[
         ['Space', 'Play or pause'],
         ['← →', 'Previous or next word. With no word within 5 seconds, jump 1 second.'],
         ['Shift + ← →', 'Jump 5 seconds'],
         ['Option + ← →', 'Step one frame'],
         ['J / K / L', 'Slower, normal speed, faster (0.25× to 2×)'],
-        ['I / O', 'Start or end a brick at a word edge (with Shift: the exact frame)'],
-        ['Tab', 'Select the next brick (with Shift: the previous one)'],
-        ['N', 'Write a note on the selected brick'],
-        ['A', "Change the selected brick's action"],
+        ['I / O', 'Start or end a brick at a word edge; again, to move that edge (with Shift: the exact frame)'],
+        ['Tab', 'Pick the next brick (with Shift: the previous one)'],
+        ['B / E', "Go to the brick's first or last frame"],
+        ['[ / ]', 'Move the in point one word earlier or later (with Shift: one frame)'],
+        [', / .', 'Move the out point one word earlier or later (with Shift: one frame)'],
+        ['= / -', 'Zoom the strip in or out'],
+        ['\\', 'Show the whole file'],
+        ['N', 'Write a note on the brick'],
+        ['A', "Change the brick's action"],
         ['S', 'Show actions on or off'],
-        ['P', 'Open the selected brick in the brick editor'],
-        ['Delete', 'Remove the selected brick (it asks first)'],
+        ['V', 'Switch between Original and Edited'],
+        ['Delete', 'Remove the brick (it asks first)'],
         ['Esc', 'Undo (with Shift: redo)'],
       ]} />
       <p className="subtle">If the keys stop working after you type a note, tap <strong>Use the keys here</strong>.</p>
     </Section>
 
     <Section id="editor" n={4}>
-      <p>The brick editor shows one brick on its own, so you can see exactly what it holds and fix its edges. Open it with <kbd>P</kbd> on the logging page or the lesson page. It is the same editor on both, and a change made from the lesson changes the brick itself.</p>
-      <p><kbd>Space</kbd> plays exactly the brick and stops on its last frame. The strip shows 3 seconds either side. Scrub into them to see what comes just before or after; press <kbd>I</kbd> or <kbd>O</kbd> there to make that moment the new edge.</p>
-      <KeyTable label="Brick editor keys" rows={[
-        ['Space', "Play the brick; it stops on the brick's last frame"],
-        ['B', "Go to the brick's start"],
-        ['E', 'Go to 2 seconds before its end'],
-        ['I / O', 'Set the in or out point at the playhead, on a word (with Shift: the exact frame)'],
-        ['[ / ]', 'Move the in point one word earlier or later (with Shift: one frame)'],
-        [', / .', 'Move the out point one word earlier or later (with Shift: one frame)'],
-        ['S', "Show the brick's action on or off"],
-        ['Esc', 'Undo (with Shift: redo)'],
-        ['D', 'Done: close the editor'],
-      ]} />
-      <p className="subtle">Without a keyboard, the buttons under the video do the same jobs.</p>
+      <p>The <strong>Original</strong> and <strong>Edited</strong> switch at the top of the page, or <kbd>V</kbd>, flips between the file as filmed and the edit. The edit is every brick of the shoot in order, file by file, with everything between bricks cut out. Where bricks overlap, that stretch plays once. The switch keeps your place: you land on the same moment, or on the next brick if you were in a part the edit leaves out.</p>
+      <p>To change what is in the edit, change the bricks in the Original view. The edit follows them.</p>
     </Section>
 
     <Section id="lesson" n={5}>
-      <p>The lesson starts with every finished brick in the order you filmed it. You reorder, trim and remove until it plays the way you want. Open it with <strong>Open lesson</strong> in the library, or <strong>Open the lesson</strong> after logging.</p>
+      <p>In the Edited view, <kbd>Space</kbd> plays the edit. Cuts, dissolves and punch-ins play live, with no render needed. The strip zooms the same way as in the Original view.</p>
       <ul className="guide-points">
-        <li><strong>Playing.</strong> <kbd>Space</kbd> plays from the playhead. Cuts, dissolves and punch-ins play live, with no render needed.</li>
-        <li><strong>Arranging.</strong> Drag a tile to move it (on the iPad, by its thumbnail), or use <kbd>-</kbd> and <kbd>=</kbd>. <kbd>X</kbd> removes a brick to <strong>Not in the lesson</strong>; tap it there and press <kbd>A</kbd> to bring it back.</li>
-        <li><strong>Transitions.</strong> <kbd>D</kbd> switches the join after the selected brick between a cut and a 1-second dissolve.</li>
+        <li><strong>Joins.</strong> Every join between two bricks starts as a cut. Pick a brick with <kbd>Tab</kbd>, or tap a join on the strip, and press <kbd>D</kbd> or tap <strong>Dissolve</strong> to dissolve into the next brick.</li>
+        <li><strong>Dissolve length.</strong> A new dissolve lasts 1 second. Type another length in seconds under the strip, or drag either end of the dissolve's band. If a length is too long for the bricks either side, the page says the longest that fits.</li>
         <li><strong>Actions.</strong> Show actions is on here. <kbd>S</kbd> switches to the footage as filmed.</li>
+        <li><strong>Back to a file.</strong> <kbd>V</kbd> or <strong>Original</strong> opens the file that is playing, at the same moment.</li>
       </ul>
-      <KeyTable label="Lesson keys" rows={[
+      <KeyTable label="Edited view keys" rows={[
         ['Space', 'Play or pause from the playhead'],
         ['← → J K L', 'Move and change speed, as on every player'],
-        ['Tab', 'Select the next brick (with Shift: the previous one)'],
-        ['- / =', 'Move the selected brick earlier or later'],
-        ['X', 'Remove the selected brick from the lesson'],
-        ['A', 'Add the brick picked in "Not in the lesson"'],
-        ['P', 'Open the selected brick in the brick editor'],
-        ['D', 'Cut or dissolve out of the selected brick'],
+        ['Tab', 'Pick the next brick (with Shift: the previous one)'],
+        ['D', 'Cut or dissolve after the picked brick'],
+        ['= / - / \\', 'Zoom in, out, whole edit'],
         ['S', 'Show actions on or off'],
         ['Esc', 'Undo'],
         ['R', 'Render'],
+        ['V', 'Back to the Original view'],
       ]} />
       <p className="status-line">If a dissolve plays slowly on the iPad, the page says how many frames a second it managed. Please write that number down for David.</p>
     </Section>
 
     <Section id="render" n={6}>
-      <p>A render makes the finished, full-quality file from your original footage. Press <kbd>R</kbd>, or <strong>Render (R)</strong> under <strong>Renders</strong> on the lesson page.</p>
+      <p>A render makes the finished, full-quality file from your original footage. In the Edited view, press <kbd>R</kbd>, or <strong>Render (R)</strong> under <strong>Renders</strong>.</p>
       <p>Each render is numbered and shows its state as it goes. You can keep working meanwhile. When it is ready, <strong>Play</strong> shows it on the page and <strong>Download</strong> saves the file. A new render never replaces an old one, so you can compare versions.</p>
     </Section>
 
     <Section id="feedback" n={7}>
       <p>Your answers decide what gets built next, so short and honest beats long and polite.</p>
       <ul className="guide-points">
-        <li><strong>The questions on each page.</strong> The logging and lesson pages each ask a few questions, in a column beside the page or behind the <strong>Questions</strong> button on the iPad. Type an answer and press <strong>Submit answer</strong>. Everything you send is on the <strong>Feedback</strong> page.</li>
+        <li><strong>The questions on each page.</strong> The editing page asks a few questions, in a column beside the page or behind the <strong>Questions</strong> button on the iPad. Type an answer and press <strong>Submit answer</strong>. Everything you send is on the <strong>Feedback</strong> page.</li>
         <li><strong>Report a key problem.</strong> On the logging page, if a key did nothing or the wrong thing, tap it straight away. Your last few key presses go with it.</li>
         <li><strong>Anything else.</strong> Tell David what confused you, what you expected, and what you would change. A screenshot or a screen recording helps a lot.</li>
       </ul>
@@ -164,14 +158,13 @@ export function GuidePage() {
         <li>Mark the bricks you would keep with <kbd>I</kbd> and <kbd>O</kbd>, leaving out flubs and dead air.</li>
         <li>Give two bricks a note, and set one to a punch-in with <kbd>A</kbd>.</li>
         <li>Press <kbd>S</kbd> to check the punch-in frames the right part of the picture.</li>
-        <li>Open one brick with <kbd>P</kbd>, move its edges, look either side, and close it with <kbd>D</kbd>.</li>
+        <li>Pick one brick, zoom in with <kbd>=</kbd>, and drag one of its edges to the exact frame.</li>
         <li>Press <strong>I'm done logging</strong>, and note the time you finish.</li>
-        <li>Open the lesson. Reorder a brick, remove one, and add it back.</li>
-        <li>Set one dissolve with <kbd>D</kbd> and play through it. Write down any slow-dissolve message.</li>
-        <li>Fix one brick's edge from the lesson with <kbd>P</kbd>.</li>
+        <li>Press <kbd>V</kbd> for the Edited view and watch the edit with the gaps gone.</li>
+        <li>Set one dissolve with <kbd>D</kbd>, change its length, and play through it. Write down any slow-dissolve message.</li>
         <li>Press <kbd>R</kbd>. When the render is ready, play it and download it.</li>
         <li>Check the render against the preview: same order, same cuts, punch-in framed the same.</li>
-        <li>Answer the questions on the logging and lesson pages, and tell David anything that confused you.</li>
+        <li>Answer the questions on the editing page, and tell David anything that confused you.</li>
       </ol>
     </Section>
 
@@ -179,7 +172,6 @@ export function GuidePage() {
       <ul className="guide-points">
         <li><strong>The video may go blank</strong> after the iPad has been idle or Safari has been in the background. It should come back on its own in a few seconds; if not, reload the page. Your bricks are saved as you go.</li>
         <li><strong>Dissolves may play slowly on the iPad.</strong> The rendered file is not affected.</li>
-        <li><strong>If a brick ever plays past its end,</strong> report it. It was seen once in an earlier version.</li>
         <li><strong>A file cannot be logged until it is transcribed,</strong> and a long file takes a while.</li>
         <li><strong>Your footage is private.</strong> It is kept in a private store, and its links expire after a few minutes. Nothing is published anywhere.</li>
       </ul>

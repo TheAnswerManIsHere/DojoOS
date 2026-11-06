@@ -1,5 +1,5 @@
 {
-  "note": "PROTOTYPE — the one editor's key bindings, as data (architecture.md §5): change a key here, not in code. The player keys — Space, ← →, J K L — are every player's and live in @workspace/shared/navigation. Logging and brick editing are one window (David, 2026-11-06): I sets an in point and, pressed again while that brick is open, moves it; O closes the brick and, pressed again, moves its out point; a brick picked by Tab or a tap is the one I and O move. B and E go to the brick's first and last frame; [ ] step the in point and , . the out point by word (Shift: a frame). = and - zoom the strip around the playhead and \\ fits it. Shift is read by the action itself: Shift+I/O marks the exact playhead, Shift+Tab selects the previous brick, Shift+Esc redoes. S toggles showing each brick's action.",
+  "note": "PROTOTYPE — the one editor's key bindings, as data (architecture.md §5): change a key here, not in code. The player keys — Space, ← →, J K L — are every player's and live in @workspace/shared/navigation. Logging and brick editing are one window (David, 2026-11-06): I sets an in point and, pressed again while that brick is open, moves it; O closes the brick and, pressed again, moves its out point; a brick picked by Tab or a tap is the one I and O move. B and E go to the brick's first and last frame; [ ] step the in point and , . the out point by word (Shift: a frame). = and - zoom the strip around the playhead and \\ fits it. Shift is read by the action itself: Shift+I/O marks the exact playhead, Shift+Tab selects the previous brick, Shift+Esc redoes. S toggles showing each brick's action. V switches between the Original view (this file) and the Edited view (the shoot's bricks with the gaps gone).",
   "bindings": {
     "KeyI": "markIn",
     "KeyO": "markOut",
@@ -19,6 +19,7 @@
     "Period": "outLater",
     "Equal": "zoomIn",
     "Minus": "zoomOut",
-    "Backslash": "zoomFit"
+    "Backslash": "zoomFit",
+    "KeyV": "toggleView"
   }
 }

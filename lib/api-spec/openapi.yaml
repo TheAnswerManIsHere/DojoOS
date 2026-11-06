@@ -575,6 +575,7 @@ components:
         trimInMs: { type: integer, description: "≥ 0: how far the in point is moved later than the brick's." }
         trimOutMs: { type: integer, description: "≤ 0: how far the out point is moved earlier than the brick's." }
         transition: { type: string, enum: [cut, dissolve], description: "The transition into the entry that follows." }
+        dissolveMs: { type: integer, description: "The dissolve's length into the entry that follows, when the transition is a dissolve; absent means the default 1 s." }
         tags: { type: array, items: { type: string } }
         action: { type: string, enum: [keep, punch_in] }
         preset: { type: ["string", "null"] }

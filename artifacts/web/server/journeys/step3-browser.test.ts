@@ -1,4 +1,4 @@
-// Step-3 journey through the lesson timeline (PLAN_LESSON_TIMELINE.md, the scripted lane), on two generated files of
+// Step-3 journey through the Edited view (the one editor, 2026-11-06; PLAN_LESSON_TIMELINE.md before it), on three generated files of
 // one shoot whose picture says which file and which second is showing (red or blue, green rising 25 a second) and whose
 // tone says which is sounding. The lesson starts with every closed brick in D1's order; Jared moves one brick by
 // keyboard and makes a dissolve, which gives the worked example's camera-only shape — three bricks, a 1 s dissolve
@@ -23,12 +23,15 @@ const dir = mkdtempSync(join(tmpdir(), "step3-"));
 let server: RunningServer;
 let browser: Browser;
 let shootId: string;
-const ids: Record<"A" | "B", string> = { A: "", B: "" };
-const files: Record<"A" | "B", string> = { A: join(dir, "a.webm"), B: join(dir, "b.webm") };
-const clips: Partial<Record<"A" | "B", Buffer>> = {};
-const looks = { A: { red: 200, blue: 0, tone: 440 }, B: { red: 0, blue: 200, tone: 1000 } };
+type File = "A" | "B" | "C";
+const ids: Record<File, string> = { A: "", B: "", C: "" };
+const files: Record<File, string> = { A: join(dir, "a.webm"), B: join(dir, "b.webm"), C: join(dir, "c.webm") };
+const clips: Partial<Record<File, Buffer>> = {};
+// File C looks and sounds like A: the edit plays the files in the order they were added, so the worked example's
+// A → B → A shape needs a third file (David, 2026-11-06: the lesson is the bricks with the gaps gone, in order).
+const looks = { A: { red: 200, blue: 0, tone: 440 }, B: { red: 0, blue: 200, tone: 1000 }, C: { red: 200, blue: 0, tone: 440 } };
 
-function makeFixture(file: string, which: "A" | "B") {
+function makeFixture(file: string, which: File) {
   const { red, blue, tone } = looks[which];
   execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
     `color=c=black:s=320x180:r=30:d=10,format=gbrp,geq=r=${red}:g='25*floor(T)':b=${blue}`, "-f", "lavfi", "-i", `sine=frequency=${tone}:duration=10`,
@@ -45,12 +48,10 @@ function meanColour(input: Buffer | string, seconds?: number): [number, number, 
 }
 
 before(async () => {
-  makeFixture(files.A, "A");
-  makeFixture(files.B, "B");
-  clips.A = readFileSync(files.A); clips.B = readFileSync(files.B);
+  for (const which of ["A", "B", "C"] as const) { makeFixture(files[which], which); clips[which] = readFileSync(files[which]); }
   const [shoot] = await db.insert(shoots).values({ name: `Step-3 journey ${Date.now()}` }).returning();
   shootId = shoot.id;
-  for (const [n, which] of (["A", "B"] as const).entries()) {
+  for (const [n, which] of (["A", "B", "C"] as const).entries()) {
     const [row] = await db.insert(sources).values({ shootId, role: "camera_a", originalKey: `originals/journey-step3-${which}`, ingestState: "ready",
       durationMs: 10_000, width: 320, height: 180, fps: 30, createdAt: new Date(Date.now() - 60_000 + n * 1000) }).returning();
     ids[which] = row.id;
@@ -59,10 +60,11 @@ before(async () => {
     await db.insert(transcripts).values({ sourceId: row.id, provider: "elevenlabs", version: "scribe_v2",
       words: Array.from({ length: 9 }, (_, k) => ({ text: `w${k}`, start_ms: k * 1000, end_ms: k * 1000 + 1000 })) });
   }
-  // Logged out of order on purpose: file A's two bricks come first in D1's order, file B's after them.
+  // b1 on file A, b2 on B, b3 on C; b4 sits wholly inside b2 and adds nothing to the edit; the open one is left out.
   await db.insert(bricks).values([
     { id: `${shootId}b1`, sourceId: ids.A, inMs: 0, outMs: 3000, attributes: { action: "punch_in", preset: "upper third" } }, { id: `${shootId}b2`, sourceId: ids.B, inMs: 1000, outMs: 5000 },
-    { id: `${shootId}b3`, sourceId: ids.A, inMs: 5000, outMs: 7000 }, { id: `${shootId}open`, sourceId: ids.A, inMs: 8000, outMs: null },
+    { id: `${shootId}b3`, sourceId: ids.C, inMs: 5000, outMs: 7000 }, { id: `${shootId}b4`, sourceId: ids.B, inMs: 2000, outMs: 3000 },
+    { id: `${shootId}open`, sourceId: ids.A, inMs: 8000, outMs: null },
   ]);
   server = await startServer();
   browser = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
@@ -100,7 +102,7 @@ async function lessonPage(): Promise<Page> {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.route("http://127.0.0.1:9/**", (route) => {
     const url = route.request().url();
-    const which = url.includes(ids.A) ? "A" : url.includes(ids.B) ? "B" : null;
+    const which = url.includes(ids.A) ? "A" : url.includes(ids.B) ? "B" : url.includes(ids.C) ? "C" : null;
     if (!which || !url.includes(".mp4")) return route.fulfill({ status: 404, body: "" });
     const clip = clips[which]!;
     const range = /bytes=(\d+)-(\d*)/.exec(route.request().headers().range ?? "");
@@ -110,7 +112,7 @@ async function lessonPage(): Promise<Page> {
   });
   await signInFromPage(page, server.origin, operatorEmail);
   await page.getByTestId(`link-lesson-${shootId}`).click();
-  await page.getByTestId("strip").waitFor();
+  await page.getByTestId("lesson-strip").waitFor();
   return page;
 }
 const lessonCut = async () => (await db.select().from(cuts).where(eq(cuts.shootId, shootId)))[0];
@@ -134,53 +136,46 @@ const players = (page: Page) => page.evaluate<{ outMs: number; videos: Array<{ s
 const settled = (page: Page) => page.waitForFunction(`[...document.querySelectorAll("[data-testid=preview] video")]
   .every((v) => Number(v.style.opacity || 0) === 0 || (v.readyState >= 2 && !v.seeking))`);
 
-test("the lesson starts with every closed brick in D1's order; a move and a dissolve by keyboard give the worked example's shape", async () => {
+test("the edit is every closed brick in file order with the gaps gone; a brick inside another adds nothing; D makes a dissolve, whose length is typed or dragged; Esc undoes", async () => {
   const page = await lessonPage();
-  assert.deepEqual(await order(), [{ brick: "b1", transition: "cut" }, { brick: "b3", transition: "cut" }, { brick: "b2", transition: "cut" }],
-    "file A's bricks first by in point, then file B's; the open brick is left out");
+  assert.deepEqual(await order(), [{ brick: "b1", transition: "cut" }, { brick: "b2", transition: "cut" }, { brick: "b3", transition: "cut" }],
+    "file A's brick, then B's, then C's; b4, inside b2, adds nothing; the open brick is left out");
   await page.getByTestId("text-lesson-length").filter({ hasText: "0:09:00" }).waitFor();
-  // The arrows are the player's, as on every player: → steps to the lesson's next word (one a second here), Option a frame.
+  // The arrows are the player's, as on every player: → steps to the edit's next word (one a second here), Option a frame.
   await page.keyboard.press("ArrowRight");
   await page.getByTestId("preview").and(page.locator('[data-out-ms="1000"]')).waitFor();
   await page.keyboard.press("Alt+ArrowRight");
   await page.getByTestId("preview").and(page.locator('[data-out-ms="1033"]')).waitFor();
   await page.keyboard.press("Shift+ArrowLeft");
   await page.getByTestId("preview").and(page.locator('[data-out-ms="0"]')).waitFor();
-  // Tab selects (the arrows are the player's, as on every player); - moves the selected brick earlier.
-  await page.keyboard.press("Tab"); await page.keyboard.press("Tab");
-  await page.keyboard.press("Minus");
-  await until(order, (o) => o[1].brick === "b2");
-  await page.keyboard.press("Shift+Tab"); // the moved brick stays selected; Shift+Tab goes to the first
+  // The first brick is selected; D makes the join after it a 1 s dissolve.
   await page.keyboard.press("d");
   await until(order, (o) => o[0].transition === "dissolve");
-  assert.deepEqual((await order()).map((o) => o.brick), ["b1", "b2", "b3"]);
   await page.getByTestId("text-lesson-length").filter({ hasText: "0:08:00" }).waitFor();
-  // Bricks keep their numbers whatever the order: b2 is Brick 2 though it now plays second.
-  const tileName = async (brick: string) => {
-    const entry = (await db.select().from(cutBricks).where(and(eq(cutBricks.cutId, (await lessonCut()).id), eq(cutBricks.brickId, `${shootId}${brick}`))))[0];
-    return page.getByTestId(`text-tile-name-${entry.id}`).textContent();
-  };
-  assert.deepEqual([await tileName("b1"), await tileName("b2"), await tileName("b3")], ["Brick 1", "Brick 2", "Brick 3"]);
-  const [b1] = await db.select().from(bricks).where(eq(bricks.id, `${shootId}b1`));
-  assert.deepEqual([b1.inMs, b1.outMs], [0, 3000]);
-  const events = await db.select().from(cutEvents).where(eq(cutEvents.cutId, (await lessonCut()).id));
-  assert.equal(events.length, 2, "move and transition: one cut-owned event each");
-  assert.ok(events.every((e) => e.sourceId === null));
-
-  // A tile dragged with the mouse moves its brick: Brick 3 dragged before Brick 1 plays first. Esc undoes the move.
-  const tileOf = async (brick: string) => {
-    const entry = (await db.select().from(cutBricks).where(and(eq(cutBricks.cutId, (await lessonCut()).id), eq(cutBricks.brickId, `${shootId}${brick}`))))[0];
-    return page.getByTestId(`tile-${entry.id}`);
-  };
-  await (await tileOf("b3")).scrollIntoViewIfNeeded();
-  const from = (await (await tileOf("b3")).boundingBox())!, to = (await (await tileOf("b1")).boundingBox())!;
-  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  // Typed: half a second, so the edit is half a second longer.
+  await page.getByTestId("input-dissolve-length").fill("0.5");
+  await page.getByTestId("input-dissolve-length").press("Enter");
+  await page.getByTestId("text-lesson-length").filter({ hasText: "0:08:15" }).waitFor();
+  // Too long to fit is refused, and says how long it can be.
+  await page.getByTestId("input-dissolve-length").fill("5");
+  await page.getByTestId("input-dissolve-length").press("Enter");
+  await page.getByTestId("text-lesson-message").filter({ hasText: "longest that fits is 3.0 s" }).waitFor();
+  // Dragged: the band's end pulled out widens it, centred on the join; one move, so Esc puts it back.
+  await page.getByTestId("lesson-strip").scrollIntoViewIfNeeded();
+  const band = (await page.getByTestId("band-dissolve-0").boundingBox())!;
+  await page.mouse.move(band.x + band.width - 1, band.y + band.height / 2);
   await page.mouse.down();
-  await page.mouse.move(to.x + 4, to.y + to.height / 2, { steps: 8 });
+  await page.mouse.move(band.x + band.width + 40, band.y + band.height / 2, { steps: 6 });
   await page.mouse.up();
-  await until(order, (o) => o[0].brick === "b3");
+  const longer = await until(async () => (await db.select().from(cutBricks).where(and(eq(cutBricks.cutId, (await lessonCut()).id), eq(cutBricks.brickId, `${shootId}b1`))))[0],
+    (r) => (r.overrides.dissolveMs ?? 0) > 500);
+  assert.ok(Math.abs(((longer.overrides.dissolveMs ?? 0) * 30) / 1000 - Math.round(((longer.overrides.dissolveMs ?? 0) * 30) / 1000)) < 0.05, "a whole number of frames");
   await page.keyboard.press("Escape");
-  await until(order, (o) => o.map((x) => x.brick).join() === "b1,b2,b3");
+  await page.getByTestId("text-lesson-length").filter({ hasText: "0:08:15" }).waitFor();
+  await page.keyboard.press("Escape");
+  await page.getByTestId("text-lesson-length").filter({ hasText: "0:08:00" }).waitFor();
+  const events = await db.select().from(cutEvents).where(eq(cutEvents.cutId, (await lessonCut()).id));
+  assert.equal(events.length, 5, "dissolve, typed length, dragged length and two undos: one cut-owned event each");
   await page.close();
 });
 
@@ -189,7 +184,7 @@ test("the preview plays through the dissolve and the cut showing and sounding wh
   const edl = await resolvedEdl(page);
   // b1 0–3 s on file A, a 1 s dissolve into b2 (file B, 1–5 s) at 2–3 s, a hard cut at 6 s to b3 (file A, 5–7 s): 8 s.
   assert.deepEqual(edl.picture.map((p) => [p.outStartMs, p.outEndMs]), [[0, 3000], [2000, 6000], [6000, 8000]]);
-  const source = (sourceId: string) => (sourceId === ids.A ? "A" : "B");
+  const source = (sourceId: string) => (sourceId === ids.A ? "A" : sourceId === ids.B ? "B" : "C");
 
   // Picture, read off the screen at sought positions: file A alone, the middle of the dissolve, file B, across the cut.
   for (const [at, want] of [[1500, { red: 200, blue: 0 }], [2500, { red: 100, blue: 100 }], [4500, { red: 0, blue: 200 }], [6500, { red: 200, blue: 0 }]] as const) {
@@ -225,7 +220,7 @@ test("the preview plays through the dissolve and the cut showing and sounding wh
   // Sound and source time while it plays, from 1.5 s on through the dissolve and the cut.
   await page.getByTestId("input-preview-seek").fill("1500");
   await settled(page);
-  await page.getByTestId("strip").click({ position: { x: 1, y: 1 } }).catch(() => {});
+  await page.getByTestId("lesson-strip").click({ position: { x: 1, y: 1 } }).catch(() => {});
   await page.getByTestId("input-preview-seek").fill("1500");
   await settled(page);
   await page.locator("body").press("Space");
@@ -278,7 +273,7 @@ test("Render freezes the lesson: an edit made while the render waits does not ch
   const out = join(dir, "rendered.mp4");
   const { renderRevision } = await import(new URL("../../../worker/src/render.ts", import.meta.url).href) as typeof import("../../../worker/src/render");
   await renderRevision(db, {
-    download: async (key, file) => copyFileSync(key.endsWith("-A") ? files.A : files.B, file),
+    download: async (key, file) => copyFileSync(key.endsWith("-A") ? files.A : key.endsWith("-B") ? files.B : files.C, file),
     put: async (_key, file) => copyFileSync(file, out),
   }, revision.id, new AbortController().signal);
   const seconds = Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", out]).toString());

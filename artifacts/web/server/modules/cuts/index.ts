@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import { Router } from "express";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
-import { applyLessonCommand, bricks, CommandError, cutBricks, cutEvents, cuts, initialOrder, isLessonCommand, jobs, newId,
+import { applyLessonCommand, bricks, CommandError, cutBricks, cutEvents, cuts, editEntries, initialOrder, isLessonCommand, jobs, newId,
   resolveCut, revisions, shoots, sources, spriteLayout, edlLengthMs, transcripts, type LessonBrick, type LessonEntry, type LessonState,
   type Transition } from "@workspace/shared";
 import type { Context } from "../../context";
@@ -33,9 +33,33 @@ async function shootBricks(db: Db, shootId: string) {
 function toEntry(row: typeof cutBricks.$inferSelect): LessonEntry {
   const o = row.overrides ?? {};
   return { id: row.id, brickId: row.brickId, trimInMs: o.trimDeltas?.inMs ?? 0, trimOutMs: o.trimDeltas?.outMs ?? 0,
-    transition: o.transition === "dissolve" ? "dissolve" : "cut" };
+    transition: o.transition === "dissolve" ? "dissolve" : "cut", ...(typeof o.dissolveMs === "number" && { dissolveMs: o.dissolveMs }) };
 }
-const overridesOf = (e: LessonEntry) => ({ trimDeltas: { inMs: e.trimInMs, outMs: e.trimOutMs }, transition: e.transition as Transition });
+const overridesOf = (e: LessonEntry) => ({ trimDeltas: { inMs: e.trimInMs, outMs: e.trimOutMs }, transition: e.transition as Transition,
+  ...(e.dissolveMs !== undefined && { dissolveMs: e.dissolveMs }) });
+
+/** Brings the lesson cut in line with the edit (David, 2026-11-06): the lesson is the shoot's bricks with the gaps between
+ * them gone, so its entries are derived from the bricks every time it is read or rendered — the join each brick was
+ * given is kept, a brick no longer in the edit leaves it, a new one joins it as a cut. Called with the cut row locked. */
+async function syncEdit(tx: Tx, cut: typeof cuts.$inferSelect) {
+  const { bricks: all, sourceOrder } = await shootBricks(tx, cut.shootId);
+  const rows = await tx.select().from(cutBricks).where(eq(cutBricks.cutId, cut.id));
+  const live = rows.filter((r) => !r.deletedAt);
+  const byBrick = new Map<string, typeof rows[number]>();
+  for (const r of [...rows].sort((a, b) => Number(!a.deletedAt) - Number(!b.deletedAt))) byBrick.set(r.brickId, r);
+  const derived = editEntries(all, sourceOrder, [...byBrick.values()].map(toEntry), newId);
+  const keep = new Set<string>();
+  for (const [position, entry] of derived.entries()) {
+    keep.add(entry.id);
+    const row = rows.find((r) => r.id === entry.id);
+    const overrides = overridesOf(entry);
+    if (!row) await tx.insert(cutBricks).values({ id: entry.id, cutId: cut.id, brickId: entry.brickId, position, overrides });
+    else if (row.position !== position || row.deletedAt || JSON.stringify(row.overrides ?? {}) !== JSON.stringify(overrides))
+      await tx.update(cutBricks).set({ position, overrides, deletedAt: null }).where(eq(cutBricks.id, row.id));
+  }
+  const gone = live.filter((r) => !keep.has(r.id)).map((r) => r.id);
+  if (gone.length) await tx.update(cutBricks).set({ deletedAt: new Date() }).where(inArray(cutBricks.id, gone));
+}
 
 /** The cut's state: its live entries in position order, skipping any whose brick has since been deleted or reopened. */
 async function lessonState(db: Db, cut: typeof cuts.$inferSelect): Promise<LessonState> {
@@ -59,11 +83,9 @@ async function lessonCut(ctx: Context, shootId: string) {
     if (!shoot) return null;
     const [found] = await tx.select().from(cuts).where(and(eq(cuts.shootId, shootId), eq(cuts.kind, "lesson"), isNull(cuts.deletedAt)))
       .orderBy(asc(cuts.createdAt)).limit(1);
-    if (found) return { cut: found, shoot };
+    if (found) { await tx.select().from(cuts).where(eq(cuts.id, found.id)).for("update"); await syncEdit(tx, found); return { cut: found, shoot }; }
     const [cut] = await tx.insert(cuts).values({ shootId, kind: "lesson", mode: "camera", name: `${shoot.name} — lesson` }).returning();
-    const { bricks: all } = await shootBricks(tx, shootId);
-    if (all.length) await tx.insert(cutBricks).values(all.map((b, position) => ({ cutId: cut.id, brickId: b.id, position,
-      overrides: { trimDeltas: { inMs: 0, outMs: 0 }, transition: "cut" } })));
+    await syncEdit(tx, cut);
     return { cut, shoot };
   });
 }
@@ -128,6 +150,7 @@ export function cutRoutes(ctx: Context) {
         // The cut row is locked so two commands on one lesson apply one after the other, and their events keep order.
         const [cut] = await tx.select().from(cuts).where(and(eq(cuts.id, id), isNull(cuts.deletedAt))).for("update");
         if (!cut) return null;
+        await syncEdit(tx, cut);
         const before = await lessonState(tx, cut);
         const { state, inverse } = applyLessonCommand(before, command);
         const was = new Map(before.entries.map((e) => [e.id, e]));
@@ -163,6 +186,7 @@ export function cutRoutes(ctx: Context) {
     const revision = await ctx.db.transaction(async (tx) => {
       const [cut] = await tx.select().from(cuts).where(and(eq(cuts.id, id), isNull(cuts.deletedAt))).for("update");
       if (!cut) return null;
+      await syncEdit(tx, cut);
       const resolved = resolveLesson(await lessonState(tx, cut));
       if (!resolved.picture.length) return "empty" as const;
       const [{ number }] = await tx.select({ number: sql<number>`coalesce(max(${revisions.number}), 0) + 1` }).from(revisions).where(eq(revisions.cutId, id));

@@ -623,7 +623,7 @@ kbd { font-family: 'Rubik', system-ui, sans-serif; font-size: .78rem; font-weigh
 /* The transcript box: 3 or 5 lines, or the full transcript, turning a page at a time (src/player/transcript-box.tsx). */
 .transcript-box { margin: 12px 0; }
 .transcript-size { display: flex; gap: 6px; margin-bottom: 6px; }
-.transcript-box .logging-words { position: relative; margin: 0; min-height: 0; overflow: hidden; cursor: pointer; }
+.transcript-box .logging-words { position: relative; margin: 0; min-height: 0; overflow: hidden; cursor: pointer; box-sizing: content-box; }
 .transcript-box .logging-words.lines-3 { height: 5.4em; }
 .transcript-box .logging-words.lines-5 { height: 9em; }
 .transcript-box .logging-words.lines-full { max-height: 60vh; overflow-y: auto; }
@@ -687,3 +687,17 @@ kbd { font-family: 'Rubik', system-ui, sans-serif; font-size: .78rem; font-weigh
 .guide-table td:first-child, .guide-table th:first-child { white-space: nowrap; overflow-wrap: normal; width: 1%; padding-right: 18px; }
 .guide-keys kbd { margin-right: 2px; }
 @media (max-width: 640px) { .guide-contents ol { columns: 1; } }
+
+/* PROTOTYPE — the one editor's Original / Edited switch, and the Edited view's joins (2026-11-06). */
+.view-switch { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.player-strip.edited-strip { height: 72px; }
+.join-mark { position: absolute; top: 0; bottom: 0; width: 14px; margin-left: -7px; cursor: pointer; z-index: 2; }
+.join-mark::after { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: #c9d1d9; }
+.join-mark.selected::after { background: var(--navy); width: 3px; }
+.dissolve-band { position: absolute; top: 0; bottom: 0; z-index: 2; cursor: ew-resize; touch-action: none;
+  background: repeating-linear-gradient(135deg, rgba(122, 45, 64, .28) 0 6px, rgba(122, 45, 64, .1) 6px 12px); border-left: 2px solid var(--wine); border-right: 2px solid var(--wine); }
+.dissolve-band.selected { outline: 2px solid var(--navy); }
+.dissolve-band .strip-band-label { position: absolute; top: 2px; left: 4px; font-size: .68rem; color: var(--wine); font-weight: 600; white-space: nowrap; }
+.join-panel { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 10px 0; padding: 10px 14px; }
+.join-length { display: flex; align-items: center; gap: 8px; }
+.join-length input { width: 5em; }

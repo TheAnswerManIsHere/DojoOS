@@ -55,7 +55,7 @@ export const cutBricks = pgTable("cut_bricks", {
   position: integer("position").notNull(), overrides: jsonb("overrides").$type<{
     trimDeltas?: { inMs: number; outMs: number };
     framing?: Record<string, Array<{ atMs: number; x: number; y: number; scale: number }>>;
-    transition?: string; narrationSilence?: boolean; placement?: "full" | "split" | "corner" | "hidden";
+    transition?: string; dissolveMs?: number; narrationSilence?: boolean; placement?: "full" | "split" | "corner" | "hidden";
   }>().notNull().default({}), ...audit,
 });
 export const captions = pgTable("captions", {

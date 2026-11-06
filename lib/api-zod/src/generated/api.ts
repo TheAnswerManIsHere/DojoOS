@@ -482,6 +482,7 @@ export const GetLessonResponse = zod.object({
   "trimInMs": zod.number().int().describe('≥ 0: how far the in point is moved later than the brick\'s.'),
   "trimOutMs": zod.number().int().describe('≤ 0: how far the out point is moved earlier than the brick\'s.'),
   "transition": zod.enum(['cut', 'dissolve']).describe('The transition into the entry that follows.'),
+  "dissolveMs": zod.number().int().optional().describe('The dissolve\'s length into the entry that follows, when the transition is a dissolve; absent means the default 1 s.'),
   "tags": zod.array(zod.string()),
   "action": zod.enum(['keep', 'punch_in']),
   "preset": zod.string().nullable()
@@ -556,6 +557,7 @@ export const ApplyLessonCommandResponse = zod.object({
   "trimInMs": zod.number().int().describe('≥ 0: how far the in point is moved later than the brick\'s.'),
   "trimOutMs": zod.number().int().describe('≤ 0: how far the out point is moved earlier than the brick\'s.'),
   "transition": zod.enum(['cut', 'dissolve']).describe('The transition into the entry that follows.'),
+  "dissolveMs": zod.number().int().optional().describe('The dissolve\'s length into the entry that follows, when the transition is a dissolve; absent means the default 1 s.'),
   "tags": zod.array(zod.string()),
   "action": zod.enum(['keep', 'punch_in']),
   "preset": zod.string().nullable()

@@ -9,7 +9,7 @@
 // operator's word, and still editable. Bindings live in keymap.json; the questions in questions.json reach Jared
 // through the rail.
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { applySourceCommand, getSourceLog, markLogDone, markLogInProgress, type LogBrick, type LogStatus, type NextToLog,
   type SourceLog } from '@workspace/api-client-react';
 import { brickTags, framingPresets, snapToWord, stepToWord, type Command } from '@workspace/shared/commands';
@@ -20,6 +20,7 @@ import { Strip, usePeaks, useStripZoom, type StripGeometry } from '../../player/
 import { TranscriptBox } from '../../player/transcript-box';
 import { useProxyVideo } from '../../player/proxy-video';
 import { describeTarget, noteKey, reportKeyProblem } from '../../player/key-log';
+import { LessonTimeline, type FilePlace } from '../lesson-timeline/lesson-timeline';
 import keymap from './keymap.json';
 
 const roles: Record<string, string> = { camera_a: 'Camera A', camera_b: 'Camera B', audio: 'Audio' };
@@ -73,6 +74,13 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
   const [keysPaused, setKeysPaused] = useState(false);
   const [showAction, setShowAction] = useState(false);
   const [reported, setReported] = useState('');
+  // The switch (David, 2026-11-06): Original is this file; Edited is the shoot's bricks with the gaps gone. A link can
+  // open either, at a moment: ?view=edited, ?t=<ms>.
+  const query = new URLSearchParams(window.location.search);
+  const [view, setView] = useState<'original' | 'edited'>(query.get('view') === 'edited' ? 'edited' : 'original');
+  const pendingSeek = useRef<number | null>(query.get('t') ? Number(query.get('t')) : null);
+  const [editedAt, setEditedAt] = useState<FilePlace | undefined>(undefined);
+  const [, navigate] = useLocation();
   const video = useRef<HTMLVideoElement>(null);
   const busy = useRef(Promise.resolve());
   const player = useProxyVideo(video, sourceId, setMessage);
@@ -100,6 +108,8 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
 
   const durationMs = log?.durationMs ?? 0;
   const zoom = useStripZoom(0, Math.max(1, durationMs));
+  const viewNow = useRef(zoom.view);
+  viewNow.current = zoom.view;
   const setSelected = (id: string | null, how: PickKind = 'picked') => { setSelectedId(id); setPick(how); };
   const frameMs = 1000 / (log?.fps || 30);
   const clock = (ms: number) => timecode(ms, log?.fps);
@@ -169,6 +179,14 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
     catch (cause) { setMessage(reason(cause)); }
   };
 
+  /** Original → Edited at the footage under the playhead; Edited → Original at the footage it was playing, on this
+   * file's page or the other file's. */
+  const toEdited = () => { video.current?.pause(); setEditedAt({ sourceId, ms: now() }); setView('edited'); };
+  const toOriginal = (at: FilePlace) => {
+    if (at.sourceId !== sourceId) { navigate(`/sources/${at.sourceId}/log?t=${Math.round(at.ms)}`); return; }
+    pendingSeek.current = at.ms;
+    setView('original');
+  };
   const togglePlay = useCallback(() => {
     const v = video.current;
     if (!v) { setMessage('The video is still loading.'); return; }
@@ -265,6 +283,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
       }
       case 'undo': undoRedo(shift); return;
       case 'showAction': setShowAction((on) => !on); return;
+      case 'toggleView': toEdited(); return;
     }
   }, [bricks, selected, pick, autoNote, undo, redo, log, frameMs, durationMs, speed, send, target, seekTo, jumpTo, togglePlay, zoom]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -272,7 +291,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
     const onKey = (event: KeyboardEvent) => {
       const el = event.target as HTMLElement | null;
       if (typing(el)) { if (event.code === 'Space') noteKey({ code: event.code, target: describeTarget(el), outcome: 'typed into a text box' }); return; }
-      if (event.metaKey || event.ctrlKey) return;
+      if (event.metaKey || event.ctrlKey || view === 'edited') return;
       const action = bindings[event.code] ?? playerKeys[event.code];
       if (!action || (event.altKey && action !== 'back' && action !== 'forward')) return;
       event.preventDefault();
@@ -283,7 +302,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [runAction]);
+  }, [runAction, view]);
 
   // The playhead, read every frame while the page is open.
   useEffect(() => {
@@ -323,7 +342,10 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
         const span = zoom.view.toMs - zoom.view.fromMs;
         if (clientX < r.left + 24) zoom.scrollBy(-span / 50); else if (clientX > r.right - 24) zoom.scrollBy(span / 50);
       }
-      latest = clampEdge(toFrame(g.msAt(clientX)));
+      // The view as it is now — a drag near either end scrolls it — not as it was when the drag began (Codex, PR #81).
+      const v = viewNow.current;
+      const at = r && r.width ? v.fromMs + Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * (v.toMs - v.fromMs) : g.msAt(clientX);
+      latest = clampEdge(toFrame(at));
       setDrag({ id: b.id, edge, ms: latest });
       seekTo(edge === 'in' ? latest : latest - frameMs);
     };
@@ -337,6 +359,15 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
     };
     el.addEventListener('pointermove', onMove); el.addEventListener('pointerup', onUp); el.addEventListener('pointercancel', onUp);
   };
+  // How much of this file the bricks keep: their combined span, overlaps counted once.
+  const keptMs = (() => {
+    let total = 0, end = -1;
+    for (const b of [...bricks].filter((x) => x.outMs !== null).sort((x, y) => x.inMs - y.inMs)) {
+      const from = Math.max(b.inMs, end);
+      if (b.outMs! > from) { total += b.outMs! - from; end = b.outMs!; }
+    }
+    return total;
+  })();
   const closeNote = (resume: boolean) => { setNoting(null); if (resume) void player.play(); };
   const layout = log.spriteLayout;
   const tile = hover !== null && layout ? Math.min(layout.count - 1, Math.floor(hover / 1000 / layout.intervalSeconds)) : null;
@@ -353,6 +384,13 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
       <span className="prototype-tag" title={`Build ${import.meta.env.VITE_BUILD_SHA ?? 'development'}`}>Prototype</span>
       <p className="eyebrow">Logging · {roles[log.role] ?? log.role}</p>
       <div className="card-head"><h1>{log.shootName}</h1>
+        <div className="view-switch" role="group" aria-label="View" data-testid="view-switch">
+          <button type="button" className={`chip${view === 'original' ? ' on' : ''}`} aria-pressed={view === 'original'} data-testid="button-view-original"
+            onClick={() => { if (view === 'edited') { pendingSeek.current = null; setView('original'); } }}>Original</button>
+          <button type="button" className={`chip${view === 'edited' ? ' on' : ''}`} aria-pressed={view === 'edited'} data-testid="button-view-edited"
+            onClick={() => { if (view === 'original') toEdited(); }}>Edited</button>
+          <span className="subtle" data-testid="text-view-lengths">This file {clock(durationMs)} → {clock(keptMs)} kept</span>
+        </div>
         <div className="log-status-bar">
           <span className={`pill log-status ${status}`} data-testid="text-log-status">{statusLabel[status]}</span>
           <label className="toggle" data-testid="toggle-auto-note"><input type="checkbox" checked={autoNote} data-testid="input-auto-note" onChange={(e) => {
@@ -370,15 +408,16 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
     {status === 'done' && <div className="next-step" data-testid="next-step">
       <span>✓ This file is logged. You can still change it.</span>
       {next ? <Link href={`/sources/${next.id}/log`} className="button button-primary" data-testid="link-next-file">Log the next file: {roles[next.role] ?? next.role}</Link>
-        : <Link href={`/shoots/${log.shootId}/lesson`} className="button button-primary" data-testid="link-open-lesson">Open the lesson</Link>}
+        : <button type="button" className="button button-primary" onClick={toEdited} data-testid="link-open-lesson">See the edit</button>}
     </div>}
 
+    {view === 'edited' ? <LessonTimeline shootId={log.shootId} startAt={editedAt ?? (pendingSeek.current !== null ? { sourceId, ms: pendingSeek.current } : undefined)} onOriginal={toOriginal} /> : <>
     <div className="media-card">
     {/* Show action (S): while a punch-in brick plays, the picture shows what the render will — that brick's framing. */}
     <div className="video-frame">
     {player.url
       ? <video ref={video} src={player.url} preload="auto" className="logging-video" data-testid="video-log" playsInline style={actionStyle}
-          onLoadedMetadata={player.onLoadedMetadata} onError={player.onError} onStalled={player.onStalled}
+          onLoadedMetadata={(e) => { player.onLoadedMetadata(); if (pendingSeek.current !== null) { const ms = pendingSeek.current; pendingSeek.current = null; e.currentTarget.currentTime = ms / 1000; zoom.reveal(ms); } }} onError={player.onError} onStalled={player.onStalled}
           onTimeUpdate={player.onTimeUpdate} onSeeked={player.onSeeked} onPause={player.onPause} onPlaying={player.onPlaying}
           onClick={() => { (document.activeElement as HTMLElement | null)?.blur(); togglePlay(); }} />
       : <p role="status" style={{ color: '#fff' }}>Loading the proxy…</p>}
@@ -439,6 +478,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
       <span><kbd>N</kbd>note</span><span><kbd>A</kbd>action</span>
       <span><kbd>=</kbd><kbd>-</kbd><kbd>\</kbd>zoom in · out · fit</span>
       <span><kbd>Delete</kbd>remove</span><span><kbd>Esc</kbd>undo (Shift: redo)</span><span><kbd>S</kbd>show actions</span>
+      <span><kbd>V</kbd>Original · Edited</span>
     </div>
 
     {noting && <form className="plain-form" style={{ marginTop: 12 }} onSubmit={(e) => {
@@ -457,7 +497,9 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
       catch (cause) { setReported(`Could not send: ${reason(cause)}`); }
     }}>Report a key problem</button>{reported && <span data-testid="text-key-report"> {reported}</span>}</p>
 
-    <div className="card" style={{ marginTop: 18 }}>
+    </>}
+
+    {view === 'original' && <div className="card" style={{ marginTop: 18 }}>
     <h2>Bricks</h2>
     {bricks.length === 0 && <p className="subtle">No bricks yet. Press I where a keep starts and O where it ends.</p>}
     <div className="table-scroll"><table className="plain-table" aria-label="Bricks">
@@ -474,7 +516,7 @@ export function LoggingViewer({ sourceId }: { sourceId: string }) {
         </div></td>
       </tr>)}</tbody>
     </table></div>
-    </div>
+    </div>}
 
   </section>;
 }

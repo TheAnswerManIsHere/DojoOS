@@ -16,3 +16,9 @@ One line per shortcut, as it was taken. At the flip to production this list is t
 - Render progress is polled every 3 s while a render is queued or running (the library every 5 s); there is no percentage.
 - The lesson's name is the shoot's name plus "— lesson"; one lesson per shoot, made on first open.
 - Download is a signed link with an attachment filename; the file is named after the lesson and render number.
+- The Edited view (2026-11-06): the lesson's entries are re-derived from the bricks on every read, command and render (`syncEdit`), with no cache and no event recorded for the derivation.
+- Reordering, adding and removing bricks are gone from the page; their commands still exist in `lib/shared/src/lesson.ts` and the route still accepts them.
+- In the Edited view a brick's edges are not editable; edges move in the Original view, and the edit follows.
+- The "kept" length on the switch is this file's bricks only, before dissolves; the Edited view shows the whole shoot's length.
+- Going back to Original from a brick on another file opens that file's page, losing this page's undo history.
+- A dissolve drag does not scroll a zoomed strip.
