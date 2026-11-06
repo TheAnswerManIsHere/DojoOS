@@ -54,7 +54,7 @@ into the width of the window.
   playhead never runs off screen. Scrolling by hand stops the follow until
   the next play.
 - **Limits:** zoomed all the way out shows the whole range. Zoomed all the way
-  in is a few seconds across the window.
+  in is about 3 seconds across the window (decided below).
 
 **A limit worth knowing (measured from the code):** the waveform data has
 20 points per second (`lib/shared/src/media.ts:22`, one point per 50 ms). A
