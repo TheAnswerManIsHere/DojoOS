@@ -55,6 +55,13 @@ export const ListShootsResponseItem = zod.object({
   "notes": zod.string().nullish(),
   "sources": zod.array(zod.object({
   "id": zod.string(),
+  "name": zod.string().nullish().describe('The name the file shows; starts as its original file name.'),
+  "originalFileName": zod.string().nullish().describe('The file\'s name as uploaded; null for files uploaded before names were kept.'),
+  "thumbnail": zod.object({
+  "url": zod.string(),
+  "width": zod.number().int(),
+  "height": zod.number().int()
+}).nullish().describe('The first tile of the file\'s sprite, by a short-lived signed link.'),
   "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
   "brickCount": zod.number().int(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
@@ -99,6 +106,13 @@ export const CreateShootResponse = zod.object({
   "notes": zod.string().nullish(),
   "sources": zod.array(zod.object({
   "id": zod.string(),
+  "name": zod.string().nullish().describe('The name the file shows; starts as its original file name.'),
+  "originalFileName": zod.string().nullish().describe('The file\'s name as uploaded; null for files uploaded before names were kept.'),
+  "thumbnail": zod.object({
+  "url": zod.string(),
+  "width": zod.number().int(),
+  "height": zod.number().int()
+}).nullish().describe('The first tile of the file\'s sprite, by a short-lived signed link.'),
   "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
   "brickCount": zod.number().int(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
@@ -133,6 +147,13 @@ export const ListArchivedShootsResponseItem = zod.object({
   "notes": zod.string().nullish(),
   "sources": zod.array(zod.object({
   "id": zod.string(),
+  "name": zod.string().nullish().describe('The name the file shows; starts as its original file name.'),
+  "originalFileName": zod.string().nullish().describe('The file\'s name as uploaded; null for files uploaded before names were kept.'),
+  "thumbnail": zod.object({
+  "url": zod.string(),
+  "width": zod.number().int(),
+  "height": zod.number().int()
+}).nullish().describe('The first tile of the file\'s sprite, by a short-lived signed link.'),
   "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
   "brickCount": zod.number().int(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
@@ -268,6 +289,13 @@ export const CompleteUploadBody = zod.object({
 
 export const CompleteUploadResponse = zod.object({
   "id": zod.string(),
+  "name": zod.string().nullish().describe('The name the file shows; starts as its original file name.'),
+  "originalFileName": zod.string().nullish().describe('The file\'s name as uploaded; null for files uploaded before names were kept.'),
+  "thumbnail": zod.object({
+  "url": zod.string(),
+  "width": zod.number().int(),
+  "height": zod.number().int()
+}).nullish().describe('The first tile of the file\'s sprite, by a short-lived signed link.'),
   "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
   "brickCount": zod.number().int(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
@@ -296,6 +324,13 @@ export const RetryIngestParams = zod.object({
 
 export const RetryIngestResponse = zod.object({
   "id": zod.string(),
+  "name": zod.string().nullish().describe('The name the file shows; starts as its original file name.'),
+  "originalFileName": zod.string().nullish().describe('The file\'s name as uploaded; null for files uploaded before names were kept.'),
+  "thumbnail": zod.object({
+  "url": zod.string(),
+  "width": zod.number().int(),
+  "height": zod.number().int()
+}).nullish().describe('The first tile of the file\'s sprite, by a short-lived signed link.'),
   "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
   "brickCount": zod.number().int(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
@@ -324,6 +359,13 @@ export const TranscribeSourceParams = zod.object({
 
 export const TranscribeSourceResponse = zod.object({
   "id": zod.string(),
+  "name": zod.string().nullish().describe('The name the file shows; starts as its original file name.'),
+  "originalFileName": zod.string().nullish().describe('The file\'s name as uploaded; null for files uploaded before names were kept.'),
+  "thumbnail": zod.object({
+  "url": zod.string(),
+  "width": zod.number().int(),
+  "height": zod.number().int()
+}).nullish().describe('The first tile of the file\'s sprite, by a short-lived signed link.'),
   "logStatus": zod.enum(['not_started', 'in_progress', 'done']),
   "brickCount": zod.number().int(),
   "role": zod.enum(['camera_a', 'camera_b', 'audio']),
@@ -343,6 +385,28 @@ export const TranscribeSourceResponse = zod.object({
   "fraction": zod.number().nullable()
 }).nullish().describe('While ingest runs, the stage under way and how far through it (fraction 0–1, null when unknown).'),
   "transcriptionStartedAt": zod.string().nullish().describe('When the running transcription started; null when none is running.')
+})
+
+
+export const RenameSourceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RenameSourceBody = zod.object({
+  "name": zod.string().nullable().describe('The new name; empty or null goes back to the original file name.')
+})
+
+export const RenameSourceResponse = zod.object({
+  "name": zod.string().nullable()
+})
+
+
+export const SuggestSourceNameParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SuggestSourceNameResponse = zod.object({
+  "name": zod.string()
 })
 
 

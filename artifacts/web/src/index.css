@@ -701,3 +701,13 @@ kbd { font-family: 'Rubik', system-ui, sans-serif; font-size: .78rem; font-weigh
 .join-panel { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 10px 0; padding: 10px 14px; }
 .join-length { display: flex; align-items: center; gap: 8px; }
 .join-length input { width: 5em; }
+/* PROTOTYPE — a library file's name, thumbnail and AI Rename (2026-11-06). */
+.source-head { display: flex; gap: 12px; align-items: flex-start; }
+.source-thumb { flex: none; border-radius: 6px; background-color: #000; background-position: 0 0; background-repeat: no-repeat; max-width: 160px; }
+.file-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 2px; }
+.file-name-text { font-weight: 700; color: var(--ink-heading); background: none; border: 0; padding: 0; cursor: text; text-align: left; }
+.file-name-text:hover { text-decoration: underline dotted; }
+.file-name-form { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.file-name-form input { min-width: 16em; }
+.upload-queue { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 4px; }
+.upload-queue li { display: flex; justify-content: space-between; gap: 10px; font-size: .9rem; }

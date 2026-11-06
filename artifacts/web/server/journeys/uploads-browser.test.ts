@@ -1,4 +1,4 @@
-// The uploader in the browser (David's feedback, 2026-10-28): one place to choose a file; a dropped part is tried again
+// The uploader in the browser (David's feedback, 2026-10-28; several files at once, 2026-11-06): one place to choose files; a dropped part is tried again
 // on its own; an upload stopped part-way says how far it got and continues when the same file is chosen again, sending
 // only the parts still missing; and an unfinished upload can be discarded. The bucket is not reachable from a journey,
 // so the browser's calls to start, sign and complete an upload, and its part uploads, are answered here; removing the
@@ -112,5 +112,41 @@ test("a dropped part is retried, a stopped upload continues from the same file w
   await page.getByTestId(`row-pending-upload-${ids[1]}`).waitFor({ state: "detached" });
   const [discarded] = await db.select().from(sources).where(eq(sources.id, ids[1]));
   assert.ok(discarded.deletedAt, "the discarded upload's file is removed");
+  await page.close();
+});
+
+test("several files chosen at once go up one after another in one go, each listed with how it stands", async () => {
+  const batch: string[] = [];
+  for (const name of ["bulk-1", "bulk-2"]) {
+    const [row] = await db.insert(sources).values({ shootId, role: "camera_a", originalKey: `originals/uploader-${name}` }).returning();
+    ids.push(row.id); batch.push(row.id);
+    await db.insert(uploads).values({ sourceId: row.id, uploadId: `multipart-${name}` });
+  }
+  writeFileSync(join(dir, "C0001.MP4"), Buffer.alloc(1024));
+  writeFileSync(join(dir, "C0002.MP4"), Buffer.alloc(1024));
+  const page = await openPage(browser);
+  const starts: string[] = [];
+  const completes: string[] = [];
+  await page.route(`${server.origin}/app-api/uploads`, async (route) => {
+    const { fileName } = route.request().postDataJSON() as { fileName: string };
+    starts.push(fileName);
+    await route.fulfill({ status: 201, json: { id: batch[starts.length - 1], uploadId: `multipart-bulk-${starts.length}` } });
+  });
+  await page.route(`${server.origin}/app-api/uploads/*/parts`, (route) =>
+    route.fulfill({ json: { url: `http://127.0.0.1:9/${route.request().url().split("/").at(-2)}/part/1` } }));
+  await page.route(`${server.origin}/app-api/uploads/*/complete`, async (route) => {
+    completes.push(route.request().url().split("/").at(-2)!);
+    await route.fulfill({ json: {} });
+  });
+  await page.route("http://127.0.0.1:9/**", (route) => {
+    if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-methods": "PUT", "access-control-allow-headers": "*" } });
+    return route.fulfill({ status: 200, headers: { etag: '"etag-1"', "access-control-expose-headers": "ETag", "access-control-allow-origin": "*" }, body: "" });
+  });
+  await signInFromPage(page, server.origin, operatorEmail);
+  await page.getByTestId(`input-source-file-${shootId}`).setInputFiles([join(dir, "C0001.MP4"), join(dir, "C0002.MP4")]);
+  await page.getByText("All 2 files are uploaded.", { exact: false }).waitFor();
+  assert.deepEqual(starts, ["C0001.MP4", "C0002.MP4"], "in the order chosen, one press");
+  assert.deepEqual(completes, batch, "each completed, one after the other");
+  assert.equal(await page.getByTestId(`upload-queue-${shootId}`).locator("li").filter({ hasText: "✓ uploaded" }).count(), 2);
   await page.close();
 });

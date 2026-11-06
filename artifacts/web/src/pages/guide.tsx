@@ -63,7 +63,8 @@ export function GuidePage() {
     <Section id="library" n={2}>
       <p>Sign in with the username and password David gives you. You land on the <strong>Library</strong>, which lists your shoots. It works in Safari on the iPad and on a computer.</p>
       <p><strong>Create a shoot.</strong> Under <strong>New shoot</strong>, type a name, pick the <strong>Shot on</strong> date and press <strong>Create shoot</strong>.</p>
-      <p><strong>Add the files.</strong> Under <strong>Add a file to this shoot</strong>, pick the file's role (Camera A, Camera B or Audio). Then tap <strong>Choose a video or audio file</strong>, or drop the file on that area. Keep the page open until the upload finishes. If it stops, choose the same file again and it carries on from where it stopped.</p>
+      <p><strong>Add the files.</strong> Under <strong>Add files to this shoot</strong>, pick the role (Camera A, Camera B or Audio). Then tap <strong>Choose video or audio files</strong> and select as many as you like, or drop them on that area. They upload one after another, and a list shows how each stands. Keep the page open until they finish. If one stops, the rest carry on; choose the stopped file again and it continues from where it stopped.</p>
+      <p><strong>Names.</strong> Each file keeps the name it had on the camera card until you rename it: tap the name to change it. Once a file is transcribed, <strong>AI Rename</strong> suggests a name from what is said in it, ready for you to accept or change. Each file also shows a thumbnail, so you can tell clips apart.</p>
       <p><strong>Wait for processing.</strong> DojoOS works through five steps on its own and shows each one:</p>
       <ol className="guide-steps">
         <li>Upload</li><li>Check the file</li><li>Make the low-resolution proxy (the light copy you play and log from)</li>

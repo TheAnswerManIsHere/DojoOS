@@ -3,6 +3,17 @@
 Working notes while David feeds the list item by item. Each entry: what he
 asked for, what the code does today, the recommendation, open questions.
 
+**Status (2026-11-06):** David: *"That's it for now, go ahead and build.
+Remember, we're still prototyping."* Built in three pull requests:
+- One editor, part 1 (#81): items 2, 3, 4, 6, 7, 8, 9, 13, 15, and the
+  pop-up editor's removal from item 5.
+- One editor, part 2 (#82): items 5, 12, 14.
+- Uploads and file names (part 3): items 1, 10, 11.
+
+Not built from the recommendations: dragging an edge in the Edited view (a
+ripple trim, item 14). Edges move in the Original view, and the edit
+follows.
+
 ## 1. Bulk upload — pick or drop many files, start them in one go
 
 **Asked:** open a folder, multi-select files, start the whole transfer at

@@ -29,7 +29,10 @@ export const sources = pgTable("sources", {
   probe: jsonb("probe"), ingestState: ingestEnum("ingest_state").notNull().default("uploading"),
   durationMs: integer("duration_ms"), width: integer("width"), height: integer("height"), fps: real("fps"),
   // When the operator said this file's log is done (David, 2026-10-29); null while it is not started or in progress.
-  logDoneAt: timestamp("log_done_at", { withTimezone: true }), ...audit,
+  logDoneAt: timestamp("log_done_at", { withTimezone: true }),
+  // The file's name as it came off the camera, kept as uploaded; and the name Jared sees and can change, which starts as
+  // that one (David, 2026-11-06). Both null for files uploaded before names were kept.
+  originalFileName: text("original_file_name"), name: text("name"), ...audit,
 });
 export const transcripts = pgTable("transcripts", {
   id: id(), sourceId: text("source_id").notNull().references(() => sources.id), provider: text("provider").notNull(),

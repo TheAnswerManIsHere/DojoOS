@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { and, eq, isNull, isNotNull, desc, inArray, sql } from "drizzle-orm";
-import { bricks, jobs, revisions, shoots, sources, transcripts, uploads } from "@workspace/shared";
+import { bricks, jobs, revisions, shoots, sources, spriteLayout, transcripts, uploads } from "@workspace/shared";
+import { suggestName } from "./name";
 import { logStatusOf } from "../logging";
 import type { Context } from "../../context";
 
@@ -13,11 +14,12 @@ function progressOf(job?: IngestJob) {
 }
 /** A source can be processed again when ingest failed, or when it was marked ready before ingest made a proxy (step 0),
  * and no ingest job for it is queued or running (architecture.md §2: "the operator retries from the page"). */
-function publicSource(row: typeof sources.$inferSelect, latestJob?: IngestJob, transcriptWords: number | null = null, transcribeJob?: IngestJob, brickCount = 0) {
+function publicSource(row: typeof sources.$inferSelect, latestJob?: IngestJob, transcriptWords: number | null = null, transcribeJob?: IngestJob, brickCount = 0,
+  thumbnail: { url: string; width: number; height: number } | null = null) {
   const busy = latestJob?.state === "queued" || latestJob?.state === "claimed";
   const unfinished = row.ingestState === "failed" || (row.ingestState === "ready" && !row.proxyKey);
   return {
-    id: row.id, role: row.role, ingestState: row.ingestState, durationMs: row.durationMs, width: row.width, height: row.height, fps: row.fps,
+    id: row.id, name: row.name, originalFileName: row.originalFileName, thumbnail, role: row.role, ingestState: row.ingestState, durationMs: row.durationMs, width: row.width, height: row.height, fps: row.fps,
     hasProxy: !!row.proxyKey,
     lastError: row.ingestState === "failed" ? latestJob?.error ?? null : null,
     retryable: unfinished && !busy,
@@ -35,7 +37,13 @@ export function libraryRoutes(ctx: Context) {
     // /shoots/archived lists the archived shoots instead, so they can be brought back.
     const archived = req.path.endsWith("/archived");
     const rows = await ctx.db.select().from(shoots).where(archived ? isNotNull(shoots.deletedAt) : isNull(shoots.deletedAt)).orderBy(desc(shoots.createdAt));
-    const media = await ctx.db.select().from(sources).where(isNull(sources.deletedAt));
+    const media = await ctx.db.select().from(sources).where(isNull(sources.deletedAt)).orderBy(sources.createdAt, sources.id);
+    // Each file's thumbnail: the first tile of the sprite ingest already makes, by a short-lived signed link (David,
+    // 2026-11-06: the library's own player goes, so a row says which clip it is by its picture and its name).
+    const thumbs = new Map(await Promise.all(media.filter((s) => s.spriteKey && s.width && s.height && s.durationMs).map(async (s) => {
+      const layout = spriteLayout(s.durationMs!, s.width!, s.height!);
+      return [s.id, { url: await ctx.storage.playback(s.spriteKey!), width: layout.tileWidth, height: layout.tileHeight }] as const;
+    })));
     const allJobs = await ctx.db.select({ kind: jobs.kind, state: jobs.state, error: jobs.error, payload: jobs.payload, result: jobs.result, claimedAt: jobs.claimedAt }).from(jobs)
       .where(and(inArray(jobs.kind, ["source.probe", "source.transcribe"]), isNull(jobs.deletedAt))).orderBy(desc(jobs.createdAt));
     const latest = new Map<string, IngestJob>();
@@ -59,7 +67,7 @@ export function libraryRoutes(ctx: Context) {
     const renderOf = new Map<string, { number: number; state: string }>();
     for (const r of rendering) if (!renderOf.has(r.shootId)) renderOf.set(r.shootId, { number: r.number, state: r.state });
     res.json(rows.map((row) => ({ id: row.id, name: row.name, shotOn: row.shotOn, notes: row.notes, lessonRender: renderOf.get(row.id) ?? null,
-      sources: media.filter((s) => s.shootId === row.id).map((s) => publicSource(s, latest.get(s.id), wordCounts.get(s.id) ?? null, latestTranscribe.get(s.id), brickCounts.get(s.id) ?? 0)) })));
+      sources: media.filter((s) => s.shootId === row.id).map((s) => publicSource(s, latest.get(s.id), wordCounts.get(s.id) ?? null, latestTranscribe.get(s.id), brickCounts.get(s.id) ?? 0, thumbs.get(s.id) ?? null)) })));
   });
   router.post("/shoots", async (req, res) => {
     const name = req.body?.name;
@@ -99,6 +107,30 @@ export function libraryRoutes(ctx: Context) {
   });
   // Transcribe (again): a source with a proxy and no transcription queued or running gets one, so a changed vocabulary
   // list or a failed run can be redone from the library. The queue's enqueue wakes the worker.
+  // Rename a file: the name it shows; the original file name never changes. An empty name goes back to the original.
+  router.post("/sources/:id/name", async (req, res) => {
+    const raw = req.body?.name;
+    if (raw !== null && typeof raw !== "string") return res.status(400).json({ error: "A name, or null for the original" });
+    const [row] = await ctx.db.select().from(sources).where(and(eq(sources.id, req.params.id as string), isNull(sources.deletedAt)));
+    if (!row) return res.status(404).json({ error: "No such file" });
+    const name = (typeof raw === "string" ? raw.trim().slice(0, 255) : "") || row.originalFileName || null;
+    await ctx.db.update(sources).set({ name }).where(eq(sources.id, row.id));
+    return res.json({ name });
+  });
+  // AI Rename: a short descriptive name suggested from the newest transcript and the shoot's name. It saves nothing:
+  // the page puts the suggestion in the name box for Jared to accept or change (David, 2026-11-06).
+  router.post("/sources/:id/suggest-name", async (req, res) => {
+    const [row] = await ctx.db.select({ source: sources, shootName: shoots.name }).from(sources).innerJoin(shoots, eq(sources.shootId, shoots.id))
+      .where(and(eq(sources.id, req.params.id as string), isNull(sources.deletedAt)));
+    if (!row) return res.status(404).json({ error: "No such file" });
+    const [transcript] = await ctx.db.select({ words: transcripts.words }).from(transcripts)
+      .where(and(eq(transcripts.sourceId, row.source.id), isNull(transcripts.deletedAt))).orderBy(desc(transcripts.createdAt)).limit(1);
+    const words = (transcript?.words ?? []) as Array<{ text: string }>;
+    if (!words.length) return res.status(409).json({ error: "This file has no transcript yet, so there is nothing to name it from." });
+    const suggestion = await suggestName({ shootName: row.shootName, fileName: row.source.originalFileName, text: words.map((w) => w.text).join(" ") });
+    if ("error" in suggestion) return res.status(503).json({ error: suggestion.error });
+    return res.json({ name: suggestion.name });
+  });
   router.post("/sources/:id/transcribe", async (req, res) => {
     const id = req.params.id as string;
     const [source] = await ctx.db.select().from(sources).where(and(eq(sources.id, id), isNull(sources.deletedAt), isNotNull(sources.proxyKey),

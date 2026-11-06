@@ -1,9 +1,8 @@
 import { Link } from 'wouter';
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { archiveShoot, getListArchivedShootsQueryKey, getListShootsQueryKey, removeSource, restoreShoot, useCreateShoot, useListArchivedShoots, useListShoots, type Source } from '@workspace/api-client-react';
+import { archiveShoot, getListArchivedShootsQueryKey, getListShootsQueryKey, removeSource, renameSource, restoreShoot, suggestSourceName, useCreateShoot, useListArchivedShoots, useListShoots, type Source } from '@workspace/api-client-react';
 import { UploadManager } from '@/components/upload-manager';
-import { ProxyPlayer } from '@/components/proxy-player';
 import { SourceState } from '@/components/source-state';
 import { TranscriptView } from '@/components/transcript-view';
 
@@ -72,8 +71,46 @@ function Tracker({ source }: { source: Source }) {
   </ol>;
 }
 
+const reason = (cause: unknown, fallback: string) => (cause as { data?: { error?: string } })?.data?.error ?? (cause instanceof Error ? cause.message : fallback);
+
+/** A file's name (David, 2026-11-06): its original file name until renamed; click it to rename, Enter saves, Esc cancels.
+ * AI Rename puts a name suggested from the transcript in the box, to accept or change — it never saves on its own. */
+function FileName({ source, number, onChanged }: { source: Source; number: number; onChanged: () => void }) {
+  const shown = source.name ?? `File ${number}`;
+  const [editing, setEditing] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const save = async (name: string | null) => {
+    setBusy(true); setError('');
+    try { await renameSource(source.id, { name }); setEditing(null); onChanged(); }
+    catch (cause) { setError(reason(cause, 'Could not rename the file.')); }
+    finally { setBusy(false); }
+  };
+  const suggest = async () => {
+    setBusy(true); setError('');
+    try { setEditing((await suggestSourceName(source.id)).name); }
+    catch (cause) { setError(reason(cause, 'AI Rename did not answer.')); }
+    finally { setBusy(false); }
+  };
+  return <div className="file-name">
+    {editing === null
+      ? <button type="button" className="file-name-text" title="Rename" onClick={() => setEditing(shown)} data-testid={`button-rename-${source.id}`}>{shown}</button>
+      : <form className="file-name-form" onSubmit={(e) => { e.preventDefault(); void save(editing); }}>
+        <input autoFocus value={editing} maxLength={255} onChange={(e) => setEditing(e.target.value)} disabled={busy} aria-label="File name"
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setEditing(null); } }} data-testid={`input-name-${source.id}`} />
+        <button type="submit" className="button-primary" disabled={busy} data-testid={`button-save-name-${source.id}`}>Save</button>
+        {source.originalFileName && source.name !== source.originalFileName &&
+          <button type="button" className="button-quiet" disabled={busy} onClick={() => void save(null)} data-testid={`button-original-name-${source.id}`}>Back to original</button>}
+      </form>}
+    {source.transcriptWords != null && <button type="button" className="button-quiet" disabled={busy} onClick={() => void suggest()} data-testid={`button-ai-rename-${source.id}`}>
+      {busy ? 'Thinking…' : 'AI Rename'}</button>}
+    {source.originalFileName && source.name !== source.originalFileName && <div className="subtle source-facts" data-testid={`text-original-name-${source.id}`}>Originally {source.originalFileName}</div>}
+    {error && <p className="error" role="alert" data-testid={`text-name-error-${source.id}`}>{error}</p>}
+  </div>;
+}
+
 /** One file of a shoot: once it is transcribed, a readable row with Log; until then, its steps. */
-function SourceRow({ source, onChanged }: { source: Source; onChanged: () => void }) {
+function SourceRow({ source, number, onChanged }: { source: Source; number: number; onChanged: () => void }) {
   const facts = [source.durationMs != null && length(source.durationMs), source.width && source.height && `${source.width}×${source.height}`,
     source.fps && `${Math.round(source.fps * 100) / 100} fps`].filter(Boolean).join(' · ');
   const playable = source.ingestState === 'ready' && source.hasProxy;
@@ -87,9 +124,14 @@ function SourceRow({ source, onChanged }: { source: Source; onChanged: () => voi
     try { await removeSource(source.id); onChanged(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not remove the file.'); }
   };
   return <div className="source-row" data-testid={`row-source-${source.id}`} title={`File ${source.id}`}>
-    <div>
-      <div className="source-title">{roles[source.role] ?? source.role} <SourceState source={source} /></div>
-      {facts && <div className="source-facts">{facts}</div>}
+    <div className="source-head">
+      {source.thumbnail && <div className="source-thumb" data-testid={`thumb-${source.id}`} style={{ backgroundImage: `url(${source.thumbnail.url})`,
+        width: source.thumbnail.width, height: source.thumbnail.height }} />}
+      <div>
+        <FileName source={source} number={number} onChanged={onChanged} />
+        <div className="source-title">{roles[source.role] ?? source.role} <SourceState source={source} /></div>
+        {facts && <div className="source-facts">{facts}</div>}
+      </div>
     </div>
     <div className="source-actions">
       {loggable && <span className={`pill log-status ${source.logStatus}`} data-testid={`text-log-status-${source.id}`}>{logLabel[source.logStatus]}</span>}
@@ -100,7 +142,6 @@ function SourceRow({ source, onChanged }: { source: Source; onChanged: () => voi
     <div className="source-extra">
       {!loggable && <Tracker source={source} />}
       {loggable && <div className="tracker-done" data-testid={`text-ready-${source.id}`}>✓ Ready to log · {source.transcriptWords} words transcribed</div>}
-      {playable && <div><ProxyPlayer sourceId={source.id} /></div>}
       {playable && <div className="source-actions" style={{ justifyContent: 'flex-start' }}><TranscriptView source={source} /></div>}
       {error && <p className="error" role="alert">{error}</p>}
     </div>
@@ -147,7 +188,7 @@ export function Library({ accountId }: { accountId: string }) {
         </div>
       </div>
       {shoot.sources.length === 0 ? <p className="subtle">No files yet.</p> :
-        <div className="source-list">{shoot.sources.map(source => <SourceRow key={source.id} source={source} onChanged={refresh} />)}</div>}
+        <div className="source-list">{shoot.sources.map((source, i) => <SourceRow key={source.id} source={source} number={i + 1} onChanged={refresh} />)}</div>}
       <UploadManager shootId={shoot.id} accountId={accountId} sources={shoot.sources} />
     </article>)}
     {error && <p className="status-line error" role="alert">{error}</p>}

@@ -14,7 +14,9 @@ export function ingestRoutes(ctx: Context) {
     const [shoot] = await ctx.db.select({ id: shoots.id }).from(shoots).where(and(eq(shoots.id, shootId), isNull(shoots.deletedAt)));
     if (!shoot) return res.status(404).json({ error: "Shoot not found" });
     // The opaque source ULID, rather than the untrusted filename, determines the object key.
-    const [source] = await ctx.db.insert(sources).values({ shootId, role, originalKey: "pending" }).returning();
+    // The file's own name is kept as uploaded, and is also the name it shows until it is renamed (David, 2026-11-06).
+    const original = fileName.trim().slice(0, 255);
+    const [source] = await ctx.db.insert(sources).values({ shootId, role, originalKey: "pending", originalFileName: original, name: original }).returning();
     const key = `originals/${source.id}`;
     try {
       const uploadId = await ctx.storage.start(key, contentType);
