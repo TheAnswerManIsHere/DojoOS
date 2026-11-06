@@ -274,3 +274,41 @@ Enter saves the note and Esc closes the box without saving
   he has to go back for what he missed. Esc, or Enter on an empty box,
   closes it with no note and also plays on.
 - **`N` still works** to write or change any brick's note, switch on or off.
+
+## 10. File names: the original name by default, renamable, and an *AI Rename* button
+
+**Asked:** an uploaded file's stored name defaults to its original file
+name, and it can be renamed. An *AI Rename* button renames the file from
+what is in it.
+
+**Today:** a file has **no stored name at all**. The upload sends
+`fileName`, and the server checks it but never saves it (`ingest/index.ts`).
+The object key is the source's ID, and `sources` has no name column
+(`schema.ts:25`). Only the shoot has a name, which is typed when the shoot
+is created. The file name survives only in the uploading browser's memory
+until the upload finishes.
+
+**Recommendation:**
+- **Two new columns on `sources`:** `original_file_name`, saved at upload
+  and never changed (so a file can always be traced back to the camera
+  card), and `name`, which starts as the original name and is what the
+  library and the editor show. This is a schema migration. Files already
+  uploaded have no original name to recover, so they get a
+  placeholder (for example *File 1*, *File 2*) that Jared can rename.
+- **Renaming:** click the name and edit it in place; Enter saves and Esc
+  cancels. *Back to original* restores the camera name.
+- **AI Rename reads the transcript.** Words are the cheapest and best
+  signal of what a clip is about. A small, cheap model writes a short
+  descriptive name (for example *Psoas release, side-lying demo*) from
+  the transcript and the shoot's name. The cost is a fraction of a cent
+  per file (a judgement from transcript size, not a measured cost). Using
+  the picture as well would cost much more, and is not needed for a
+  talking-head clip.
+- **It suggests, and Jared accepts.** The proposed name appears in the edit
+  box, ready to change or confirm, and never silently overwrites a name
+  Jared typed.
+- **The button is available once a transcript exists.** Before that it
+  says it is waiting for the transcript.
+- **Needs at build time:** a key for the AI provider, set in the Repl's
+  secrets. That step is David's; it gets asked for when this is built, not
+  now.
