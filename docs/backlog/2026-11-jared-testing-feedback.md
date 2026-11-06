@@ -335,3 +335,34 @@ this?"*. That moves to:
 **If David keeps it instead:** a **Close** button (×) beside the video stops
 playback and puts the *Play proxy* button back. Opening another file's player
 closes the first one, so only one plays at a time.
+
+## 12. A dissolve's length can be changed
+
+**Asked:** a way to change how long a dissolve between bricks lasts.
+
+**Today:** every dissolve is exactly 1 s, a single constant
+(`lib/shared/src/lesson.ts:11`, *"The one dissolve length in this
+version"*) used by the lesson preview, the fit check and the render. A lesson
+entry stores only *cut* or *dissolve*, not a length.
+
+**Recommendation:**
+- **Each dissolve carries its own length,** saved on the lesson entry. Every
+  existing and new dissolve starts at 1 s, so nothing that already exists
+  changes.
+- **Two ways to change it, matching the brick edges (item 6):**
+  - **Drag either end** of the dissolve's band on the strip. The band stays
+    centred on the cut, so dragging one end moves both.
+  - **Click the length shown on the band** (for example *1.0 s · 30 f*) and
+    type a new one, in seconds or frames.
+- **Length counts in whole frames.** The shortest is 2 frames. The longest is
+  whatever still fits: the fit rule that exists today (a dissolve can't be
+  longer than the bricks either side of it) now uses each dissolve's own
+  length. A length that doesn't fit is refused, with a message saying how
+  long it can be.
+- **The render uses the stored length.** This is the same code path as now;
+  only the constant changes.
+- **Keys:** none yet. They get chosen with the single keymap for the
+  combined editor (item 5), since `D` (toggle a dissolve) and `-` / `=` are
+  already part of that question.
+- **Where it sits** depends on how assembly looks in the one window, so its
+  surface is part of item 5's plan. The stored length can come first.
