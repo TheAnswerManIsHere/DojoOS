@@ -312,3 +312,26 @@ until the upload finishes.
 - **Needs at build time:** a key for the AI provider, set in the Repl's
   secrets. That step is David's; it gets asked for when this is built, not
   now.
+
+## 11. The library's *Play proxy* player: remove it (or, if kept, give it a Close)
+
+**Asked:** if *Play proxy* stays, the player it opens needs a way to close.
+
+**Today:** *Play proxy* on a library row (`components/proxy-player.tsx`)
+turns into a 320 px video with the browser's own controls, and nothing turns
+it back. The row also has *Log* / *Continue logging* / *Open log*, which
+opens the same proxy in the logger.
+
+**Recommendation: remove it.** Once logging, editing and assembly are one
+window (item 5), the editor *is* the player. Opening it is one click, and it
+is a better player (the strip, the transcript, the keys). A second, weaker
+player in the library is the kind of parallel path Jared found confusing.
+What the library player did that still matters is answering *"which clip is
+this?"*. That moves to:
+- a **thumbnail** on each row, taken from the sprite ingest already makes
+  (nothing new to process), and
+- the file's **name** (item 10, including AI Rename).
+
+**If David keeps it instead:** a **Close** button (×) beside the video stops
+playback and puts the *Play proxy* button back. Opening another file's player
+closes the first one, so only one plays at a time.
