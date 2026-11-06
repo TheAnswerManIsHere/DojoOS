@@ -195,3 +195,27 @@ anywhere scrubs the playhead (`useScrub`, `strip.tsx`).
 - **Not now:** snapping to word boundaries while dragging. The keys
   already step by word, and dragging plus zoom covers the
   rest. It is easy to add if Jared misses it.
+
+## 7. `B` jumps to the start of a brick, `E` to its end, in the one editor
+
+**Asked:** `B` jumps to the beginning of a brick and `E` to its end.
+
+**Today:** both keys exist, but only inside the brick editor pop-up
+(`player/brick-editor-keys.json`). There, `E` does not go to the end. It
+goes to **2 s before** the out point (`brick-editor.tsx:96`), so that
+pressing play lets you watch and hear the cut. Neither key is bound in the
+logger or on the lesson page, so in the merged editor nothing collides with
+them.
+
+**Recommendation:**
+- **Which brick:** the selected one. If none is selected, the brick under
+  the playhead (the innermost one, when bricks nest). If neither exists,
+  the key does nothing.
+- **`B`** puts the playhead on the brick's first frame.
+- **`E`** puts the playhead on the brick's **last frame**, as asked. This
+  is what the drag and zoom work needs: you see the exact frame the brick
+  ends on.
+- **`Shift+E`** keeps today's run-up: 2 s before the end, ready to play
+  into the cut.
+- Neither key starts or stops playback. If zoomed in, the view scrolls to
+  show the playhead.
