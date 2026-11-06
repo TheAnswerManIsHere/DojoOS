@@ -220,7 +220,7 @@ them.
 - Neither key starts or stops playback. If zoomed in, the view scrolls to
   show the playhead.
 
-## 8. A second `I` moves the open brick's in point; it doesn't start another brick
+## 8. A second `I` moves the in point and a second `O` moves the out point; neither starts another brick
 
 **Asked:** pressing `I` sets an in point. If the playhead moves and `I` is
 pressed again, it updates that brick's in point instead of making a new one.
@@ -233,10 +233,15 @@ leaves two open bricks, one nested inside the other.
 - **While a brick is open** (it has an in point and no out point yet), `I`
   moves its in point to the playhead (snapped to a word; Shift: exact, as
   today).
-- **`O` closes it, and closing deselects it.** The next `I` therefore
-  starts a new brick. This keeps the fast rhythm of `I` … `O` … `I` …
-  `O` through a shoot. If the closed brick stayed selected, every new `I`
-  would move the brick just finished.
+- **`O` closes it. Pressed again, `O` moves that brick's out point**
+  (David, 2026-11-06: *"Same for O on the out point"*). The brick just
+  closed stays the one `O` acts on until the next `I`. So `I`, `I`, `O`,
+  `O` makes one brick, with the in and the out each set by the second
+  press.
+- **But `I` after `O` starts a new brick.** The just-closed brick is `O`'s
+  target, not `I`'s. This keeps the fast rhythm of `I` … `O` … `I` … `O`
+  through a shoot. If `I` moved the brick just finished, every new brick
+  would need a deselect first.
 - **A brick you select on purpose** (tap it, or `Tab` to it) is the one
   `I` and `O` act on: they move its in or out point to the playhead. This
   is the brick editor's `I`/`O`, moved into the one window. Selecting
