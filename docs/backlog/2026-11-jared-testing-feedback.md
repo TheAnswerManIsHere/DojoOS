@@ -366,3 +366,31 @@ entry stores only *cut* or *dissolve*, not a length.
   already part of that question.
 - **Where it sits** depends on how assembly looks in the one window, so its
   surface is part of item 5's plan. The stored length can come first.
+
+## 13. Labels have colours, and a brick takes the colour of its labels
+
+**Asked:** the labels are colour-coded, and a brick's colour on the strip
+follows its labels.
+
+**Today:** three fixed labels, `lesson`, `short` and `highlight`
+(`lib/shared/src/commands.ts:20`), set with the chips in the bricks table. A
+brick can carry **more than one**. Every brick on the strip is the same gold
+(`index.css:555`). An open brick is dashed gold, and the selected one has a
+navy outline.
+
+**Recommendation:**
+- **One fixed colour per label,** chosen to tell apart for colour-blind
+  eyes and against the waveform: **lesson blue, short orange, highlight
+  purple**. A brick with no label is **grey**. Gold stops being a brick
+  colour, since it is the site's highlight colour (the current word, the
+  selected row) and would read as "selected".
+- **A brick with several labels shows each colour as a stripe of equal
+  width,** stacked along its height, so no label hides another one.
+- **The chips use the same colours** in the bricks table, and when on, they
+  serve as the legend.
+- **Open and selected still read on top of colour:** open stays dashed and
+  selected keeps its outline. Colour means a label, and nothing else.
+- **Depends on item 5:** if assembling in the one window changes what
+  `lesson` / `short` mean (for example, putting a brick into a lesson
+  instead of labelling it), the label set may change. Colours are attached
+  to whatever the set becomes, so this item does not wait for it.
