@@ -163,3 +163,35 @@ built, as a first version does. Items 2–4 can be built inside it or ahead of
 it; that is decided when the backlog is sequenced.
 
 **Supporting notes:** items 6 onward.
+
+## 6. Drag a brick's in and out points, with a mouse or a finger
+
+**Asked:** the in and out points of a brick can be dragged with the mouse or
+by touch.
+
+**Today:** an edge moves only by key: in the brick editor, `I`/`O` at the
+playhead, `[` `]` and `,` `.` by word (Shift: by frame). On the strip, a drag
+anywhere scrubs the playhead (`useScrub`, `strip.tsx`).
+
+**Recommendation:**
+- **Handles only on the selected brick.** Its two edges show grab handles;
+  other bricks show none. On the iPad a finger is wide, and grabbing any
+  brick's edge would turn a scrub into an edit by accident. Tapping or
+  clicking a brick selects it, as today, and then its handles appear.
+- **Press on a handle, and the drag moves that edge. Press anywhere else,
+  and it scrubs**, as now. The handle's grab area is wider than the line
+  it marks: about 12 px for a mouse and about 32 px for a finger.
+- **While dragging, the picture shows the frame at the edge** and the
+  time code reads that edge, the way Premiere shows a trim. This is what
+  makes it frame-accurate without switching to the keys.
+- **Edges land on whole frames** at the source's frame rate (the same
+  frame time the Option-arrow keys use, `navigation.ts`). An in point can
+  never pass its own out point; the shortest brick is one frame. A brick
+  nested in another one is not affected, since nesting is allowed today.
+- **Dragging near the end of a zoomed-in view scrolls the view** so an edge
+  can be dragged past what is on screen.
+- **One drag is one undo step.** Esc puts the edge back where the drag
+  started.
+- **Not now:** snapping to word boundaries while dragging. The keys
+  already step by word, and frame-free dragging plus zoom covers the
+  rest. It is easy to add if Jared misses it.
