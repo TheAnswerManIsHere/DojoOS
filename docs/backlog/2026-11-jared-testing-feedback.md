@@ -28,7 +28,53 @@ change (the uploader is in the Ingest feature, prototype phase).
   sidecar files (.XML, .THM) along, and in a normal multi-select Jared
   can already press Ctrl/⌘-A inside the folder.
 
-**Open question for David/Jared:** can the file names tell Camera A from
-Camera B (for example, different filename prefixes per camera)? If they
-can, the role is guessed from the name; if not, every video starts as
-Camera A and Jared changes the B files.
+**Revised (David, 2026-11-06):** the Camera A / Camera B tagging is going to
+be redone, so bulk upload does not design around roles. Build it so a role
+per file can be added later. For now each file gets the role that is
+picked once for the whole batch, as today.
+
+## 2. The strip — naming it, zooming in and out like Premiere, and a scroll bar
+
+**Name:** **the strip**. That is already its name in the code
+(`artifacts/web/src/player/strip.tsx`) and its comments. "Timeline" is
+already taken by the lesson timeline. It goes into the glossary.
+
+**Today:** one shared component draws the strip under every player: the
+logging viewer, the brick editor and the lesson timeline. It always fits its
+whole range (the full source, the brick plus a margin, or the full lesson)
+into the width of the window.
+
+**Recommendation:** zoom lives in the shared strip, so all three get it.
+- **Controls, Premiere's:** `=` and `-` zoom in and out around the playhead,
+  `\` fits the whole range, and Ctrl/⌘ + scroll wheel (or a trackpad pinch)
+  zooms around the pointer. All three keys are free in both keymaps today.
+- **Scroll bar** under the strip, whenever the strip is zoomed past fit. As in
+  Premiere, dragging its ends zooms too.
+- **While it plays, the view follows the playhead**, a page at a time, so the
+  playhead never runs off screen. Scrolling by hand stops the follow until
+  the next play.
+- **Limits:** zoomed all the way out shows the whole range. Zoomed all the way
+  in is a few seconds across the window.
+
+**A limit worth knowing (measured from the code):** the waveform data has
+20 points per second (`lib/shared/src/media.ts:22`, one point per 50 ms). A
+video frame is about 33 ms, so zoomed in to frame level the waveform turns
+into blocks. Two ways to handle that:
+1. **Cap the zoom** where the waveform still looks smooth, about 10 seconds
+   across the window. No change to processing.
+2. **Make a second, more detailed waveform** (about 200 points per second),
+   loaded only when zoomed in deep. That is a worker change, and every
+   existing source has to be processed again.
+
+Recommendation: ship 1 first, then build 2 if Jared actually zooms to the
+cap and asks for more.
+
+## 3. Remove the word ticks from the strip
+
+**Today:** the strip shows the waveform and, under it, one tick per word.
+They were stacked on purpose so the two could be compared "before one of
+them goes" (strip.tsx, line 1). This is that decision: the waveform stays.
+
+**Recommendation:** delete the ticks and the row they sit in. Word-by-word
+navigation with the keys does not use the ticks, so it is unaffected.
+Small; it rides in with item 2.
