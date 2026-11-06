@@ -193,5 +193,5 @@ anywhere scrubs the playhead (`useScrub`, `strip.tsx`).
 - **One drag is one undo step.** Esc puts the edge back where the drag
   started.
 - **Not now:** snapping to word boundaries while dragging. The keys
-  already step by word, and frame-free dragging plus zoom covers the
+  already step by word, and dragging plus zoom covers the
   rest. It is easy to add if Jared misses it.
