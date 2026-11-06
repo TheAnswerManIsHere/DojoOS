@@ -394,3 +394,63 @@ navy outline.
   `lesson` / `short` mean (for example, putting a brick into a lesson
   instead of labelling it), the label set may change. Colours are attached
   to whatever the set becomes, so this item does not wait for it.
+
+## 14. An *Original / Edited* switch: the edited view hides everything that isn't in a brick
+
+**Asked:** with the separate lesson screen gone, the one editor needs a way to
+see the edit. A switch flips between the original timeline and the edited
+one. Most of Jared's editing is cutting out dead sections, so the edited
+view hides every part of the timeline that is not inside a brick.
+
+**This is the core of item 5.** It changes what a lesson *is*: no longer a
+list assembled on its own screen, but **the source with the gaps between
+bricks removed**.
+
+**Today:** a lesson is its own cut, with its own entries
+(`lib/shared/src/lesson.ts`): bricks added one by one, in any order, each
+with a *trim* stored as a cut-only override, so a lesson edit never changes
+the brick itself (glossary, *Override*). The strip can already draw a
+timeline made of pieces of source (`StripSegment`), which is how the lesson
+page plays today, so the edited view reuses it.
+
+**Recommendation:**
+- **The switch:** *Original* / *Edited*, above the strip, plus a key (chosen
+  with the single keymap, item 5). It also shows the two lengths, for
+  example *Original 42:10 → Edited 18:35*.
+- **Edited = the bricks in time order, joined.** Where bricks overlap or
+  nest, their combined span plays once, so a nested brick never plays twice.
+- **Flipping keeps your place.** The playhead stays on the same frame of
+  footage. If that frame is in a gap that the edited view hides, the
+  playhead lands at the start of the next brick.
+- **In the edited view everything follows the edit:** the strip, the
+  waveform, the time codes, the word keys, and the transcript box (item 4),
+  which then reads like the script of the finished lesson.
+- **Editing works in both views.** In *Edited*, dragging a brick's edge
+  (item 6) closes or opens the gap, and the rest of the edit slides along,
+  like a ripple trim in Premiere.
+- **Each join between bricks is a cut by default,** and can be made a
+  dissolve with a length (item 12).
+- **The render renders the edited view.** The existing render pipeline is
+  unchanged; it simply gets the joined bricks.
+
+**What it retires (a decision for the plan):** for the lesson, the
+cut-only trims. An edit in this window moves the brick itself, which is what
+Jared is doing anyway. Per-output trims may still matter later for the short,
+where the same brick is cut tighter. The plan records the change in
+`decisions.md`.
+
+**Questions for David:**
+1. **Which bricks are in the edited view:** every brick, or only those
+   labelled *lesson*? Recommendation: every brick. Labels then pick bricks
+   for the other outputs (a short = the bricks labelled *short*), and an
+   *Edited* menu could later offer *Lesson / Short*.
+2. **A lesson that spans several files of a shoot:** today a lesson can draw
+   bricks from several files. In the one window, is a lesson always one file?
+   Or is it the shoot's files in order, each with its gaps removed?
+   Recommendation: the shoot's files, played one after another in upload
+   order (reorderable), because Camera A/B is being redone and a shoot
+   recorded in several files (a camera splits a long recording) would
+   otherwise need stitching by hand.
+3. **Reordering bricks** (the lesson page's `-` / `=` today): not
+   needed when the job is cutting dead sections. Recommendation: drop it
+   from this version and bring it back if Jared asks.
