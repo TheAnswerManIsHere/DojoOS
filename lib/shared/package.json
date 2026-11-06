@@ -13,7 +13,8 @@
     "./edl": "./src/edl.ts",
     "./commands": "./src/commands.ts",
     "./lesson": "./src/lesson.ts",
-    "./navigation": "./src/navigation.ts"
+    "./navigation": "./src/navigation.ts",
+    "./timeline": "./src/timeline.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -11,7 +11,6 @@
     "KeyD": "toggleTransition",
     "Escape": "undo",
     "KeyR": "render",
-    "KeyP": "edit",
     "KeyS": "showAction"
   }
 }

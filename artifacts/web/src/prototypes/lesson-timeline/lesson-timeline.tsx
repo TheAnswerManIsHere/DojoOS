@@ -11,7 +11,6 @@ import { activeAt, dissolveOut, regionTransform, type ResolvedEDL } from '@works
 import type { LessonCommand } from '@workspace/shared/lesson';
 import { stepToWord, type Command } from '@workspace/shared/commands';
 import { modifierOf, navigationTarget, nextSpeed, playerKeys, timecode, type Word } from '@workspace/shared/navigation';
-import { BrickEditor } from '../../player/brick-editor';
 import { Strip, usePeaks, type StripBand, type StripSegment } from '../../player/strip';
 import keymap from './keymap.json';
 
@@ -347,13 +346,6 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
         send({ type: 'add', entry: { brickId: brick.id }, position: index < 0 ? entries.length : index + 1 });
         return;
       }
-      case 'edit': {
-        if (!entry) { setMessage('Select a brick (Tab, or tap it) to open it.'); return; }
-        if (playing) { setPlaying(false); place(clockRef.current, false); }
-        setBrickUndo([]); setBrickRedo([]); setMessage('');
-        setEditing(entry.id);
-        return;
-      }
       case 'toggleTransition': {
         if (!entry) { setMessage('No brick selected.'); return; }
         if (index === entries.length - 1) { setMessage('The last brick has nothing after it to dissolve into.'); return; }
@@ -375,7 +367,6 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (editing) return; // the brick editor has the keys while it is open
       const el = event.target as HTMLElement | null;
       if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(el.tagName) && (el as HTMLInputElement).type !== 'range')) return;
       const action = (keymap.bindings as Record<string, string>)[event.code] ?? playerKeys[event.code];
@@ -385,7 +376,7 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [runAction, editing]);
+  }, [runAction]);
 
   /** Dragging a tile: once the pointer has moved a few pixels it is a drag, the tile follows it, and the gap it would
    * drop into is marked; letting go moves the brick there. A tap without a drag selects it. */
@@ -446,11 +437,11 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
 
     {/* The whole lesson, then the brick now playing — waveform and word ticks, one playhead between them. */}
     <p className="strip-caption">The lesson</p>
-    <Strip fromMs={0} toMs={Math.max(1, lesson.lengthMs)} segments={segments} peaks={peaks} words={wordsBySource} playhead={() => clockRef.current}
+    <Strip fromMs={0} toMs={Math.max(1, lesson.lengthMs)} segments={segments} peaks={peaks} playhead={() => clockRef.current}
       onSeek={seek} bands={[...brickBands, ...dissolves]} testid="lesson-strip" />
     {current && <>
       <p className="strip-caption" data-testid="text-current-brick">{currentEntry ? brickName(currentEntry) : 'Brick'} · {clock(current.outEndMs - current.outStartMs)}</p>
-      <Strip fromMs={current.outStartMs} toMs={current.outEndMs} segments={segments} peaks={peaks} words={wordsBySource} playhead={() => clockRef.current}
+      <Strip fromMs={current.outStartMs} toMs={current.outEndMs} segments={segments} peaks={peaks} playhead={() => clockRef.current}
         onSeek={seek} bands={dissolves} testid="brick-strip" />
     </>}
     <p className="logging-words" data-testid="lesson-words">
@@ -495,7 +486,7 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
     <p className="lesson-facts"><span>Lesson length <strong data-testid="text-lesson-length">{clock(lesson.lengthMs)}</strong></span><span>{entries.length} brick{entries.length === 1 ? '' : 's'}</span></p>
     <div className="keys" aria-label="Keys">
       <span><kbd>Space</kbd>play / pause</span><span><kbd>←</kbd><kbd>→</kbd>word (Shift: 5 s · Option: frame)</span><span><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd>slower · 1× · faster</span>
-      <span><kbd>Tab</kbd>select</span><span>drag, or <kbd>-</kbd><kbd>=</kbd>, to move</span><span><kbd>P</kbd>open the brick</span><span><kbd>X</kbd>remove</span><span><kbd>A</kbd>add the picked brick</span>
+      <span><kbd>Tab</kbd>select</span><span>drag, or <kbd>-</kbd><kbd>=</kbd>, to move</span><span><kbd>X</kbd>remove</span><span><kbd>A</kbd>add the picked brick</span>
       <span><kbd>D</kbd>dissolve out of the selected brick, into the next</span><span><kbd>S</kbd>actions on · off</span><span><kbd>Esc</kbd>undo</span><span><kbd>R</kbd>render</span>
     </div>
 
@@ -526,28 +517,5 @@ export function LessonTimeline({ shootId }: { shootId: string }) {
       </section>
     </div>
 
-    {editingEntry && editingSource && <BrickEditor brick={{ inMs: editingEntry.brickInMs, outMs: editingEntry.brickOutMs, number: editingEntry.brickNumber,
-      action: editingEntry.action, preset: editingEntry.preset }} showAction={showAction} onShowAction={setShowAction}
-      sourceId={editingEntry.sourceId} words={wordsOf(editingEntry.sourceId)} fps={editingSource.fps} durationMs={editingSource.durationMs ?? editingEntry.brickOutMs + 10_000}
-      peaks={peaks} message={message} setMessage={setMessage}
-      onMoveTo={(edge, toMs) => {
-        const from = edge === 'in' ? editingEntry.brickInMs : editingEntry.brickOutMs;
-        const deltaMs = Math.round(toMs - from);
-        if (deltaMs) sendBrick(editingEntry.sourceId, { type: 'nudge', id: editingEntry.brickId, edge, deltaMs }); else setMessage(`The ${edge} point is already there.`);
-      }}
-      onStep={(edge, direction, byFrame) => {
-        const from = edge === 'in' ? editingEntry.brickInMs : editingEntry.brickOutMs;
-        const word = byFrame ? null : stepToWord(wordsOf(editingEntry.sourceId), from, edge, direction);
-        const deltaMs = Math.round((word ?? from + direction * (1000 / fpsOf(editingEntry.sourceId))) - from);
-        if (deltaMs) sendBrick(editingEntry.sourceId, { type: 'nudge', id: editingEntry.brickId, edge, deltaMs });
-      }}
-      onUndo={(redoing) => {
-        const stack = redoing ? brickRedo : brickUndo;
-        const last = stack.at(-1);
-        if (!last) { setMessage(redoing ? 'Nothing to redo.' : 'Nothing to undo.'); return; }
-        (redoing ? setBrickRedo : setBrickUndo)((s) => s.slice(0, -1));
-        sendBrick(last.sourceId, last.command, redoing ? 'redo' : 'undo');
-      }}
-      onClose={() => { setEditing(null); const i = entries.findIndex((e) => e.id === editingEntry.id); if (i >= 0) seek(edl.picture[i]?.outStartMs ?? 0); }} />}
   </section>;
 }

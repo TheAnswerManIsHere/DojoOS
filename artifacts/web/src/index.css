@@ -558,7 +558,8 @@ kbd { font-family: 'Rubik', system-ui, sans-serif; font-size: .78rem; font-weigh
 .logging-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--wine); }
 .logging-sprite { position: absolute; bottom: 100%; transform: translateX(-50%); border: 2px solid var(--paper); border-radius: 6px; box-shadow: var(--shadow-card); pointer-events: none; }
 .logging-words { min-height: 3.2em; margin: 12px 0; padding: 10px 14px; background: var(--paper); border-radius: 12px; border: 1px solid var(--line); line-height: 1.8; }
-.logging-words .current { background: var(--gold-tint); box-shadow: 0 0 0 2px var(--gold-tint); border-radius: 4px; color: var(--ink-heading); font-weight: 600; }
+.logging-words .current { background: var(--gold-tint); box-shadow: 0 0 0 2px var(--gold-tint); border-radius: 4px; color: var(--ink-heading);
+  text-shadow: .4px 0 0 currentColor, -.4px 0 0 currentColor; }
 .logging-row-target td { font-weight: 700; color: var(--ink-heading); background: var(--gold-tint); }
 .logging-timeline { touch-action: none; user-select: none; }
 .logging-brick { height: 10px; cursor: pointer; }
@@ -591,8 +592,6 @@ kbd { font-family: 'Rubik', system-ui, sans-serif; font-size: .78rem; font-weigh
   cursor: pointer; touch-action: none; user-select: none; overflow: hidden; color: #9aa6b2; }
 .player-strip .strip-wave { position: absolute; left: 0; right: 0; top: 4px; width: 100%; height: 40px; pointer-events: none; }
 .player-strip .strip-wave.empty { display: none; }
-.player-strip .strip-words { position: absolute; left: 0; right: 0; bottom: 6px; height: 16px; pointer-events: none; border-top: 1px dashed var(--line); }
-.player-strip .strip-tick { position: absolute; top: 3px; width: 1px; height: 11px; background: #6f7c89; }
 .player-strip .strip-band { position: absolute; top: 0; bottom: 0; pointer-events: none; }
 .player-strip .strip-band.brick { background: var(--gold-tint); border-left: 3px solid var(--gold); border-right: 3px solid var(--gold); }
 .player-strip .strip-band.segment { border-left: 1px solid #c9d1d9; }
@@ -600,9 +599,35 @@ kbd { font-family: 'Rubik', system-ui, sans-serif; font-size: .78rem; font-weigh
 .player-strip .strip-band.dissolve { background: repeating-linear-gradient(135deg, rgba(122, 45, 64, .22) 0 6px, rgba(122, 45, 64, .08) 6px 12px); }
 .player-strip .strip-band-label { position: absolute; top: 2px; left: 4px; font-size: .68rem; color: #5b6573; white-space: nowrap; }
 .player-strip .strip-band.dissolve .strip-band-label { color: var(--wine); font-weight: 600; }
-/* On the logger the bricks run in a lane along the top, above the waveform and words. */
-.player-strip.logging-timeline { height: 118px; margin: 14px 0 6px; overflow: visible; border-radius: 12px; }
-.player-strip.logging-timeline .strip-wave { top: 42px; }
+/* On the editor the bricks run in lanes along the top (src/shared timeline.assignLanes), above the waveform; the strip's
+   height is set by the page from the lanes shown, and past four lanes the lanes scroll inside themselves. */
+.player-strip.logging-timeline { margin: 14px 0 6px; overflow: visible; border-radius: 12px; }
+.player-strip.logging-timeline .strip-wave { top: auto; bottom: 6px; }
+.brick-lanes { position: absolute; left: 0; right: 0; top: 4px; overflow-x: hidden; overflow-y: auto; }
+.brick-lanes .logging-brick { height: 14px; border-radius: 4px; opacity: .9; }
+.logging-brick.tag-none { background: #a7b0ba; }
+.logging-brick.tag-lesson { background: #2f6fb3; } .logging-brick.tag-short { background: #d9761c; } .logging-brick.tag-highlight { background: #7d4fb3; }
+.logging-brick.open { background: repeating-linear-gradient(90deg, #a7b0ba 0 6px, transparent 6px 10px); }
+.logging-brick.dragging { opacity: .6; }
+.edge-handle { position: absolute; top: -3px; bottom: -3px; width: 12px; margin-left: -6px; cursor: ew-resize; z-index: 2; touch-action: none; }
+.edge-handle::after { content: ''; position: absolute; left: 4px; top: 0; bottom: 0; width: 4px; border-radius: 2px; background: var(--navy); }
+@media (pointer: coarse) { .edge-handle { width: 32px; margin-left: -16px; } .edge-handle::after { left: 14px; } .brick-lanes .logging-brick { height: 20px; } }
+.chip.tag-lesson.on { background: #2f6fb3; border-color: #2f6fb3; } .chip.tag-short.on { background: #d9761c; border-color: #d9761c; }
+.chip.tag-highlight.on { background: #7d4fb3; border-color: #7d4fb3; }
+/* The scroll bar under a zoomed strip: the thumb scrolls, its ends zoom. */
+.strip-scroll { position: relative; height: 14px; margin: 0 0 8px; background: #eef1f4; border-radius: 7px; touch-action: none; cursor: pointer; }
+.strip-scroll-thumb { position: absolute; top: 0; bottom: 0; min-width: 24px; background: #9aa6b2; border-radius: 7px; cursor: grab; }
+.strip-scroll-end { position: absolute; top: 0; bottom: 0; width: 10px; cursor: ew-resize; }
+.strip-scroll-end.left { left: 0; } .strip-scroll-end.right { right: 0; }
+.strip-zoom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .85rem; color: #5b6573; }
+/* The transcript box: 3 or 5 lines, or the full transcript, turning a page at a time (src/player/transcript-box.tsx). */
+.transcript-box { margin: 12px 0; }
+.transcript-size { display: flex; gap: 6px; margin-bottom: 6px; }
+.transcript-box .logging-words { position: relative; margin: 0; min-height: 0; overflow: hidden; cursor: pointer; }
+.transcript-box .logging-words.lines-3 { height: 5.4em; }
+.transcript-box .logging-words.lines-5 { height: 9em; }
+.transcript-box .logging-words.lines-full { max-height: 60vh; overflow-y: auto; }
+.transcript-box .logging-words span:hover { text-decoration: underline; }
 .video-frame { position: relative; overflow: hidden; border-radius: 12px; }
 .video-frame .logging-video { display: block; transition: transform .12s ease-out; }
 .action-badge { color: var(--gold); }
