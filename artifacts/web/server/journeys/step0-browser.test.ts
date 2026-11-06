@@ -55,6 +55,8 @@ test("the tester signs in from the page, answers the rendered rail, and the oper
 
   const operator = await openPage();
   await signInFromPage(operator, operatorEmail);
+  // The rail renders once the page's questions load; wait for it rather than counting before it can appear.
+  await operator.getByRole("complementary", { name: "Tester questions" }).waitFor({ timeout: 10_000 }).catch(() => {});
   assert.equal(await operator.getByRole("complementary", { name: "Tester questions" }).count(), 1, "in prototype phase the operator has the rail too (David, 2026-10-25)");
   await operator.goto(`${server.origin}/feedback`);
   await operator.getByTestId(`row-feedback-${rows[0].id}`).filter({ hasText: answer }).waitFor();
