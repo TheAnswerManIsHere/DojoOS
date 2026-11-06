@@ -161,21 +161,10 @@ test("the lesson starts with every closed brick in D1's order; a move and a diss
     return page.getByTestId(`text-tile-name-${entry.id}`).textContent();
   };
   assert.deepEqual([await tileName("b1"), await tileName("b2"), await tileName("b3")], ["Brick 1", "Brick 2", "Brick 3"]);
-  // P opens the selected brick in the brick editor, the logger's own: , moves its out point to the previous word's end,
-  // a second earlier with this footage's one word a second, and the lesson is a second shorter. Esc undoes it; D closes.
-  await page.keyboard.press("p");
-  await page.getByTestId("brick-editor").waitFor();
-  await page.keyboard.press("Comma");
-  await page.getByTestId("text-lesson-length").filter({ hasText: "0:07:00" }).waitFor();
-  assert.deepEqual((await db.select().from(bricks).where(eq(bricks.id, `${shootId}b1`))).map((b) => [b.inMs, b.outMs]), [[0, 2000]], "the brick itself moved");
-  await page.keyboard.press("Escape");
-  await page.getByTestId("text-lesson-length").filter({ hasText: "0:08:00" }).waitFor();
-  await page.keyboard.press("d");
-  await page.getByTestId("brick-editor").waitFor({ state: "detached" });
   const [b1] = await db.select().from(bricks).where(eq(bricks.id, `${shootId}b1`));
   assert.deepEqual([b1.inMs, b1.outMs], [0, 3000]);
   const events = await db.select().from(cutEvents).where(eq(cutEvents.cutId, (await lessonCut()).id));
-  assert.equal(events.length, 2, "move and transition: one cut-owned event each; the brick's edits are its file's");
+  assert.equal(events.length, 2, "move and transition: one cut-owned event each");
   assert.ok(events.every((e) => e.sourceId === null));
 
   // A tile dragged with the mouse moves its brick: Brick 3 dragged before Brick 1 plays first. Esc undoes the move.

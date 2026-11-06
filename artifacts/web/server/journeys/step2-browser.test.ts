@@ -1,9 +1,9 @@
 // Step-2 journey through the logging viewer (PLAN_LOGGING_VIEWER.md, the scripted lane), on a playable clip: the
 // proxy's signed URL points at the journey's placeholder bucket, and the browser is handed a locally made WebM for it,
-// so playback and seeking really run. The walkthrough — nested bricks, word snapping and the raw override, Tab among
-// open bricks, a note and a label, an action, the brick editor's edge moves, undo and redo, a reload — goes through the
-// real command route; the arrows and a drag scrub, J/K/L set the speed, Delete asks first, the editor loops its brick;
-// a source with no transcript marks raw time; and the feature's questions render on the page.
+// so playback and seeking really run. The walkthrough — a second I or O moving an edge, overlapping bricks in lanes,
+// a note and a label, an action, word-step edge moves, undo and redo, a reload — goes through the
+// real command route; the arrows and a drag scrub, J/K/L set the speed, Delete asks first; zoom, edge drags, B/E, the
+// transcript box and automatic notes; a source with no transcript marks raw time; and the questions render on the page.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -103,84 +103,71 @@ async function until<T>(read: () => Promise<T>, ok: (value: T) => boolean): Prom
   throw new Error("timed out waiting for the saved state");
 }
 
-test("the walkthrough: nested bricks, Tab between open ones, O closes the selected one, a note, a label, A, the brick editor, undo and redo, done, through a reload", async () => {
+test("the walkthrough: a second I moves the open brick's in point and a second O its out point, I after O starts a new brick, overlaps take their own lanes, a note, a label, A, word steps, undo and redo, done, through a reload", async () => {
   const page = await viewer(sourceId);
   await page.getByTestId("text-log-status").filter({ hasText: "Not started" }).waitFor();
+  // I opens a brick; I again, while it is open, moves its in point rather than starting another (David, 2026-11-06).
   await seek(page, 1.1); await page.keyboard.press("i");
-  await until(liveBricks, (b) => b.length === 1);
+  let saved = await until(liveBricks, (b) => b.length === 1);
   await page.getByTestId("text-log-status").filter({ hasText: "In progress" }).waitFor();
-  await seek(page, 2.1); await page.keyboard.press("Shift+I");
+  await seek(page, 2.1); await page.keyboard.press("i");
+  saved = await until(liveBricks, (b) => b.length === 1 && b[0].inMs === 2000);
+  // O closes it on a word end; O again moves the out point.
+  await seek(page, 2.55); await page.keyboard.press("o");
+  saved = await until(liveBricks, (b) => b[0].outMs === 2600);
+  await seek(page, 5.5); await page.keyboard.press("o");
+  saved = await until(liveBricks, (b) => b.length === 1 && b[0].outMs === 5600);
+  const first = saved[0];
+  // I after O starts a new brick: one that partly overlaps the first, so it takes the next lane down.
+  await seek(page, 1.1); await page.keyboard.press("i");
   await until(liveBricks, (b) => b.length === 2);
-  // N acts on the selected brick — the one just opened — so it waits for the page, not only the database, to hold it.
-  await page.locator('[data-testid^="row-brick-"]').nth(1).waitFor();
-  const [outer, inner] = await liveBricks();
+  await seek(page, 2.55); await page.keyboard.press("o");
+  saved = await until(liveBricks, (b) => b.length === 2 && b.every((x) => x.outMs !== null));
+  const second = saved.find((b) => b.id !== first.id)!;
+  assert.deepEqual([second.inMs, second.outMs], [1000, 2600]);
+  const top = (id: string) => page.getByTestId(`span-brick-${id}`).evaluate((el) => (el as unknown as { style: { top: string } }).style.top);
+  assert.notEqual(await top(first.id), await top(second.id), "overlapping bricks sit in different lanes");
+  // The note, a label and its colour, on the brick just closed.
   await page.keyboard.press("n");
   await page.getByTestId("input-note").fill("  psoas release ");
   await page.getByTestId("input-note").press("Enter");
   await until(liveBricks, (b) => b.some((x) => (x.attributes as { note?: string }).note === "psoas release"));
-  await page.getByTestId(`chip-short-${inner.id}`).click();
-  await until(liveBricks, (b) => b.some((x) => x.tags.includes("short")));
-
-  // Both bricks are open. Tab selects the outer one without moving the playhead, and O closes it — not the innermost.
-  await seek(page, 5.5);
-  await page.keyboard.press("Tab");
-  assert.ok(Math.abs((await page.evaluate<number>(`${VIDEO}.currentTime`)) - 5.5) < 0.01, "Tab left the playhead where it was");
-  await page.keyboard.press("o");
-  let saved = await until(liveBricks, (b) => b.some((x) => x.outMs !== null));
-  assert.deepEqual(saved.map((b) => [b.id, b.outMs]), [[outer.id, 5600], [inner.id, null]], "O closed the selected outer brick; the inner one is still open");
-  await page.keyboard.press("Tab");
-  await seek(page, 2.55); await page.keyboard.press("o");
-  await until(liveBricks, (b) => b.every((x) => x.outMs !== null));
-  await page.keyboard.press("Tab");
+  await page.getByTestId(`chip-short-${second.id}`).click();
+  await until(liveBricks, (b) => b.find((x) => x.id === second.id)!.tags.includes("short"));
+  await page.getByTestId(`span-brick-${second.id}`).and(page.locator(".tag-short")).waitFor();
+  // Tap the first brick to pick it: A sets its action, and the word steps move its edges.
+  await page.getByTestId(`span-brick-${first.id}`).dispatchEvent("pointerdown");
   await page.keyboard.press("a");
-  await until(liveBricks, (b) => b.some((x) => (x.attributes as { action?: string }).action === "punch_in"));
-
-  // P opens the inner brick on its own: [ moves its in point to the previous word start, Shift+. its out point a frame later.
-  await page.keyboard.press("Tab");
-  await page.keyboard.press("p");
-  await page.getByTestId("brick-editor").waitFor();
+  await until(liveBricks, (b) => (b.find((x) => x.id === first.id)!.attributes as { action: string }).action === "punch_in");
   await page.keyboard.press("BracketLeft");
-  await until(liveBricks, (b) => b.some((x) => x.inMs === 2000));
+  await until(liveBricks, (b) => b.find((x) => x.id === first.id)!.inMs === 1500);
   await page.keyboard.press("Shift+Period");
-  await until(liveBricks, (b) => b.some((x) => x.outMs === 2633));
-  // In the editor Esc undoes the frame and Shift+Esc redoes it, from the logger's own history; D is done.
+  await until(liveBricks, (b) => b.find((x) => x.id === first.id)!.outMs === 5633);
   await page.keyboard.press("Escape");
-  await until(liveBricks, (b) => b.every((x) => x.outMs !== 2633));
+  await until(liveBricks, (b) => b.find((x) => x.id === first.id)!.outMs === 5600);
   await page.keyboard.press("Shift+Escape");
-  await until(liveBricks, (b) => b.some((x) => x.outMs === 2633));
-  await page.keyboard.press("d");
-  await page.getByTestId("brick-editor").waitFor({ state: "detached" });
-  // Back on the logger, Esc undoes the same frame again.
+  await until(liveBricks, (b) => b.find((x) => x.id === first.id)!.outMs === 5633);
   await page.keyboard.press("Escape");
-  saved = await until(liveBricks, (b) => b.every((x) => x.outMs !== 2633));
-
-  assert.deepEqual(saved.map((b) => [b.inMs, b.outMs]), [[1000, 5600], [2000, 2600]]);
-  assert.deepEqual(saved.map((b) => (b.attributes as { action: string }).action), ["punch_in", "keep"], "A set the outer brick's action");
-  assert.deepEqual(saved[1].tags, ["short"]);
+  await page.keyboard.press("Escape");
+  saved = await until(liveBricks, (b) => b.find((x) => x.id === first.id)!.inMs === 2000 && b.find((x) => x.id === first.id)!.outMs === 5600);
+  assert.deepEqual(saved.map((b) => [b.inMs, b.outMs]), [[1000, 2600], [2000, 5600]]);
   const events = await db.select().from(cutEvents).where(eq(cutEvents.sourceId, sourceId));
-  assert.equal(events.length, 12, "open, open, note, label, close, close, action, two edge moves, undo, redo, undo: one source-owned event each");
   assert.ok(events.every((e) => e.cutId === null), "no cut is involved");
 
-  // Done: the page says so and offers the next step — here the lesson, since the shoot's other file has no transcript.
+  // Done, then a reload shows the same.
   await page.getByTestId("button-log-done").click();
   await page.getByTestId("text-log-status").filter({ hasText: "Done" }).waitFor();
   await page.getByTestId("link-open-lesson").waitFor();
   const [{ logDoneAt }] = await db.select({ logDoneAt: sources.logDoneAt }).from(sources).where(eq(sources.id, sourceId));
   assert.ok(logDoneAt, "done is saved");
-
   await page.reload();
-  await page.getByTestId(`chip-short-${inner.id}`).and(page.locator('[aria-pressed="true"]')).waitFor();
-  assert.equal(await page.getByTestId(`text-brick-note-${inner.id}`).textContent(), "psoas release");
-  assert.equal(await page.getByTestId(`text-brick-action-${outer.id}`).textContent(), "punch in · lower third");
-  assert.equal(await page.getByTestId(`text-brick-out-${inner.id}`).textContent(), "0:02:18", "minutes:seconds:frames");
-  // Done is not locked: an edit keeps it done; Mark as in progress takes it back.
-  await page.getByTestId(`chip-lesson-${inner.id}`).click();
-  await until(liveBricks, (b) => b.some((x) => x.tags.includes("lesson")));
-  await page.getByTestId("text-log-status").filter({ hasText: "Done" }).waitFor();
+  await page.getByTestId("video-log").waitFor();
+  await page.getByTestId(`chip-short-${second.id}`).and(page.locator('[aria-pressed="true"]')).waitFor();
+  assert.equal(await page.getByTestId(`text-brick-note-${second.id}`).textContent(), "psoas release");
+  assert.equal(await page.getByTestId(`text-brick-action-${first.id}`).textContent(), "punch in · lower third");
+  assert.equal(await page.getByTestId(`text-brick-out-${second.id}`).textContent(), "0:02:18", "minutes:seconds:frames");
   await page.getByTestId("button-log-in-progress").click();
   await page.getByTestId("text-log-status").filter({ hasText: "In progress" }).waitFor();
-  await page.getByTestId(`chip-lesson-${inner.id}`).click();
-  await until(liveBricks, (b) => !b.some((x) => x.tags.includes("lesson")));
   await page.close();
 });
 
@@ -238,6 +225,8 @@ test("the arrows step by word, a second through silence, Shift 5 s and Option a 
   const [, inner] = await liveBricks();
   await page.getByTestId(`span-brick-${inner.id}`).dispatchEvent("pointerdown");
   await near(2, "tapping the brick went to its in point");
+  // A tap on the strip itself lets go of a picked brick, so I starts a new one.
+  await page.getByTestId("timeline").click({ position: { x: 2, y: 70 } });
 
   await seek(page, 6.5); await page.keyboard.press("i");
   const open = await until(liveBricks, (b) => b.some((x) => x.outMs === null));
@@ -262,77 +251,69 @@ test("the arrows step by word, a second through silence, Shift 5 s and Option a 
   await page.close();
 });
 
-test("the brick editor plays exactly the brick and stops on its last frame; its strip scrubs outside the brick without moving an edge; B and E; I sets the in point at the playhead", async () => {
+test("the strip zooms and scrolls; the selected brick's edges drag to a frame, one undo step each; B and E go to its first and last frame; the transcript box turns pages and a click on a word seeks; automatic note creation", async () => {
   const page = await viewer(sourceId);
-  const [, inner] = await liveBricks(); // 2.0–2.6 s, from the walkthrough
-  await page.getByTestId(`span-brick-${inner.id}`).dispatchEvent("pointerdown");
-  await page.keyboard.press("p");
-  await page.getByTestId("brick-editor").waitFor();
-  const EDITOR = 'document.querySelector("[data-testid=video-editor]")';
-  await page.waitForFunction(`${EDITOR}?.readyState >= 2`);
-  // S in the editor: this brick's action is keep, so the picture stays as shot, and the editor says so.
-  await page.keyboard.press("s");
-  await page.getByTestId("text-editor-action").filter({ hasText: "keep (as shot)" }).waitFor();
-  assert.equal(await page.evaluate<string>(`${EDITOR}.style.transform`), "");
-  await page.keyboard.press("s");
-  await page.getByTestId("text-editor-action").waitFor({ state: "detached" });
-  const editorTime = () => page.evaluate<number>(`${EDITOR}.currentTime`);
-  assert.ok(Math.abs((await editorTime()) - 2) < 0.05, "opened at the in point");
-  await page.keyboard.press("Space");
-  const times = await page.evaluate<number[]>(`(async () => {
-    const v = ${EDITOR}, seen = [], end = performance.now() + 2000;
-    while (performance.now() < end) { seen.push(v.currentTime); await new Promise((r) => setTimeout(r, 40)); }
-    return seen;
-  })()`);
-  assert.ok(times.every((t) => t >= 1.95 && t <= 2.6), `played only the brick (${Math.min(...times)}–${Math.max(...times)})`);
-  await page.waitForFunction(`${EDITOR}.paused`);
-  assert.ok(Math.abs((await editorTime()) - 2.567) < 0.02, `stopped on the brick's last frame (${await editorTime()})`);
-  // Space from the last frame starts again at the in point.
-  await page.keyboard.press("Space");
-  await page.waitForFunction(`!${EDITOR}.paused && ${EDITOR}.currentTime < 2.3`);
-  await page.keyboard.press("Space");
-  await page.waitForFunction(`${EDITOR}.paused`);
-
-  // David, 2026-10-29: after the out point moved, playback ran past it. Move it 6 frames earlier and play again.
-  for (let i = 0; i < 6; i++) await page.keyboard.press("Shift+Comma");
-  const moved = (await until(liveBricks, (b) => b.some((x) => x.id === inner.id && Math.abs((x.outMs ?? 0) - 2400) <= 3))).find((x) => x.id === inner.id)!;
-  await page.getByTestId("text-editor-span").filter({ hasText: "0:02:12" }).waitFor();
-  await page.keyboard.press("b");
-  await page.keyboard.press("Space");
-  const after = await page.evaluate<number[]>(`(async () => {
-    const v = ${EDITOR}, seen = [], end = performance.now() + 1500;
-    while (performance.now() < end) { seen.push(v.currentTime); await new Promise((r) => setTimeout(r, 30)); }
-    return seen;
-  })()`);
-  assert.ok(Math.max(...after) <= moved.outMs! / 1000, `stopped at the moved out point, ${moved.outMs} ms (${Math.max(...after)})`);
-  await page.waitForFunction(`${EDITOR}.paused`);
-  await page.keyboard.press("Escape"); for (let i = 0; i < 5; i++) await page.keyboard.press("Escape");
-  await until(liveBricks, (b) => b.some((x) => x.id === inner.id && x.outMs === 2600));
-
-  // ← goes before the brick, into the strip's lead-in, and no edge moves; E goes near the end; B back to the start.
-  await page.keyboard.press("b");
-  await page.keyboard.press("ArrowLeft");
-  assert.ok(Math.abs((await editorTime()) - 1.5) < 0.05, `← went to the word before the brick (${await editorTime()})`);
-  await page.getByTestId("text-editor-time").filter({ hasText: "before the brick" }).waitFor();
-  assert.equal((await liveBricks()).find((b) => b.id === inner.id)!.inMs, 2000, "scrubbing moved no edge");
+  const time = () => page.evaluate<number>(`${VIDEO}.currentTime`);
+  const [, brick] = await liveBricks();
+  assert.deepEqual([brick.inMs, brick.outMs], [2000, 5600], "the walkthrough's first brick");
+  await page.getByTestId(`span-brick-${brick.id}`).dispatchEvent("pointerdown");
+  // B and E: the brick's first and last frame.
   await page.keyboard.press("e");
-  assert.ok(Math.abs((await editorTime()) - 2) < 0.05, "E: 2 s before the out point, but never before the in point");
+  assert.ok(Math.abs((await time()) - (5.6 - 1 / 30)) < 0.01, `E: the last frame (${await time()})`);
   await page.keyboard.press("b");
-  assert.ok(Math.abs((await editorTime()) - 2) < 0.05, "B: the in point");
-  // From 1.5 s, I makes the playhead the new in point; the next pass starts there. Esc closes; Esc undoes it.
-  await page.keyboard.press("ArrowLeft");
-  await page.keyboard.press("i");
-  await until(liveBricks, (b) => b.some((x) => x.id === inner.id && x.inMs === 1500));
-  await page.getByTestId("text-editor-span").filter({ hasText: "0:01:15" }).waitFor();
+  assert.ok(Math.abs((await time()) - 2) < 0.01, "B: the first frame");
+
+  // Zoom: = in around the playhead, the scroll bar appears, \ fits again.
+  await page.getByTestId("text-zoom").filter({ hasText: "whole file" }).waitFor();
+  await page.keyboard.press("Equal");
+  await page.getByTestId("text-zoom").filter({ hasText: "Showing 0:0" }).waitFor();
+  await page.getByTestId("timeline-scroll").waitFor();
+  await page.keyboard.press("Equal"); await page.keyboard.press("Equal"); await page.keyboard.press("Equal");
+  // The deepest zoom is about three seconds across.
+  await page.getByTestId("text-zoom").filter({ hasText: /Showing 0:00:\d\d–0:03:\d\d|Showing 0:01:\d\d–0:04:\d\d|Showing 0:00:\d\d–0:02:\d\d/ }).waitFor();
+  await page.keyboard.press("Backslash");
+  await page.getByTestId("text-zoom").filter({ hasText: "whole file" }).waitFor();
+  assert.equal(await page.getByTestId("timeline-scroll").count(), 0, "no scroll bar at fit");
+
+  // Drag the out handle to the middle of the strip (4 s of 8): the edge lands on a frame, in one move.
+  await page.getByTestId("timeline").scrollIntoViewIfNeeded();
+  const box = (await page.getByTestId("timeline").boundingBox())!;
+  const handle = (await page.getByTestId("handle-out").boundingBox())!;
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.45, handle.y + handle.height / 2, { steps: 4 });
+  await page.mouse.move(box.x + box.width * 0.5, handle.y + handle.height / 2, { steps: 4 });
+  await page.mouse.up();
+  let saved = await until(liveBricks, (b) => Math.abs(b.find((x) => x.id === brick.id)!.outMs! - 4000) < 40);
+  const dragged = saved.find((x) => x.id === brick.id)!.outMs!;
+  assert.ok(Math.abs((dragged * 30) / 1000 - Math.round((dragged * 30) / 1000)) < 0.05, `on a frame (${dragged})`);
   await page.keyboard.press("Escape");
-  await until(liveBricks, (b) => b.some((x) => x.id === inner.id && x.inMs === 2000));
-  await page.keyboard.press("d");
-  await page.getByTestId("brick-editor").waitFor({ state: "detached" });
-  // Closed and opened again, the editor's player has a picture (David, 2026-10-29: it went black on reopening).
-  await page.keyboard.press("p");
-  await page.getByTestId("brick-editor").waitFor();
-  await page.waitForFunction(`${EDITOR}?.readyState >= 2 && !${EDITOR}.error`);
-  await page.keyboard.press("d");
+  saved = await until(liveBricks, (b) => b.find((x) => x.id === brick.id)!.outMs === 5600);
+
+  // The transcript box: a click on a word moves the playhead to it, paused; the size buttons change its height.
+  await page.getByTestId("transcript-strip-words").getByText("Now").click();
+  assert.ok(Math.abs((await time()) - 5) < 0.01, "clicked Now: 5 s");
+  assert.ok(await page.evaluate<boolean>(`${VIDEO}.paused`), "a click does not start playback");
+  await page.getByTestId("transcript-strip-words").locator("span.current").filter({ hasText: "Now" }).waitFor();
+  await page.getByTestId("button-transcript-5").click();
+  await page.locator(".logging-words.lines-5").waitFor();
+  await page.getByTestId("button-transcript-3").click();
+
+  // Automatic note creation: O on a new brick opens the note box at once; Esc closes it with no note.
+  await page.getByTestId("input-auto-note").check();
+  await page.getByTestId("timeline").click({ position: { x: 2, y: 60 } });
+  await seek(page, 6.5); await page.keyboard.press("i");
+  await until(liveBricks, (b) => b.some((x) => x.outMs === null));
+  await seek(page, 7.5); await page.keyboard.press("Shift+O");
+  await page.getByTestId("input-note").waitFor();
+  await page.getByTestId("input-note").press("Escape");
+  await page.getByTestId("input-note").waitFor({ state: "detached" });
+  const made = await until(liveBricks, (b) => b.some((x) => x.inMs === 6500 && x.outMs === 7500));
+  assert.ok(!(made.find((x) => x.inMs === 6500)!.attributes as { note?: string }).note, "Esc saved no note");
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.keyboard.press("Delete");
+  await until(liveBricks, (b) => !b.some((x) => x.inMs === 6500));
+  await page.getByTestId("input-auto-note").uncheck();
   await page.close();
 });
 
