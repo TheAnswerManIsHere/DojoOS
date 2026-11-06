@@ -82,3 +82,46 @@ them goes" (strip.tsx, line 1). This is that decision: the waveform stays.
 **Recommendation:** delete the ticks and the row they sit in. Word-by-word
 navigation with the keys does not use the ticks, so it is unaffected.
 Small; it rides in with item 2.
+
+## 4. The transcript box — a fixed 3 lines (5 or full on request), turning a page at a time
+
+**Asked:** by default the box is 3 lines high, and it can be expanded to 5
+lines or to the full transcript. The box fills with as much text as fits, and
+the first word is bold. During playback the lines stay where they are and
+the bold moves forward word by word. When it reaches the end of the last
+line, the next lines load and the bold starts again on their first word.
+The aim is that a person can follow which word is playing.
+
+**Today:** the logger and the lesson page show the words within ±6 s of the
+playhead (`logging-viewer.tsx:253`, `lesson-timeline.tsx:409`). That window
+slides every moment, so the text never stays still, which is the problem
+being described. The brick editor shows every word of the brick and the
+seconds around it, with no limit on height (`brick-editor.tsx:109`). All
+three highlight the current word, but only while the playhead is inside it,
+so during a pause between words nothing is highlighted.
+
+**Recommendation:** one shared transcript box, used by the logger, the
+brick editor and the lesson page.
+- **Pages come from the box's real layout.** Pages are measured from where
+  the browser actually breaks the lines at the box's current width. They
+  run one after another and never overlap: page 2 starts on the word after
+  page 1's last word. A narrower window means more pages, and resizing
+  measures them again.
+- **The highlight never changes a word's width.** Real bold text is wider
+  than regular text, so making one word bold could push a word onto the
+  next line, and the lines would jump with every word. That is exactly what
+  the item is trying to stop. The current word gets the gold highlight it
+  has today plus a bold look that takes up no extra space. Lines stay put.
+- **Between words, the last word spoken stays highlighted** until the next
+  one starts, so the highlight never disappears during a pause.
+- **A seek or a word-key step goes to the page holding that word.** The
+  highlight lands on that word, not on the page's first word.
+- **The size control:** 3 lines / 5 lines / Full. The choice is remembered
+  in this browser and applies to all three players.
+- **Full** shows the whole transcript in a scrolling box and keeps the same
+  rule: it stays still while the highlight moves, and jumps only when the
+  highlight would leave the view, putting that line at the top.
+- **The brick editor** keeps dimming the words outside the brick.
+
+**Offered, not asked:** clicking a word moves the playhead to it. It is
+cheap once the box exists. Included only if David wants it.
