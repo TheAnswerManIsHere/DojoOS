@@ -4,7 +4,7 @@
   "_repo": "This repository's GitHub owner/name, exactly as the API spells it. Read from this file by scripts/machinery.mjs, which is the ONE place identity is read. A wrong value is a mistake the machinery catches by refusing, with a message naming both values. It is not a security boundary: the person who can edit this file is the person running the scripts.",
   "models": {
     "strongestClaude": {
-      "id": "claude-fable-5-1",
+      "id": "claude-fable-5-2",
       "effort": "xhigh"
     },
     "strongestCodex": {
