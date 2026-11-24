@@ -512,7 +512,7 @@ dedupe key — evaluated in the same statement's `WHERE` clause (a `NOT EXISTS`
 subquery), not a prior read. **Overhype:** `enqueueFactPexels`/
 `enqueueFactAiMemeBackfill` (`factPexelsJobs.ts`, deleted with Pexels in
 launch Phase 4 and at the tag `pre-cut/stock-pexels`, and
-`artifacts/api-server/src/lib/aiMemeBackfillJobs.ts`, PR #256) took three rounds of review to converge on
+`aiMemeBackfillJobs.ts`, PR #256, deleted in fact lifecycle 3.2d, PR #1242) took three rounds of review to converge on
 this: round 1 added an unconditional repair (wrong — clobbers a concurrent
 success), round 2 added a SELECT-then-UPDATE (still racy), round 3 replaced
 both with a single `UPDATE ... WHERE status = 'pending' AND NOT EXISTS
@@ -2458,8 +2458,9 @@ emitted the salt error at all. Fixed by moving the assertion into
 `artifacts/api-server/src/lib/bootChecks.ts` (imported second, after
 `./instrument` only) and splitting the salt logic into
 `artifacts/api-server/src/lib/ipSalt.ts`, which never reaches the database. The
-folded-CLI-guard half is a live pre-existing bug in its own right —
-production runs migrations twice at every boot — tracked separately as #486.
+folded-CLI-guard half was a pre-existing bug in its own right — production
+ran migrations twice at every boot — fixed by #486, which moved the CLI block
+into `lib/db/src/migrate-cli.ts`, a file that is run and never imported.
 
 ## A guard that encodes the shape that occurred, and calls it a class
 
